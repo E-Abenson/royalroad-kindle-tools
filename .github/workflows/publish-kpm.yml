@@ -1,0 +1,131 @@
+name: Publish KPM package
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "kpm/package/**"
+      - ".github/workflows/publish-kpm.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-kpm
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Download official KPM packager
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/KindleModding/KPM/main/kpm-helper.py -o kpm-helper.py
+
+      - name: Calculate next package version
+        id: version
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          LATEST_TAG="$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""' 2>/dev/null || true)"
+          VERSION="$(python - "$LATEST_TAG" <<'PY'
+          import re
+          import sys
+          tag = sys.argv[1].strip()
+          if not tag:
+              print("0.1.0")
+          else:
+              match = re.fullmatch(r"v?(\\d+)\\.(\\d+)\\.(\\d+)", tag)
+              if not match:
+                  raise SystemExit("Latest release tag is not semantic versioning: " + tag)
+              major, minor, patch = map(int, match.groups())
+              print(f"{major}.{minor}.{patch + 1}")
+          PY
+          )"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Set package version and build
+        env:
+          VERSION: \${{ steps.version.outputs.version }}
+        run: |
+          python - <<'PY'
+          import json, os
+          path = "kpm/package/manifest.json"
+          with open(path, encoding="utf-8") as f:
+              manifest = json.load(f)
+          manifest["version"] = [int(x) for x in os.environ["VERSION"].split(".")]
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(manifest, f, indent=2)
+              f.write("\\n")
+          PY
+          mkdir -p dist
+          python kpm-helper.py package pack kpm/package dist/
+          PACKAGE="$(find dist -maxdepth 1 -type f -name '*.kpkg' | head -n 1)"
+          test -n "$PACKAGE"
+          tar -tzf "$PACKAGE" | grep -qx 'manifest.json'
+          sha256sum "$PACKAGE" | tee dist/SHA256SUMS
+          echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
+
+      - name: Publish immutable versioned release
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          gh release create "\${{ steps.version.outputs.tag }}" "$PACKAGE" \\
+            --title "Royal Road Kindle Tools \${{ steps.version.outputs.version }}" \\
+            --notes "KPM package build. This version contains the browser-session diagnostic only."
+
+      - name: Update KPM repository manifest
+        env:
+          VERSION: \${{ steps.version.outputs.version }}
+          TAG: \${{ steps.version.outputs.tag }}
+          PACKAGE: \${{ env.PACKAGE }}
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          python - <<'PY'
+          import json, os
+          repo = os.environ["GITHUB_REPOSITORY"]
+          version = [int(x) for x in os.environ["VERSION"].split(".")]
+          filename = os.path.basename(os.environ["PACKAGE"])
+          tag = os.environ["TAG"]
+          manifest = {
+              "manifest_version": 3,
+              "id": "e-abenson",
+              "name": "E-Abenson Kindle Tools",
+              "description": "KPM packages maintained for the Royal Road Kindle Tools project.",
+              "packages": {
+                  "royalroad-kindle-tools": {
+                      "name": "Royal Road Kindle Tools",
+                      "author": "E-Abenson",
+                      "description": "Read-only Royal Road browser-session diagnostic for jailbroken Kindles.",
+                      "artifacts": [{
+                          "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
+                          "version": version,
+                          "dependencies": [],
+                          "supported_platforms": ["kindle5"]
+                      }]
+                  }
+              }
+          }
+          with open("kpm-repo/manifest.json", "w", encoding="utf-8") as f:
+              json.dump(manifest, f, indent=2)
+              f.write("\\n")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add kpm-repo/manifest.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Publish KPM repository index for \${{ steps.version.outputs.tag }}"
+            git push origin HEAD:main
+          fi
