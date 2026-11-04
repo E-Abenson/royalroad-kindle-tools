@@ -6,4 +6,8 @@ mkdir -p "$DOCS"
 cp "scriptlets/RoyalRoadTools.sh" "$DOCS/RoyalRoadTools.sh"
 chmod 755 "$DOCS/RoyalRoadTools.sh"
 echo "Royal Road Kindle Tools installed."
-echo "Open the RoyalRoadTools item in the Kindle library once to add the browser test bookmark."
+# Attempt the one safe, backup-first bookmark setup now. A busy browser DB
+# does not fail the package install; the library scriptlet can retry later.
+if [ -f "tools/add-browser-bookmark.sh" ]; then
+  sh "tools/add-browser-bookmark.sh" || echo "Browser bookmark was not added now; open RoyalRoadTools in the library to retry."
+fi
