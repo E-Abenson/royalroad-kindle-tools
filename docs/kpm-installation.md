@@ -1,22 +1,22 @@
 # Kindle installation
 
-This is the first, diagnostic-only release. It does not yet download a story or create an EPUB.
+This is the first diagnostic-only release. It does not yet download a story or create an EPUB.
 
 ## One-time bootstrap
 
-1. Download the bootstrap scriptlet from the raw GitHub file:
-   https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/main/install/Install-RoyalRoadTools.sh
-2. Save it into the Kindle's documents folder. The Kindle browser may be able to download it directly; otherwise copy this one small file over USB.
-3. Open Install-RoyalRoadTools from the Kindle library. It calls KPM directly, adds this repository, refreshes the index, and installs the package. This direct call avoids the Kindle search-bar argument filter that can reject URL punctuation.
+1. Download the bootstrap scriptlet from the latest GitHub Release:
+   https://github.com/E-Abenson/royalroad-kindle-tools/releases/latest/download/Install-RoyalRoadTools.sh
+2. Save it into the Kindle documents folder. The Kindle browser may be able to download it directly; otherwise copy this one small file over USB.
+3. Open Install-RoyalRoadTools from the Kindle library. It calls KPM directly, adds this repository, refreshes the index, and installs the package. This direct call avoids the Kindle search-bar input filter that can reject URL punctuation.
 4. The package installation hook attempts to add the Royal Road Session Test bookmark. Before changing the browser bookmark database it creates a timestamped local backup. It changes only the bookmark table.
 
 The bootstrap writes its log to /mnt/us/documents/RoyalRoadTools-install.log. The browser bookmark helper writes its log to /mnt/us/documents/RoyalRoadTools.log.
 
 ## Run the browser test
 
-1. Open the target chapter in the Kindle browser.
+1. Open a Royal Road chapter in the Kindle browser.
 2. Open the browser bookmarks/favorites list and select Royal Road Session Test.
-3. Read the alert. The diagnostic reports only visible/returned chapter character counts, HTTP status, response size, final origin, and Cloudflare challenge markers. It does not transmit chapter text or browser credentials.
+3. Read the alert. The diagnostic reports visible/returned chapter character counts, HTTP status, response size, final origin, and Cloudflare challenge markers. It does not transmit chapter text or browser credentials.
 
 If the bookmark was not added during installation (for example, because the database was busy), open the RoyalRoadTools library item once. That runs the helper again. It is safe to run repeatedly: it detects the exact existing bookmark and does not add duplicates.
 
