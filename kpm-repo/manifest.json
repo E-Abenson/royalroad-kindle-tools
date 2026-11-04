@@ -1,0 +1,7 @@
+{
+  "manifest_version": 3,
+  "id": "e-abenson",
+  "name": "E-Abenson Kindle Tools",
+  "description": "KPM packages maintained for the Royal Road Kindle Tools project.",
+  "packages": {}
+}
