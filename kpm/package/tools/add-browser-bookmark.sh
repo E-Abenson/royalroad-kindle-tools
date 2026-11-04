@@ -20,8 +20,16 @@ URL_HEX="$(printf '%s' "$BOOKMARK_URL" | od -An -tx1 | tr -d ' \n')"
 if [ -z "$URL_HEX" ]; then log "Could not encode bookmarklet; no changes made."; exit 1; fi
 TABLE_COUNT="$(sqlite3 -cmd '.timeout 5000' "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='bookmark';" 2>/dev/null)"
 if [ "$TABLE_COUNT" != "1" ]; then log "Expected bookmark table was not found; no changes made."; exit 1; fi
-COLUMN_CHECK="$(sqlite3 -cmd '.timeout 5000' "$DB" "SELECT COUNT(*) FROM pragma_table_info('bookmark') WHERE name IN ('title','url');" 2>/dev/null)"
-if [ "$COLUMN_CHECK" != "2" ]; then log "Bookmark table schema did not match expected title/url columns; no changes made."; exit 1; fi
+# Use simple SELECT checks instead of table-valued PRAGMA functions so this
+# also works with older SQLite builds supplied on some Kindle firmware.
+if ! sqlite3 -cmd '.timeout 5000' "$DB" "SELECT title FROM bookmark LIMIT 0;" >/dev/null 2>&1; then
+  log "Bookmark table does not expose the expected title column; no changes made."
+  exit 1
+fi
+if ! sqlite3 -cmd '.timeout 5000' "$DB" "SELECT url FROM bookmark LIMIT 0;" >/dev/null 2>&1; then
+  log "Bookmark table does not expose the expected url column; no changes made."
+  exit 1
+fi
 EXISTING="$(sqlite3 -cmd '.timeout 5000' "$DB" "SELECT COUNT(*) FROM bookmark WHERE url=CAST(X'$URL_HEX' AS TEXT);" 2>/dev/null)"
 if [ "$EXISTING" = "1" ]; then log "Browser test bookmark is already installed. No database change was needed."; exit 0; fi
 mkdir -p "$BACKUP_DIR"
