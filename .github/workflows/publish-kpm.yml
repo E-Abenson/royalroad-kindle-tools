@@ -36,7 +36,7 @@ jobs:
       - name: Calculate next package version
         id: version
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           LATEST_TAG="$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""' 2>/dev/null || true)"
           VERSION="$(python - "$LATEST_TAG" <<'PY'
@@ -58,7 +58,7 @@ jobs:
 
       - name: Set package version and build
         env:
-          VERSION: \${{ steps.version.outputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           python - <<'PY'
           import json, os
@@ -80,18 +80,18 @@ jobs:
 
       - name: Publish immutable versioned release
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "\${{ steps.version.outputs.tag }}" "$PACKAGE" \
-            --title "Royal Road Kindle Tools \${{ steps.version.outputs.version }}" \
+          gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" \
+            --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
             --notes "KPM package build. This version contains the browser-session diagnostic only."
 
       - name: Update KPM repository manifest
         env:
-          VERSION: \${{ steps.version.outputs.version }}
-          TAG: \${{ steps.version.outputs.tag }}
-          PACKAGE: \${{ env.PACKAGE }}
-          GH_TOKEN: \${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          PACKAGE: ${{ env.PACKAGE }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           python - <<'PY'
           import json, os
@@ -126,6 +126,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add kpm-repo/manifest.json
           if ! git diff --cached --quiet; then
-            git commit -m "Publish KPM repository index for \${{ steps.version.outputs.tag }}"
+            git commit -m "Publish KPM repository index for ${{ steps.version.outputs.tag }}"
             git push origin HEAD:main
           fi
