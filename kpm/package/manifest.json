@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "id": "royalroad-kindle-tools",
+  "name": "Royal Road Kindle Tools",
+  "author": "E-Abenson",
+  "description": "A read-only in-browser Royal Road session diagnostic for jailbroken Kindles.",
+  "version": [
+    0,
+    1,
+    0
+  ],
+  "dependencies": [],
+  "supported_platforms": [
+    "kindle5"
+  ]
+}
