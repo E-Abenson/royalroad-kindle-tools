@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: publish-kpm
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   publish:
@@ -113,7 +113,7 @@ jobs:
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
                           "dependencies": [],
-                          "supported_platforms": ["kindle5"]
+                          "supported_platforms": ["kindlehf"]
                       }]
                   }
               }
