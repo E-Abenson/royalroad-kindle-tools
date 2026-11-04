@@ -1,33 +1,43 @@
 # Royal Road Kindle Tools
 
-A separate, experimental toolkit for using a jailbroken Kindle to retrieve Royal Road chapter content and hand it to an EPUB workflow.
+A separate experimental toolkit for using a jailbroken Kindle to test whether the Kindle browser can retrieve Royal Road chapter pages through its ordinary signed-in browser session. The longer-term goal is a one-launch route to a verified story package and EPUB workflow, without manual chapter-by-chapter copying.
 
-## Current device and findings
+## Device and confirmed findings
 
 - Kindle: 10th generation; exact Basic/Paperwhite variant not yet identified.
 - Firmware: 5.18.1.1.1.
 - SpringBreak jailbreak completed.
-- Kindle Package Manager command `;kpm update` works.
+- Kindle Package Manager works; the user has run ;kpm update successfully.
 - Kindle browser can open the target Royal Road chapter and reports JavaScript enabled.
-- Direct `curl` request from Kindle returned HTTP 403 with Cloudflare challenge markers.
-- Kindle browser LIPC reports `com.lab126.kppbrowser.getLastOpenPage`.
-- Browser database schema at `/var/local/KPPBrowser.db` includes `bookmark(title,url,created_dt)`.
+- Direct curl from Kindle returned HTTP 403 with Cloudflare challenge markers.
+- KPP browser LIPC reports getLastOpenPage.
+- /var/local/KPPBrowser.db was inspected previously; its bookmark table has title, url, and created_dt columns.
 
-## Project goal
+## What's now in the repository
 
-One launch should retrieve a complete story's chapter contents in order, validate that chapters are not truncated, and transfer a package to a separate receiver for EPUB production. No chapter-by-chapter copying.
+- KPM package source in kpm/package/.
+- A read-only same-origin browser diagnostic bookmarklet.
+- Backup-first, verified insertion/removal helpers for exactly one bookmark row.
+- A one-run bootstrap scriptlet in install/Install-RoyalRoadTools.sh.
+- A GitHub Actions workflow that builds the KPM package, publishes a versioned GitHub Release, and updates the static KPM repository manifest.
 
-## Safety and scope
+See [Kindle installation](docs/kpm-installation.md), [architecture and staged test plan](docs/architecture-and-test-plan.md), and [package README](kpm/package/README.md).
 
-- This repository is separate from the user's existing Royal Road/EPUB project.
-- Never store browser cookies, credentials, account tokens, or private chapter downloads in this repository.
-- Diagnostics must not print or upload cookie values, passwords, browser history rows, or page contents.
-- Do not attempt to defeat or solve Cloudflare challenges. First test whether ordinary same-origin browser requests work in the user's already-open browser session.
-- Do not modify the existing EPUB builder until a complete chapter retrieval test succeeds.
-- Keep browser database changes backed up and reversible.
+## Installation entry point
 
-## Status
+Download the one-time scriptlet:
+https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/main/install/Install-RoyalRoadTools.sh
 
-The first decisive result is that direct Kindle `curl` is challenged (HTTP 403). The next experiment is a harmless same-origin JavaScript test run inside the Royal Road page, measuring whether the page can read its displayed chapter and fetch the same URL using normal browser credentials. It must not transmit chapter text.
+Save it in the Kindle documents folder and open it from the library. It adds the KPM repository, refreshes KPM, and installs royalroad-kindle-tools. This uses the KPM executable directly rather than passing a URL through the Kindle search bar.
 
-See [the architecture and test plan](docs/architecture-and-test-plan.md).
+The installer and package do not store or transmit browser cookies, credentials, authorization headers, browser history, or chapter text. The browser database change is limited to one bookmark row and is preceded by a timestamped local backup.
+
+## Important boundary
+
+The current package is **only a diagnostic**. It tests one chapter using an ordinary same-origin browser fetch and displays aggregate measurements. It does not yet collect full stories, transfer chapter data, or modify the existing Apps Script EPUB builder.
+
+Direct Kindle curl was challenged by Cloudflare. We will only build the full collector if the browser's ordinary page fetch proves reliable. The project will not solve CAPTCHAs, forge browser credentials, or circumvent Cloudflare controls.
+
+## Keep the existing EPUB project separate
+
+Nothing in this repository modifies the user's existing Google Apps Script downloader or EPUB builder. Any future adapter will be separate and will only be considered after a complete chapter retrieval test succeeds.
