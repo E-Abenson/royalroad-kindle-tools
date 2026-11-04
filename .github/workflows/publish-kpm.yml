@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: publish-kpm
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   publish:
@@ -93,6 +93,10 @@ jobs:
           PACKAGE: ${{ env.PACKAGE }}
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Always update the current main branch, not the potentially stale
+          # checkout from the commit that started this queued workflow.
+          git fetch origin main
+          git reset --hard origin/main
           python - <<'PY'
           import json, os
           repo = os.environ["GITHUB_REPOSITORY"]
