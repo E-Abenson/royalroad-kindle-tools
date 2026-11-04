@@ -1,4 +1,6 @@
 #!/bin/sh
+# Name: Install Royal Road Kindle Tools
+# Author: E-Abenson
 # One-time Kindle bootstrap. Run this as a Kindle .sh scriptlet.
 # Calling kpm directly avoids the search-bar parser rejecting URL punctuation.
 KPM="/var/local/kmc/bin/kpm"
