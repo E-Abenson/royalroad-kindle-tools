@@ -46,7 +46,7 @@ jobs:
           if not tag:
               print("0.1.0")
           else:
-              match = re.fullmatch(r"v?(\\d+)\\.(\\d+)\\.(\\d+)", tag)
+              match = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", tag)
               if not match:
                   raise SystemExit("Latest release tag is not semantic versioning: " + tag)
               major, minor, patch = map(int, match.groups())
@@ -68,7 +68,7 @@ jobs:
           manifest["version"] = [int(x) for x in os.environ["VERSION"].split(".")]
           with open(path, "w", encoding="utf-8") as f:
               json.dump(manifest, f, indent=2)
-              f.write("\\n")
+              f.write("\n")
           PY
           mkdir -p dist
           python kpm-helper.py package pack kpm/package dist/
@@ -82,8 +82,8 @@ jobs:
         env:
           GH_TOKEN: \${{ github.token }}
         run: |
-          gh release create "\${{ steps.version.outputs.tag }}" "$PACKAGE" \\
-            --title "Royal Road Kindle Tools \${{ steps.version.outputs.version }}" \\
+          gh release create "\${{ steps.version.outputs.tag }}" "$PACKAGE" \
+            --title "Royal Road Kindle Tools \${{ steps.version.outputs.version }}" \
             --notes "KPM package build. This version contains the browser-session diagnostic only."
 
       - name: Update KPM repository manifest
@@ -120,7 +120,7 @@ jobs:
           }
           with open("kpm-repo/manifest.json", "w", encoding="utf-8") as f:
               json.dump(manifest, f, indent=2)
-              f.write("\\n")
+              f.write("\n")
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
