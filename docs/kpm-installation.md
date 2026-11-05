@@ -2,21 +2,35 @@
 
 This package is currently a diagnostic-only project; it does not yet download a story or create an EPUB.
 
-## One-tap updater
+## Kindle-screen progress
 
-Open **KPM-Update-All** from the Kindle library to refresh KPM repositories and upgrade all installed packages. Output is saved to `/mnt/us/documents/KPM-Update-All.log`.
+The library scriptlets display progress on the Kindle screen using the jailbreak's shell integration. Their output is also mirrored into log files. They should no longer redirect all output away from the display.
 
-## Plain-text bookmarklet test
+## Install / update using KPM
 
-1. Open **RR-JS-Smoke-Test** from the Kindle library. It backs up the browser database and temporarily changes **Royal Road Session Test** to a tiny script that replaces the current page body's text with only **RR JS EXECUTED**.
-2. Open a Royal Road chapter and tap **Royal Road Session Test** in the browser bookmarks.
-3. If the chapter text disappears and only the test phrase remains, bookmark JavaScript is executing. If the page is unchanged, it did not visibly execute.
-4. Reload the chapter or press Back to restore the original text.
-5. Setup log: `/mnt/us/documents/RR-JS-Smoke-Test.log`.
+If the repository is already registered, open **KPM-Update-All** in the Kindle library to refresh the package index and upgrade installed KPM packages. Output is shown live and saved to `/mnt/us/documents/KPM-Update-All.log`.
+
+For the initial installation, open the one-time `Install-RoyalRoadTools` scriptlet. It displays repository registration, package-index refresh and installation output. Its log is `/mnt/us/documents/RoyalRoadTools-install.log`.
+
+## Available Kindle library items
+
+- **KPM-Update-All** — refreshes repositories and upgrades installed packages.
+- **RoyalRoadTools** — restores/installs the real chapter diagnostic bookmark and displays each setup stage.
+- **RR-JS-Smoke-Test** — temporarily installs the plain-text JavaScript bookmark test and displays each setup stage.
 
 ## Restore the full diagnostic
 
-Open **RoyalRoadTools** from the Kindle library to restore the full browser-session diagnostic bookmarklet. It backs up the database before changing only the test bookmark.
+Open **RoyalRoadTools** from the Kindle library. It restores the full chapter-session diagnostic bookmarklet. It backs up the database before changing only that test bookmark.
+
+## Logs
+
+- `/mnt/us/documents/KPM-Update-All.log`
+- `/mnt/us/documents/RoyalRoadTools-launch.log`
+- `/mnt/us/documents/RoyalRoadTools-bookmark.log`
+- `/mnt/us/documents/RoyalRoadTools.log`
+- `/mnt/us/documents/RoyalRoadTools-package.log`
+- `/mnt/us/documents/RR-JS-Smoke-Test.log`
+- `/mnt/us/documents/RoyalRoadTools-install.log`
 
 ## Removal
 

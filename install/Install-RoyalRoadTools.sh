@@ -2,76 +2,81 @@
 # Name: Install Royal Road Kindle Tools
 # Author: E-Abenson
 # One-time Kindle bootstrap. Run this as a Kindle .sh scriptlet.
-# Calling kpm directly avoids the search-bar parser rejecting URL punctuation.
+# sh_integration displays stdout/stderr through FBInk. Output is also logged.
 
 KPM="/var/local/kmc/bin/kpm"
 REPO_URL="https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/main/kpm-repo/manifest.json"
-LOG="/mnt/us/documents/RoyalRoadTools-install.log"
+DOCS="/mnt/us/documents"
+LOG="$DOCS/RoyalRoadTools-install.log"
 
-mkdir -p "/mnt/us/documents"
-exec >> "$LOG" 2>&1
+mkdir -p "$DOCS"
+: >> "$LOG"
 
-echo "=== Royal Road Kindle Tools bootstrap: $(date) ==="
+say() {
+  LINE="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
+  printf '%s\n' "$LINE" | tee -a "$LOG"
+}
 
-# Display a short native Kindle alert as well as keeping the full details in
-# the log. The alert is dismissed after 10 seconds (or by the user tapping OK).
-screen_alert() {
-  ALERT_TITLE=$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')
-  ALERT_TEXT=$(printf '%s' "$2" | sed 's/\\/\\\\/g; s/"/\\"/g')
+run_and_show() {
+  STATUS_FILE="$DOCS/.RoyalRoadTools-install-status.$$"
+  rm -f "$STATUS_FILE"
+  (
+    "$@"
+    COMMAND_STATUS=$?
+    printf '%s\n' "$COMMAND_STATUS" > "$STATUS_FILE"
+    exit "$COMMAND_STATUS"
+  ) 2>&1 | tee -a "$LOG"
 
-  # Some scriptlet launchers use a restricted PATH, so check common absolute
-  # locations as well as PATH before giving up.
-  LIPC_SET_PROP="$(command -v lipc-set-prop 2>/dev/null || true)"
-  if [ -z "$LIPC_SET_PROP" ]; then
-    for CANDIDATE in /usr/bin/lipc-set-prop /usr/local/bin/lipc-set-prop /bin/lipc-set-prop; do
-      if [ -x "$CANDIDATE" ]; then
-        LIPC_SET_PROP="$CANDIDATE"
-        break
-      fi
-    done
-  fi
-
-  if [ -z "$LIPC_SET_PROP" ]; then
-    echo "WARNING: lipc-set-prop was not found; Kindle alert could not be displayed. See $LOG"
-    return 0
-  fi
-
-  ALERT_JSON=$(printf '{"clientParams":{"alertId":"appAlert1","show":true,"customStrings":[{"matchStr":"alertTitle","replaceStr":"%s"},{"matchStr":"alertText","replaceStr":"%s"}]}}' "$ALERT_TITLE" "$ALERT_TEXT")
-
-  echo "Displaying final result on Kindle for 10 seconds..."
-  if "$LIPC_SET_PROP" com.lab126.pillow pillowAlert "$ALERT_JSON" >/dev/null 2>&1; then
-    sleep 10
-    "$LIPC_SET_PROP" com.lab126.pillow pillowAlert '{"clientParams":{"alertId":"appAlert1","show":false}}' >/dev/null 2>&1 || true
-    echo "Kindle result alert closed after 10 seconds."
+  if [ -f "$STATUS_FILE" ]; then
+    COMMAND_STATUS="$(cat "$STATUS_FILE" 2>/dev/null)"
   else
-    echo "WARNING: Kindle pillowAlert command failed; see $LOG"
+    COMMAND_STATUS=1
+    say "ERROR: The KPM command ended without returning a status."
   fi
+  rm -f "$STATUS_FILE"
+  return "$COMMAND_STATUS"
 }
 
 finish() {
   EXIT_CODE="$1"
   TITLE="$2"
   MESSAGE="$3"
-  echo "$TITLE: $MESSAGE"
-  screen_alert "$TITLE" "$MESSAGE"
+  say "$TITLE"
+  say "$MESSAGE"
+  say "Full output saved to $LOG"
   exit "$EXIT_CODE"
 }
 
+say "============================================================"
+say "ROYAL ROAD KINDLE TOOLS — INSTALLER"
+say "Starting at $(date)"
+say "Progress will appear on this screen and be saved to $LOG."
+
 if [ ! -x "$KPM" ]; then
-  finish 1 "Installation failed" "KPM was not found. Install or repair KPM first."
+  finish 1 "INSTALLATION FAILED" "KPM was not found at $KPM. Install or repair KPM first."
 fi
 
-echo "Adding the project KPM repository..."
-"$KPM" add-repo "$REPO_URL" || echo "Repository may already be registered; continuing to refresh."
-
-echo "Refreshing package index..."
-if ! "$KPM" update; then
-  finish 1 "Installation failed" "KPM could not refresh the package list. Check Wi-Fi and the install log."
+say ""
+say "STEP 1 — Registering the Royal Road KPM repository..."
+if run_and_show "$KPM" add-repo "$REPO_URL"; then
+  say "Repository registration completed."
+else
+  say "Repository add command returned a nonzero status; it may already be registered."
+  say "Continuing to refresh the package index."
 fi
 
-echo "Installing Royal Road Kindle Tools..."
-if ! "$KPM" install royalroad-kindle-tools; then
-  finish 1 "Installation failed" "KPM could not install the package. Check Wi-Fi and the install log."
+say ""
+say "STEP 2 — Refreshing the KPM package index..."
+if ! run_and_show "$KPM" update; then
+  RESULT=$?
+  finish 1 "INSTALLATION FAILED" "KPM could not refresh the package list. Check Wi-Fi and the log."
 fi
 
-finish 0 "Installation successful" "Royal Road Tools installed. Open RoyalRoadTools in your library to add the test bookmark."
+say ""
+say "STEP 3 — Installing Royal Road Kindle Tools..."
+if run_and_show "$KPM" install royalroad-kindle-tools; then
+  finish 0 "INSTALLATION SUCCESSFUL" "Royal Road Tools is installed. Open RoyalRoadTools in your Kindle library."
+else
+  RESULT=$?
+  finish "$RESULT" "INSTALLATION FAILED" "KPM could not install the package. Check Wi-Fi and the log."
+fi

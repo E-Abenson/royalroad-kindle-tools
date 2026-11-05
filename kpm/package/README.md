@@ -2,9 +2,19 @@
 
 This package currently installs a read-only Royal Road browser diagnostic, not a downloader.
 
+## Kindle-screen progress and logs
+
+Every library scriptlet is designed to show its progress on the Kindle screen through the jailbreak's shell integration. The same messages are also saved in log files. Output is not redirected exclusively to a file.
+
+- `KPM-Update-All` shows the KPM repository refresh and package-upgrade output live; log: `/mnt/us/documents/KPM-Update-All.log`.
+- `RoyalRoadTools` shows bookmark setup stages and the helper's output; logs: `RoyalRoadTools-launch.log`, `RoyalRoadTools.log`, and `RoyalRoadTools-bookmark.log`.
+- `RR-JS-Smoke-Test` shows each validation, backup and bookmark-installation stage; log: `RR-JS-Smoke-Test.log`.
+- Package install and uninstall hooks also print their steps; log: `RoyalRoadTools-package.log`.
+- The one-time bootstrap installer shows repository registration, index refresh and installation output; log: `RoyalRoadTools-install.log`.
+
 ## One-tap KPM updater
 
-The package installs a Kindle library item named **KPM-Update-All**. Tap it to run `;kpm update` followed by `;kpm upgrade`. It refreshes configured repositories, upgrades installed packages with automatic confirmation (`-y`), and writes output to `/mnt/us/documents/KPM-Update-All.log`.
+Open **KPM-Update-All** from the Kindle library. It runs `;kpm update` followed by `;kpm upgrade` (with automatic confirmation). KPM's own messages are streamed to the display and copied to the log. The script preserves the actual KPM exit status so a failed refresh prevents the upgrade step.
 
 ## Plain-text bookmarklet test
 
@@ -20,13 +30,6 @@ This changes only the current page in browser memory. Reload the chapter or pres
 ## Restore the full diagnostic bookmark
 
 Open **RoyalRoadTools** from the Kindle library. This reinstalls the full diagnostic bookmarklet and backs up the browser database before changing only that bookmark.
-
-## Logs
-
-- `/mnt/us/documents/RoyalRoadTools-bookmark.log` — bookmark setup and verification.
-- `/mnt/us/documents/RoyalRoadTools.log` — general package log.
-- `/mnt/us/documents/RR-JS-Smoke-Test.log` — smoke-test setup log.
-- `/mnt/us/documents/KPM-Update-All.log` — one-tap repository refresh and package-upgrade output.
 
 ## Removal
 

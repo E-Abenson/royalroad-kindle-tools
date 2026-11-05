@@ -30,6 +30,14 @@ jobs:
         with:
           python-version: "3.x"
 
+      - name: Validate all POSIX shell scripts
+        run: |
+          set -eu
+          echo "Checking shell scripts for syntax errors..."
+          find install kpm/package -type f -name '*.sh' -print
+          find install kpm/package -type f -name '*.sh' -exec sh -n {} ;
+          echo "All shell scripts passed sh -n."
+
       - name: Download official KPM packager
         run: |
           curl -fsSL https://raw.githubusercontent.com/KindleModding/KPM/main/kpm-helper.py -o kpm-helper.py
