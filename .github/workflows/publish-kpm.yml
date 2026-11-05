@@ -34,8 +34,10 @@ jobs:
         run: |
           set -eu
           echo "Checking shell scripts for syntax errors..."
-          find install kpm/package -type f -name '*.sh' -print
-          find install kpm/package -type f -name '*.sh' -exec sh -n {} ;
+          find install kpm/package -type f -name '*.sh' -print | while IFS= read -r file; do
+            echo "Checking $file"
+            sh -n "$file" || exit 1
+          done
           echo "All shell scripts passed sh -n."
 
       - name: Download official KPM packager
