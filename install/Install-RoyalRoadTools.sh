@@ -19,18 +19,32 @@ screen_alert() {
   ALERT_TITLE=$(printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g')
   ALERT_TEXT=$(printf '%s' "$2" | sed 's/\\/\\\\/g; s/"/\\"/g')
 
-  if ! command -v lipc-set-prop >/dev/null 2>&1; then
-    echo "WARNING: Kindle alert service unavailable; see $LOG"
+  # Some scriptlet launchers use a restricted PATH, so check common absolute
+  # locations as well as PATH before giving up.
+  LIPC_SET_PROP="$(command -v lipc-set-prop 2>/dev/null || true)"
+  if [ -z "$LIPC_SET_PROP" ]; then
+    for CANDIDATE in /usr/bin/lipc-set-prop /usr/local/bin/lipc-set-prop /bin/lipc-set-prop; do
+      if [ -x "$CANDIDATE" ]; then
+        LIPC_SET_PROP="$CANDIDATE"
+        break
+      fi
+    done
+  fi
+
+  if [ -z "$LIPC_SET_PROP" ]; then
+    echo "WARNING: lipc-set-prop was not found; Kindle alert could not be displayed. See $LOG"
     return 0
   fi
 
   ALERT_JSON=$(printf '{"clientParams":{"alertId":"appAlert1","show":true,"customStrings":[{"matchStr":"alertTitle","replaceStr":"%s"},{"matchStr":"alertText","replaceStr":"%s"}]}}' "$ALERT_TITLE" "$ALERT_TEXT")
 
-  if lipc-set-prop com.lab126.pillow pillowAlert "$ALERT_JSON" >/dev/null 2>&1; then
+  echo "Displaying final result on Kindle for 10 seconds..."
+  if "$LIPC_SET_PROP" com.lab126.pillow pillowAlert "$ALERT_JSON" >/dev/null 2>&1; then
     sleep 10
-    lipc-set-prop com.lab126.pillow pillowAlert '{"clientParams":{"alertId":"appAlert1","show":false}}' >/dev/null 2>&1 || true
+    "$LIPC_SET_PROP" com.lab126.pillow pillowAlert '{"clientParams":{"alertId":"appAlert1","show":false}}' >/dev/null 2>&1 || true
+    echo "Kindle result alert closed after 10 seconds."
   else
-    echo "WARNING: Could not display Kindle alert; see $LOG"
+    echo "WARNING: Kindle pillowAlert command failed; see $LOG"
   fi
 }
 
