@@ -104,7 +104,7 @@ jobs:
           filename = os.path.basename(os.environ["PACKAGE"])
           tag = os.environ["TAG"]
           manifest = {
-              "manifest_version": 3,
+              "manifest_version": 2,
               "id": "e-abenson",
               "name": "E-Abenson Kindle Tools",
               "description": "KPM packages maintained for the Royal Road Kindle Tools project.",
