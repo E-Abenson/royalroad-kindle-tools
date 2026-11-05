@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "kpm/package/**"
+      - "install/Install-RoyalRoadTools.sh"
       - ".github/workflows/publish-kpm.yml"
   workflow_dispatch:
 
