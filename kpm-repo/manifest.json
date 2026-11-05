@@ -1,5 +1,5 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "id": "e-abenson",
   "name": "E-Abenson Kindle Tools",
   "description": "KPM packages maintained for the Royal Road Kindle Tools project.",
@@ -10,11 +10,11 @@
       "description": "Read-only Royal Road browser-session diagnostic for jailbroken Kindles.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.7/royalroad-kindle-tools_0.1.7_kindlehf.kpkg",
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.8/royalroad-kindle-tools_0.1.8_kindlehf.kpkg",
           "version": [
             0,
             1,
-            7
+            8
           ],
           "dependencies": [],
           "supported_platforms": [
