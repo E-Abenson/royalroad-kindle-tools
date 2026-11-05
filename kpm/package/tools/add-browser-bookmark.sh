@@ -1,6 +1,6 @@
 #!/bin/sh
-# Inserts exactly one JavaScript bookmark into KPPBrowser.db.
-# It never reads or changes cookies, history, credentials, or page contents.
+# Installs or updates only the Royal Road Session Test bookmark.
+# Backs up KPPBrowser.db before changing the package-owned bookmark.
 DB="/var/local/KPPBrowser.db"
 DOCS="/mnt/us/documents"
 BACKUP_DIR="$DOCS/RoyalRoadTools-backups"
@@ -18,10 +18,9 @@ BOOKMARK_URL="$(tr -d '\r\n' < "$URL_FILE")"
 case "$BOOKMARK_URL" in javascript:*) ;; *) log "Bookmarklet source did not begin with javascript:; no changes made."; exit 1 ;; esac
 URL_HEX="$(printf '%s' "$BOOKMARK_URL" | od -An -tx1 | tr -d ' \n')"
 if [ -z "$URL_HEX" ]; then log "Could not encode bookmarklet; no changes made."; exit 1; fi
+
 TABLE_COUNT="$(sqlite3 -cmd '.timeout 5000' "$DB" "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='bookmark';" 2>/dev/null)"
 if [ "$TABLE_COUNT" != "1" ]; then log "Expected bookmark table was not found; no changes made."; exit 1; fi
-# Use simple SELECT checks instead of table-valued PRAGMA functions so this
-# also works with older SQLite builds supplied on some Kindle firmware.
 if ! sqlite3 -cmd '.timeout 5000' "$DB" "SELECT title FROM bookmark LIMIT 0;" >/dev/null 2>&1; then
   log "Bookmark table does not expose the expected title column; no changes made."
   exit 1
@@ -30,22 +29,34 @@ if ! sqlite3 -cmd '.timeout 5000' "$DB" "SELECT url FROM bookmark LIMIT 0;" >/de
   log "Bookmark table does not expose the expected url column; no changes made."
   exit 1
 fi
-EXISTING="$(sqlite3 -cmd '.timeout 5000' "$DB" "SELECT COUNT(*) FROM bookmark WHERE url=CAST(X'$URL_HEX' AS TEXT);" 2>/dev/null)"
-if [ "$EXISTING" = "1" ]; then log "Browser test bookmark is already installed. No database change was needed."; exit 0; fi
+
+EXACT="$(sqlite3 -cmd '.timeout 5000' "$DB" "SELECT COUNT(*) FROM bookmark WHERE title='Royal Road Session Test' AND url=CAST(X'$URL_HEX' AS TEXT);" 2>/dev/null)"
+TITLE_COUNT="$(sqlite3 -cmd '.timeout 5000' "$DB" "SELECT COUNT(*) FROM bookmark WHERE title='Royal Road Session Test';" 2>/dev/null)"
+if [ "$EXACT" = "1" ] && [ "$TITLE_COUNT" = "1" ]; then
+  log "The current Royal Road Session Test bookmark is already installed."
+  exit 0
+fi
+
 mkdir -p "$BACKUP_DIR"
 STAMP="$(date '+%Y%m%d-%H%M%S')"
 BACKUP="$BACKUP_DIR/KPPBrowser-before-RR-bookmark-$STAMP.db"
+if [ -e "$BACKUP" ]; then BACKUP="$BACKUP-$$.db"; fi
 if ! sqlite3 -cmd '.timeout 5000' "$DB" ".backup '$BACKUP'" >/dev/null 2>&1; then
   log "Could not back up the browser bookmark database; no changes made."
   rm -f "$BACKUP"
   exit 1
 fi
-if ! sqlite3 -cmd '.timeout 5000' "$DB" "INSERT OR IGNORE INTO bookmark(title,url) VALUES('Royal Road Session Test',CAST(X'$URL_HEX' AS TEXT));" >/dev/null 2>&1; then
-  log "Could not insert test bookmark. Backup retained at $BACKUP"
+
+# Replace only entries carrying this package's exact bookmark title.
+if ! sqlite3 -cmd '.timeout 5000' "$DB" "DELETE FROM bookmark WHERE title='Royal Road Session Test'; INSERT INTO bookmark(title,url) VALUES('Royal Road Session Test',CAST(X'$URL_HEX' AS TEXT));" >/dev/null 2>&1; then
+  log "Could not update the test bookmark. Backup retained at $BACKUP"
   exit 1
 fi
-VERIFY="$(sqlite3 -cmd '.timeout 5000' "$DB" "SELECT COUNT(*) FROM bookmark WHERE url=CAST(X'$URL_HEX' AS TEXT);" 2>/dev/null)"
-if [ "$VERIFY" != "1" ]; then log "Bookmark verification failed. Backup retained at $BACKUP"; exit 1; fi
-log "Installed one bookmark: Royal Road Session Test."
+VERIFY="$(sqlite3 -cmd '.timeout 5000' "$DB" "SELECT COUNT(*) FROM bookmark WHERE title='Royal Road Session Test' AND url=CAST(X'$URL_HEX' AS TEXT);" 2>/dev/null)"
+if [ "$VERIFY" != "1" ]; then
+  log "Bookmark verification failed. Backup retained at $BACKUP"
+  exit 1
+fi
+log "Installed or updated one bookmark: Royal Road Session Test."
 log "Database backup: $BACKUP"
-log "Only the bookmark table was changed. No cookies, history, or page text were read or transmitted."
+log "Only rows with the package's exact bookmark title were changed; other bookmarks, cookies, history, and page text were not touched."
