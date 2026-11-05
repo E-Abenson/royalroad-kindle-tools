@@ -1,78 +1,133 @@
 /*
- * Royal Road Kindle Tools — browser-side session diagnostic.
- *
- * Run this while viewing a Royal Road chapter. It performs one ordinary
- * same-origin fetch and displays aggregate diagnostics only.
- * It does not transmit or store chapter text, cookies, headers, or history.
+ * Royal Road Kindle Tools — Kindle-browser session diagnostic.
+ * This bookmarklet displays its progress and results directly on the page.
+ * It performs one same-origin GET and reports aggregate counts only.
  */
-(function royalRoadSessionDiagnostic() {
+(function () {
   var w = window;
   var d = document;
-  var url = w.location.href;
+  var panelId = "rr-session-test-panel";
+  var panel = d.getElementById(panelId);
+
+  function display(message, seconds) {
+    if (!panel) {
+      panel = d.createElement("div");
+      panel.id = panelId;
+      panel.style.cssText = "position:fixed;top:5%;left:4%;width:92%;max-height:85%;overflow:auto;z-index:2147483647;background:#fff;color:#000;border:3px solid #000;padding:14px;box-sizing:border-box;font:18px/1.35 sans-serif;white-space:pre-wrap;box-shadow:0 2px 12px #555;";
+      (d.body || d.documentElement).appendChild(panel);
+    }
+    panel.textContent = message;
+    panel.style.display = "block";
+    if (panel._rrTimer) w.clearTimeout(panel._rrTimer);
+    if (seconds) {
+      panel._rrTimer = w.setTimeout(function () {
+        if (panel && panel.parentNode) panel.parentNode.removeChild(panel);
+        panel = null;
+      }, seconds * 1000);
+    }
+  }
 
   function chapterText(doc) {
     var node = doc.querySelector(".chapter-content") ||
       doc.querySelector("#chapter-content") ||
       doc.querySelector("[class*='chapter-content']");
     var value = node ? (node.innerText || node.textContent || "") : "";
-    return value.replace(/\s+/g, " ").trim();
+    return value.replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
   }
 
-  if (w.location.hostname !== "www.royalroad.com" ||
-      !/\/chapter\//.test(w.location.pathname)) {
-    w.alert("Open a Royal Road chapter page first.");
+  var url = w.location.href;
+  var hostOK = /(^|\.)royalroad\.com$/i.test(w.location.hostname);
+  if (!hostOK || !/\/chapter\//i.test(w.location.pathname)) {
+    display("ROYAL ROAD SESSION TEST\n\nThis bookmark is running.\n\nPlease open a Royal Road chapter first, then press the bookmark again.", 10);
     return;
   }
 
   var visible = chapterText(d);
-  var lines = [
-    "ROYAL ROAD BROWSER SESSION TEST",
-    "Visible chapter characters: " + visible.length,
-    "Visible chapter substantial (>1000): " + (visible.length > 1000 ? "YES" : "NO"),
-    "",
-    "Testing one same-origin request. No page text will be sent anywhere."
-  ];
+  display(
+    "ROYAL ROAD SESSION TEST\n\nThe bookmark is running.\nVisible chapter characters: " + visible.length +
+    "\n\nTesting one same-origin chapter request...\nPlease wait.",
+    0
+  );
 
-  if (!w.fetch) {
-    lines.push("Fetch API: unavailable", "RESULT: browser cannot run this test");
-    w.alert(lines.join("\n"));
-    return;
+  function finish(lines) {
+    display(lines.join("\n"), 10);
   }
 
-  w.fetch(url, {
-    method: "GET",
-    credentials: "include",
-    redirect: "follow",
-    cache: "no-store"
-  }).then(function (response) {
-    return response.text().then(function (html) {
-      var parsed = new DOMParser().parseFromString(html, "text/html");
-      var returned = chapterText(parsed);
+  var xhr;
+  try {
+    xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.withCredentials = true;
+    try { xhr.timeout = 20000; } catch (ignore) {}
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== 4) return;
+      var html = xhr.responseText || "";
+      var returned = 0;
       var challenge = /cf-chl-|cloudflare|just a moment|verify you are human|attention required/i.test(html);
-      var finalOrigin = "unknown";
       try {
-        finalOrigin = new URL(response.url).origin;
+        var parsed;
+        if (w.DOMParser) {
+          parsed = (new DOMParser()).parseFromString(html, "text/html");
+        } else {
+          parsed = d.implementation.createHTMLDocument("");
+          parsed.documentElement.innerHTML = html;
+        }
+        returned = chapterText(parsed).length;
       } catch (e) {}
+      var finalOrigin = "not reported";
+      var responseUrl = xhr.responseURL || "";
+      var originMatch = responseUrl.match(/^https?:\/\/[^/]+/i);
+      if (originMatch) finalOrigin = originMatch[0];
 
-      lines.push(
-        "HTTP status: " + response.status,
+      finish([
+        "ROYAL ROAD SESSION TEST",
+        "",
+        "Visible chapter characters: " + visible.length,
+        "HTTP status: " + xhr.status,
         "Final origin: " + finalOrigin,
         "Response characters: " + html.length,
         "Challenge markers: " + (challenge ? "YES" : "NO"),
-        "Returned chapter characters: " + returned.length,
-        "Returned chapter substantial (>1000): " + (returned.length > 1000 ? "YES" : "NO"),
+        "Returned chapter characters: " + returned,
         "",
-        response.ok && !challenge && returned.length > 1000
+        xhr.status >= 200 && xhr.status < 300 && !challenge && returned > 1000
           ? "RESULT: SAME-ORIGIN FETCH LOOKS PROMISING"
-          : "RESULT: NOT READY FOR AUTOMATIC DOWNLOADING"
-      );
-      w.alert(lines.join("\n"));
-    });
-  }).catch(function (error) {
-    lines.push(
-      "Fetch error: " + (error && error.message ? error.message : String(error)),
-      "RESULT: BROWSER REQUEST FAILED"
-    );
-    w.alert(lines.join("\n"));
-  });
+          : "RESULT: NOT READY FOR AUTOMATIC DOWNLOADING",
+        "",
+        "This result will close in 10 seconds."
+      ]);
+    };
+    xhr.onerror = function () {
+      finish([
+        "ROYAL ROAD SESSION TEST",
+        "",
+        "Visible chapter characters: " + visible.length,
+        "RESULT: BROWSER REQUEST FAILED",
+        "The Kindle browser reported a network or request error.",
+        "",
+        "This result will close in 10 seconds."
+      ]);
+    };
+    xhr.ontimeout = function () {
+      finish([
+        "ROYAL ROAD SESSION TEST",
+        "",
+        "Visible chapter characters: " + visible.length,
+        "RESULT: REQUEST TIMED OUT",
+        "The chapter request did not finish within 20 seconds.",
+        "",
+        "This result will close in 10 seconds."
+      ]);
+    };
+    xhr.send(null);
+  } catch (error) {
+    finish([
+      "ROYAL ROAD SESSION TEST",
+      "",
+      "Visible chapter characters: " + visible.length,
+      "RESULT: TEST COULD NOT START",
+      String(error),
+      "",
+      "This result will close in 10 seconds."
+    ]);
+  }
 })();
