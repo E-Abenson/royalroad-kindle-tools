@@ -2,14 +2,22 @@
 
 This is currently a diagnostic-only package. It tests one chapter using the Kindle browser's ordinary same-origin request. It does not yet download a story or create an EPUB.
 
-## Update an existing installation through KPM
+## Install / update using KPM
 
-If this repository is already added to KPM, no manual download is needed. Run these Kindle search-bar commands:
+If this repository is already added to KPM, run these commands once to install or upgrade the package:
 
 1. `;kpm update`
 2. `;kpm upgrade`
 
-KPM downloads the newer package from the configured repository. The package install hook copies both Kindle library launchers into `documents`.
+The package installs three Kindle library items:
+
+- **RoyalRoadTools** — restores/installs the real chapter diagnostic bookmark.
+- **RR-JS-Smoke-Test** — temporarily installs the visible JavaScript bookmark test.
+- **KPM-Update-All** — refreshes the repositories and upgrades all KPM packages with one tap.
+
+## Use the one-tap updater
+
+Open **KPM-Update-All** from the Kindle library whenever you want to perform the equivalent of `;kpm update` followed by `;kpm upgrade`. The full output is saved to `/mnt/us/documents/KPM-Update-All.log`.
 
 ## Test whether bookmark JavaScript executes
 
