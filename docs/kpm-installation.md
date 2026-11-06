@@ -1,37 +1,35 @@
 # Kindle installation
 
-This package is currently a diagnostic-only project; it does not yet download a story or create an EPUB.
-
-## Kindle-screen progress
-
-The library scriptlets display progress on the Kindle screen using the jailbreak's shell integration. Their output is also mirrored into log files. They should no longer redirect all output away from the display.
+The KPM package currently contains a **native-browser injection diagnostic**, not a story downloader or EPUB builder.
 
 ## Install / update using KPM
 
 If the repository is already registered, open **KPM-Update-All** in the Kindle library to refresh the package index and upgrade installed KPM packages. Output is shown live and saved to `/mnt/us/documents/KPM-Update-All.log`.
 
-For the initial installation, open the one-time `Install-RoyalRoadTools` scriptlet. It displays repository registration, package-index refresh and installation output. Its log is `/mnt/us/documents/RoyalRoadTools-install.log`.
+For initial installation, open the one-time `Install-RoyalRoadTools` scriptlet. It registers the repository, refreshes its package index and installs the package. Its log is `/mnt/us/documents/RoyalRoadTools-install.log`.
 
-## Available Kindle library items
+## Run the native browser injection test
 
-- **KPM-Update-All** — refreshes repositories and upgrades installed packages.
-- **RoyalRoadTools** — restores/installs the real chapter diagnostic bookmark and displays each setup stage.
-- **RR-JS-Smoke-Test** — temporarily installs the plain-text JavaScript bookmark test and displays each setup stage.
+1. Open a Royal Road chapter in the Kindle's built-in browser.
+2. Leave the chapter as the browser's last-open page.
+3. Return to the Kindle Home screen.
+4. Open **RR-JS-Smoke-Test** from the Kindle library.
+5. Return to the browser and look for a white label reading **RR JS INJECTED VIA LIPC**.
 
-## Restore the full diagnostic
+The script reads the last-open page URL through LIPC, focuses the native browser and sends a tiny JavaScript URL through `com.lab126.browser gotoURL`. The label is the proof that injection worked; a successful shell command alone is not proof. Reloading the page removes the label.
 
-Open **RoyalRoadTools** from the Kindle library. It restores the full chapter-session diagnostic bookmarklet. It backs up the database before changing only that test bookmark.
+The test also checks a few localhost Chromium DevTools ports and the browser process command line. These checks do not enable remote debugging or change browser launch arguments.
 
 ## Logs
 
 - `/mnt/us/documents/KPM-Update-All.log`
+- `/mnt/us/documents/RR-JS-Smoke-Test.log`
 - `/mnt/us/documents/RoyalRoadTools-launch.log`
 - `/mnt/us/documents/RoyalRoadTools-bookmark.log`
 - `/mnt/us/documents/RoyalRoadTools.log`
 - `/mnt/us/documents/RoyalRoadTools-package.log`
-- `/mnt/us/documents/RR-JS-Smoke-Test.log`
 - `/mnt/us/documents/RoyalRoadTools-install.log`
 
-## Removal
+## Safety and current limits
 
-Run `;kpm uninstall royalroad-kindle-tools`. Existing backup and log files are retained.
+The native injection test does not use a bookmarklet, alter the browser database, read chapter text, cookies, credentials, authorization headers or browser history, modify rootfs, or bypass Cloudflare controls. It is only a diagnostic: full chapter collection and EPUB creation have not been implemented yet.
