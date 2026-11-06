@@ -7,6 +7,16 @@ This package currently contains a **read-only browser LIPC diagnostic**, not a s
 - **RR-JS-Smoke-Test** — inventories the built-in browser's LIPC services and records the active app and last-open page. It deliberately does not navigate, launch, refresh, or inject into the browser.
 - **RoyalRoadTools** — the older bookmark setup/repair launcher, retained for the earlier bookmark test.
 - **KPM-Update-All** — refreshes package repositories and upgrades installed packages.
+- **KindleBatchPrepareFix** — installs a backed-up, validated menu-registration fix for the separate Kindle Batch Preparation KOReader add-on.
+
+## Install the Kindle Batch Preparation menu fix
+
+1. Run **KPM-Update-All** from the Kindle library to refresh repositories and upgrade the package.
+2. Open **KindleBatchPrepareFix** from the Kindle library.
+3. The script downloads the replacement from this repository, validates it, backs up the existing add-on `main.lua`, then atomically replaces it.
+4. Restart KOReader and look under **Tools → Kindle batch preparation**.
+
+The installer log is saved to `/mnt/us/documents/KindleBatchPrepareFix.log`. The timestamped backup remains beside the add-on's `main.lua` file in `/mnt/us/koreader/plugins/kindle_batch_prepare.koplugin/`.
 
 ## Run the read-only diagnostic
 
@@ -28,6 +38,7 @@ The earlier experimental script tried `com.lab126.browser gotoURL`, but that pro
 
 - `/mnt/us/documents/RR-JS-Smoke-Test.log`
 - `/mnt/us/documents/KPM-Update-All.log`
+- `/mnt/us/documents/KindleBatchPrepareFix.log`
 - `/mnt/us/documents/RoyalRoadTools-launch.log`
 - `/mnt/us/documents/RoyalRoadTools-bookmark.log`
 - `/mnt/us/documents/RoyalRoadTools.log`

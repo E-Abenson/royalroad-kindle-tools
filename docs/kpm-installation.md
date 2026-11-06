@@ -6,7 +6,13 @@ The KPM package currently contains a **read-only browser LIPC diagnostic**, not 
 
 If the repository is already registered, open **KPM-Update-All** in the Kindle library to refresh the package index and upgrade installed KPM packages. Output is shown live and saved to `/mnt/us/documents/KPM-Update-All.log`.
 
-For initial installation, open the one-time `Install-RoyalRoadTools` scriptlet. It registers the repository, refreshes its package index and installs the package. Its log is `/mnt/us/documents/RoyalRoadTools-install.log`.
+For initial installation, open the one-time `Install-RoyalRoadTools` scriptlet. It registers the repository, refreshes KPM, and installs the package. Its log is `/mnt/us/documents/RoyalRoadTools-install.log`.
+
+## Install the Kindle Batch Preparation menu fix
+
+After the package update is published, run **KPM-Update-All** from the Kindle library. The package update installs a new library scriptlet named **KindleBatchPrepareFix**. Open that item to download and install the corrected KOReader add-on `main.lua`.
+
+The script makes a timestamped backup beside the original file, validates the downloaded source before replacing anything, and writes its full output to `/mnt/us/documents/KindleBatchPrepareFix.log`. Restart KOReader after the installer reports success.
 
 ## Run the read-only diagnostic
 
@@ -24,6 +30,7 @@ The script does **not** call `lipc-set-prop`, launch the browser, issue `gotoURL
 
 - `/mnt/us/documents/KPM-Update-All.log`
 - `/mnt/us/documents/RR-JS-Smoke-Test.log`
+- `/mnt/us/documents/KindleBatchPrepareFix.log`
 - `/mnt/us/documents/RoyalRoadTools-launch.log`
 - `/mnt/us/documents/RoyalRoadTools-bookmark.log`
 - `/mnt/us/documents/RoyalRoadTools.log`
@@ -32,4 +39,4 @@ The script does **not** call `lipc-set-prop`, launch the browser, issue `gotoURL
 
 ## Safety and current limits
 
-No browser database, bookmark, root filesystem file, cookie, credential, or browser setting is changed by **RR-JS-Smoke-Test**. It is only a diagnostic; full chapter collection and EPUB creation have not been implemented yet.
+No browser database, bookmark, root filesystem file, cookie, credential, or browser setting is changed by **RR-JS-Smoke-Test**. It is only a diagnostic; full chapter collection and EPUB creation have not been implemented.

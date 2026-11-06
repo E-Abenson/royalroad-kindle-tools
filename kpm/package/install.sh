@@ -26,7 +26,8 @@ say "Royal Road Kindle Tools — package installation/upgrade started."
 install_scriptlet "scriptlets/RoyalRoadTools.sh" "$DOCS/RoyalRoadTools.sh"
 install_scriptlet "scriptlets/RR-JS-Smoke-Test.sh" "$DOCS/RR-JS-Smoke-Test.sh"
 install_scriptlet "scriptlets/KPM-Update-All.sh" "$DOCS/KPM-Update-All.sh"
-say "All three library launchers are installed."
+install_scriptlet "scriptlets/KindleBatchPrepareFix.sh" "$DOCS/KindleBatchPrepareFix.sh"
+say "All four library launchers are installed."
 
 # A busy browser DB does not fail the package install; the launcher can retry.
 if [ -f "tools/add-browser-bookmark.sh" ]; then
