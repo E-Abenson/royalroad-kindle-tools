@@ -11,7 +11,7 @@
 DOCS="/mnt/us/documents"
 LOG="$DOCS/RR-JS-Smoke-Test.log"
 mkdir -p "$DOCS"
-: >> "$LOG"
+: > "$LOG"
 
 say() {
   LINE="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
