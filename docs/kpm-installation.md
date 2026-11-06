@@ -1,6 +1,6 @@
 # Kindle installation
 
-The KPM package currently contains a **native-browser injection diagnostic**, not a story downloader or EPUB builder.
+The KPM package currently contains a **read-only browser LIPC diagnostic**, not a story downloader or EPUB builder.
 
 ## Install / update using KPM
 
@@ -8,17 +8,17 @@ If the repository is already registered, open **KPM-Update-All** in the Kindle l
 
 For initial installation, open the one-time `Install-RoyalRoadTools` scriptlet. It registers the repository, refreshes its package index and installs the package. Its log is `/mnt/us/documents/RoyalRoadTools-install.log`.
 
-## Run the native browser injection test
+## Run the read-only diagnostic
 
 1. Open a Royal Road chapter in the Kindle's built-in browser.
-2. Leave the chapter as the browser's last-open page.
+2. Let it finish loading. Do not refresh during the test.
 3. Return to the Kindle Home screen.
 4. Open **RR-JS-Smoke-Test** from the Kindle library.
-5. Return to the browser and look for a white label reading **RR JS INJECTED VIA LIPC**.
+5. Read the on-screen output, then share the log at `/mnt/us/documents/RR-JS-Smoke-Test.log`.
 
-The script reads the last-open page URL through LIPC, focuses the native browser and sends a tiny JavaScript URL through `com.lab126.browser gotoURL`. The label is the proof that injection worked; a successful shell command alone is not proof. Reloading the page removes the label.
+The script checks the current foreground application and reads `com.lab126.kppbrowser getLastOpenPage`. It probes only `com.lab126.kppbrowser` and `com.lab126.browser`, without verbose property values, to discover the actual properties available on this firmware.
 
-The test also checks a few localhost Chromium DevTools ports and the browser process command line. These checks do not enable remote debugging or change browser launch arguments.
+The script does **not** call `lipc-set-prop`, launch the browser, issue `gotoURL`, send JavaScript, modify bookmarks, read cookies, or access chapter text. It should not interrupt page loading.
 
 ## Logs
 
@@ -32,4 +32,4 @@ The test also checks a few localhost Chromium DevTools ports and the browser pro
 
 ## Safety and current limits
 
-The native injection test does not use a bookmarklet, alter the browser database, read chapter text, cookies, credentials, authorization headers or browser history, modify rootfs, or bypass Cloudflare controls. It is only a diagnostic: full chapter collection and EPUB creation have not been implemented yet.
+No browser database, bookmark, root filesystem file, cookie, credential, or browser setting is changed by **RR-JS-Smoke-Test**. It is only a diagnostic; full chapter collection and EPUB creation have not been implemented yet.
