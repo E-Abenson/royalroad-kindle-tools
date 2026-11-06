@@ -1,43 +1,42 @@
 # Royal Road Kindle Tools
 
-A separate experimental toolkit for using a jailbroken Kindle to test whether the Kindle browser can retrieve Royal Road chapter pages through its ordinary browser session. The longer-term goal is a one-launch route to a verified story package and EPUB workflow, without manual chapter-by-chapter copying.
+An experimental KPM toolkit for investigating whether the jailbroken Kindle's built-in browser can be controlled locally to retrieve Royal Road pages and eventually build a single offline EPUB.
 
 ## Device and confirmed findings
 
 - Kindle: 10th generation; exact Basic/Paperwhite variant not yet identified.
 - Firmware: 5.18.1.1.1 (hard-float firmware family).
-- SpringBreak jailbreak completed.
-- Kindle Package Manager works; the user has run ;kpm update successfully.
-- Kindle browser can open the target Royal Road chapter and reports JavaScript enabled.
-- Direct curl from Kindle returned HTTP 403 with Cloudflare challenge markers.
-- KPP browser LIPC reports getLastOpenPage.
-- /var/local/KPPBrowser.db was inspected previously; its bookmark table has title, url, and created_dt columns.
+- SpringBoard jailbreak completed.
+- Kindle Package Manager works.
+- The built-in browser can open Royal Road chapters.
+- Direct `curl` from the Kindle received HTTP 403 with Cloudflare challenge markers.
+- KPP browser LIPC exposes `com.lab126.kppbrowser.getLastOpenPage`.
+- The browser database bookmark table was inspected previously, but the current LIPC diagnostic does not modify it.
 
 ## What's in the repository
 
-- KPM package source in kpm/package/.
-- A read-only same-origin browser diagnostic bookmarklet.
-- Backup-first, verified insertion/removal helpers for exactly one bookmark row.
-- A one-run bootstrap scriptlet in install/Install-RoyalRoadTools.sh.
-- A GitHub Actions workflow that builds the KPM package, publishes a versioned GitHub Release (including the bootstrap scriptlet), and updates the static KPM repository manifest.
+- KPM package source in `kpm/package/`.
+- A read-only LIPC diagnostic scriptlet (**RR-JS-Smoke-Test**) that inventories only the browser-related LIPC services and records the current browser page without query parameters.
+- Existing bookmark setup/repair helpers, retained for the earlier bookmark test.
+- A one-run bootstrap scriptlet in `install/Install-RoyalRoadTools.sh`.
+- A GitHub Actions workflow that builds the KPM package, publishes a versioned GitHub Release, and updates the static KPM repository manifest.
 
 See [Kindle installation](docs/kpm-installation.md), [architecture and staged test plan](docs/architecture-and-test-plan.md), and [package README](kpm/package/README.md).
 
-## One-time Kindle setup
+## Install / update
 
-Download Install-RoyalRoadTools.sh from the latest GitHub Release:
-https://github.com/E-Abenson/royalroad-kindle-tools/releases/latest/download/Install-RoyalRoadTools.sh
+The KPM repository is already configured on the Kindle. Open **KPM-Update-All** in the Kindle library to refresh the package index and upgrade installed packages. Then open **RR-JS-Smoke-Test**.
 
-Save the file in the Kindle documents folder and open it from the library. It adds this KPM repository, refreshes KPM, and installs royalroad-kindle-tools. The scriptlet calls the KPM executable directly rather than passing a URL through the Kindle search bar.
+For a first-time setup, the latest release includes `Install-RoyalRoadTools.sh`. The scriptlet registers this KPM repository, refreshes its index, and installs the package.
 
-The installer attempts to add the Royal Road Session Test bookmark automatically. Before changing /var/local/KPPBrowser.db, it creates a timestamped local backup. The change is limited to one bookmark row. If the browser database is busy, open the RoyalRoadTools library item once to retry.
+## Current status
 
-## Important boundary
+The previous diagnostic attempted to send JavaScript through an unverified `com.lab126.browser gotoURL` property. The user observed that the browser page stopped loading during this attempt. That approach has been withdrawn.
 
-The current package is **only a diagnostic**. It tests one chapter using an ordinary same-origin browser fetch and displays aggregate measurements. It does not yet collect full stories, transfer chapter data, or modify the existing Apps Script EPUB builder.
+The current **RR-JS-Smoke-Test** is deliberately read-only: it does not launch, focus, navigate, refresh, or inject into the browser. It records the active app, the last-open page with query parameters removed, and the properties exposed by `com.lab126.kppbrowser` and `com.lab126.browser`. The next step is to determine the correct browser control mechanism from the Kindle's own LIPC registry before attempting any injection again.
 
-Direct Kindle curl was challenged by Cloudflare. We will only build the full collector if the browser's ordinary page fetch proves reliable. The project will not solve CAPTCHAs, forge browser credentials, or circumvent Cloudflare controls.
+The package does not yet collect full stories, transfer chapter data, or create EPUBs. It will stop on access-denial or Cloudflare challenge responses and will not bypass CAPTCHAs or other access controls.
 
 ## Keep the existing EPUB project separate
 
-Nothing in this repository modifies the existing Google Apps Script downloader or EPUB builder. Any future adapter will be separate and will only be considered after a complete chapter retrieval test succeeds.
+Nothing in this repository modifies the existing Apps Script downloader or EPUB builder. A future local Kindle collector/EPUB adapter will remain separate until ordinary browser retrieval has been demonstrated to work reliably.
