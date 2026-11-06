@@ -2,59 +2,72 @@
 
 ## Goal
 
-Use the Kindle's own browser session to retrieve Royal Road pages, validate that every chapter is complete, and eventually hand a verified story package to a separate EPUB receiver. The workflow should not require copying chapters one by one.
+Use the Kindle's own built-in browser session to retrieve Royal Road pages that the user can open normally, validate that every chapter is complete, and eventually build one offline EPUB. Avoid manual chapter-by-chapter copying.
 
-## What is confirmed
+## Confirmed device facts
 
-- Kindle: 10th generation; exact KT4/PW4 variant not identified.
-- Firmware: 5.18.1.1.1, which is in the hard-float firmware family.
-- SpringBreak jailbreak completed; KPM works.
-- Kindle browser opens Royal Road and reports JavaScript enabled.
-- Separate Kindle curl request to a Royal Road chapter returned HTTP 403 with Cloudflare challenge markers.
-- KPP browser LIPC can report the last open page.
-- The browser database's bookmark table was previously inspected and has title, url, and created_dt columns.
+- Kindle: 10th generation; exact model variant not yet identified.
+- Firmware: 5.18.1.1.1 (hard-float family).
+- SpringBoard jailbreak completed; KPM works.
+- The built-in Kindle browser can open Royal Road chapters.
+- A separate Kindle `curl` request to a Royal Road chapter returned HTTP 403 with Cloudflare challenge markers.
+- `com.lab126.kppbrowser.getLastOpenPage` is available through LIPC.
+- A public LIPC inventory lists `com.lab126.kppbrowser` properties including `getLastOpenPage` and `invokeAction`, but does not list `gotoURL` on that service.
 
-## Current KPM package
+## Current package state
 
-The repository now contains a diagnostic-only KPM package targeting kindlehf. The install hook creates a Kindle library scriptlet. It attempts to add one browser bookmark using a helper that first backs up the browser database, checks the expected bookmark schema, inserts only one exact row, and verifies the insertion. The uninstall hook makes another backup and removes only that exact row.
+The repository includes a KPM package targeting `kindlehf`. It installs Kindle library scriptlets and uses a GitHub Actions workflow to build a versioned `.kpkg`, publish a GitHub Release, and update `kpm-repo/manifest.json`.
 
-A GitHub Actions workflow downloads the official KPM packager, builds a versioned .kpkg, publishes it as a GitHub Release, and updates kpm-repo/manifest.json. The repository manifest is served as a static raw GitHub file.
+**RR-JS-Smoke-Test is currently read-only.** It:
+- reads the active app;
+- reads the browser's last-open page, omitting query parameters from its log;
+- probes only `com.lab126.kppbrowser` and `com.lab126.browser`;
+- prints property names/access types without verbose values;
+- checks process command lines for an already-enabled remote-debugging flag.
 
-The bootstrap scriptlet calls the KPM executable directly to add the repository, update its index, and install the package. This avoids a known Kindle search-bar input-filter problem with URL punctuation.
+It does not launch, focus, navigate, refresh, or inject into the browser. It does not dump the full LIPC registry, which can contain unrelated account/session properties.
 
-## Stage 1: test one ordinary browser fetch
+## Why the previous injection attempt was withdrawn
 
-Open a chapter in the Kindle browser and select the installed Royal Road Session Test bookmark. It:
-- measures the visible chapter text length;
-- fetches only the current page using same-origin fetch with ordinary browser credentials;
-- parses the returned HTML locally;
-- reports status, response size, final origin, challenge markers, and returned chapter length.
+The earlier test read the last page from `com.lab126.kppbrowser`, launched the browser, and attempted to send a JavaScript URL through `com.lab126.browser gotoURL`. The user reported that this interrupted page loading. The property was not verified against the device's actual LIPC registry. Do not repeat this call or guess the payload for `invokeAction`.
 
-It never sends chapter content, cookies, authorization headers, or browser storage anywhere.
+The next step is to inspect the log from **RR-JS-Smoke-Test** and identify the exact browser service and writable navigation/action properties registered on this firmware. Only after the action contract is established should we build a reversible one-line injection test.
 
-A positive result is only a first signal. It does not prove that the chapter list is accessible or that large batches are safe.
+## Stage 1: establish a verified browser-control channel
 
-## Stage 2: small chapter-list test (not yet built)
+1. Run the read-only diagnostic while a Royal Road chapter has fully loaded.
+2. Inspect the two browser-related LIPC services exposed on the actual Kindle.
+3. Establish the accepted payload for a supported action from local evidence or firmware source.
+4. Test a harmless visual label without changing the current URL or reloading the page.
+5. Confirm that the label appears and can be removed by a normal reload.
 
-Only if Stage 1 succeeds, test a tiny set of chapter links already exposed by Royal Road's normal page. Requests must be sequential and conservative, and must stop immediately on a challenge, access denial, unexpected redirect, or malformed/incomplete page. Do not retry around a challenge and do not attempt CAPTCHA or proof-of-work bypasses.
+Do not use bookmarklets as the control mechanism; the user already reported that bookmarklet JavaScript did not work.
 
-## Stage 3: full collector (not yet built)
+## Stage 2: test ordinary chapter retrieval
 
-Only after the small test passes:
-- discover the complete chapter list through ordinary accessible page content;
+Only after the injection/control channel is verified:
+- read the chapter content already rendered in the browser;
+- check whether normal same-origin requests return complete pages;
+- use a very small number of sequential requests;
+- stop immediately on a challenge, access denial, unexpected redirect, or malformed/incomplete page.
+
+Do not retry around a challenge or attempt CAPTCHA/proof-of-work bypasses.
+
+## Stage 3: build the local collector and EPUB
+
+Only after Stage 2 proves reliable:
+- discover the chapter list from ordinary accessible story-page data;
 - retain chapter order and canonical URLs;
-- fetch sequentially with conservative pacing;
-- validate non-empty content, expected chapter markers, and stable response lengths;
-- mark failures explicitly rather than silently creating partial books;
-- package data locally and transfer it to a separate receiver.
+- collect chapters conservatively and save progress locally;
+- validate non-empty content, expected chapter markers, and completeness;
+- report failures rather than silently producing partial books;
+- package a single EPUB with titles, metadata, formatting, and images where available.
 
-The Apps Script receiving URL and its authentication design have not been configured in this repository. Do not put a secret, token, or private endpoint in public GitHub files. The existing downloader/EPUB builder must remain untouched; a future receiver adapter will be separate.
+The existing Apps Script receiver URL and authentication are not configured in this repository. Do not commit private endpoints, secrets, chapter text, or session data. Keep the existing EPUB builder untouched.
 
 ## Security and reversibility
 
-- Never read, print, copy, or transmit browser cookies, credentials, authorization headers, or private browser storage.
-- The diagnostic bookmarklet transmits nothing.
-- The bookmark helper changes only the bookmark row and makes a timestamped local backup before each database write.
-- No files are written to rootfs and no remount-rw operation is used.
-- Stop on Cloudflare challenges and respect Royal Road's access controls and rate limits.
-- Do not commit chapter text, user session data, or Apps Script secrets.
+- Never read, print, copy, or transmit cookies, credentials, authorization headers, or private browser storage.
+- Do not dump the entire verbose LIPC registry; it may contain unrelated account/session properties.
+- Do not write to rootfs or remount the system read-write.
+- Stop on Cloudflare challenges and respect the site's access controls and rate limits.
