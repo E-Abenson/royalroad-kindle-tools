@@ -1,36 +1,44 @@
 # Royal Road Kindle Tools — KPM package
 
-This package currently installs a read-only Royal Road browser diagnostic, not a downloader.
+This package currently contains a **native-browser injection diagnostic**, not a story downloader or EPUB builder.
 
-## Kindle-screen progress and logs
+## Kindle library items
 
-Every library scriptlet is designed to show its progress on the Kindle screen through the jailbreak's shell integration. The same messages are also saved in log files. Output is not redirected exclusively to a file.
+- **RR-JS-Smoke-Test** — tests whether a shell script can send JavaScript to the built-in Kindle browser through its LIPC `gotoURL` property. It does not use a bookmarklet.
+- **RoyalRoadTools** — the older bookmark setup/repair launcher. The LIPC smoke test does not depend on that bookmark.
+- **KPM-Update-All** — refreshes package repositories and upgrades installed packages.
 
-- `KPM-Update-All` shows the KPM repository refresh and package-upgrade output live; log: `/mnt/us/documents/KPM-Update-All.log`.
-- `RoyalRoadTools` shows bookmark setup stages and the helper's output; logs: `RoyalRoadTools-launch.log`, `RoyalRoadTools.log`, and `RoyalRoadTools-bookmark.log`.
-- `RR-JS-Smoke-Test` shows each validation, backup and bookmark-installation stage; log: `RR-JS-Smoke-Test.log`.
-- Package install and uninstall hooks also print their steps; log: `RoyalRoadTools-package.log`.
-- The one-time bootstrap installer shows repository registration, index refresh and installation output; log: `RoyalRoadTools-install.log`.
+## Run the native browser test
 
-## One-tap KPM updater
+1. Open a Royal Road chapter in the Kindle's built-in browser.
+2. Leave that chapter as the browser's last-open page.
+3. Return to the Kindle Home screen.
+4. Open **RR-JS-Smoke-Test** from the Kindle library.
+5. The script reads the last-open page URL through LIPC, focuses the native browser, and sends a small JavaScript URL through `com.lab126.browser gotoURL`.
+6. Return to the browser and look for a white label reading **RR JS INJECTED VIA LIPC**.
 
-Open **KPM-Update-All** from the Kindle library. It runs `;kpm update` followed by `;kpm upgrade` (with automatic confirmation). KPM's own messages are streamed to the display and copied to the log. The script preserves the actual KPM exit status so a failed refresh prevents the upgrade step.
+If the label appears, shell-to-page JavaScript injection worked without a bookmarklet. Reloading the chapter removes the label. A successful `lipc-set-prop` exit status alone is not proof; the visible label is the test result.
 
-## Plain-text bookmarklet test
+The script also checks a few localhost Chromium DevTools ports and looks for an existing `--remote-debugging-port` process flag. These are read-only checks. The script does not enable remote debugging or change browser launch arguments.
 
-Open **RR-JS-Smoke-Test** from the Kindle library. It backs up the browser database and temporarily changes only the bookmark titled **Royal Road Session Test** to a tiny script that replaces the current page body's text with only **RR JS EXECUTED**. It does not use an alert, create an overlay, or make a network request.
+## Logs
 
-Open a Royal Road chapter and tap **Royal Road Session Test** in the browser bookmarks.
+The diagnostic log is saved to:
 
-- If all chapter text disappears and only **RR JS EXECUTED** remains, JavaScript from the bookmark ran.
-- If the page is unchanged, the bookmark JavaScript did not visibly execute.
+`/mnt/us/documents/RR-JS-Smoke-Test.log`
 
-This changes only the current page in browser memory. Reload the chapter or press Back to restore it.
+It records the current page host/path and command/diagnostic results. It does not record chapter text, cookies, credentials, authorization headers, or browser history.
 
-## Restore the full diagnostic bookmark
+## Safety
 
-Open **RoyalRoadTools** from the Kindle library. This reinstalls the full diagnostic bookmarklet and backs up the browser database before changing only that bookmark.
+- No browser database or bookmark is modified by **RR-JS-Smoke-Test**.
+- No root filesystem files are changed and no remount is performed.
+- The injected label is temporary and disappears on reload.
+- The test does not bypass Cloudflare or retry around challenges.
+- This is a compatibility probe; it does not yet collect chapters or create EPUBs.
 
-## Removal
+## Update and removal
 
-Run `;kpm uninstall royalroad-kindle-tools`. Existing backup and log files are retained.
+Open **KPM-Update-All** in the Kindle library to refresh repositories and upgrade installed KPM packages.
+
+Run `;kpm uninstall royalroad-kindle-tools` to remove the package. Existing diagnostic logs and backups are retained.
