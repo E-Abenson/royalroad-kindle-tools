@@ -97,13 +97,24 @@ if [ ! -s "$TMP" ]; then
   fail 3 "Decompressed main.lua is empty."
 fi
 
+# Put the plugin entry in KOReader's More Tools section.
+# Patch the downloaded source before validating and installing it.
+say "Setting the plugin menu location to More Tools..."
+if ! sed 's/sorting_hint = "tools"/sorting_hint = "more_tools"/' "$TMP" > "$STAGED"; then
+  fail 3 "Could not set the More Tools menu location."
+fi
+if [ ! -s "$STAGED" ]; then
+  fail 3 "Patched main.lua is empty."
+fi
+mv -f "$STAGED" "$TMP"
+
 # Refuse to install an HTML error page or an unrelated file.
 for marker in \
   "KOREADER_BATCH_PREPARE_MENU_FIX_V2" \
   "Kindle batch preparation: registering menu widget" \
   "function PLUGIN:addToMainMenu(menu_items)" \
   "function PLUGIN:prepareAllBooks()" \
-  'sorting_hint = "tools"'; do
+  'sorting_hint = "more_tools"'; do
   if ! grep -Fq "$marker" "$TMP"; then
     fail 3 "Downloaded main.lua failed validation: missing marker: $marker"
   fi
