@@ -6,7 +6,7 @@
 
 DOCS="/mnt/us/documents"
 KO_ROOT="/mnt/us/koreader"
-PLUGIN_DIR="$KO_ROOT/plugins/kindle_batch_prepare.koplugin"
+PLUGIN_DIR="$KO_ROOT/plugins/kindle-batch-prepare-addon-fixed.koplugin"
 TARGET="$PLUGIN_DIR/main.lua"
 SOURCE_URL="https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/main/kpm/package/files/kindle_batch_prepare_main.lua.gz"
 LOG="$DOCS/KindleBatchPrepareFix.log"
