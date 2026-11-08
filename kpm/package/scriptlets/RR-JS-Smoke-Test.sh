@@ -2,7 +2,7 @@
 # Name: RR-JS-Smoke-Test
 # Author: E-Abenson
 # Read-only detailed diagnostic of the Kindle's built-in browser LIPC service.
-# It prints only property names and type/access metadata, never property values.
+# It prints only allowlisted property names, type/access metadata, and owner process metadata.
 # It does not launch, focus, navigate, refresh, bookmark, or inject into the browser.
 
 DOCS="/mnt/us/documents"
@@ -25,97 +25,92 @@ probe_service() {
     return 1
   fi
 
-  # Probe only this service. Never run the verbose all-services command:
-  # that can expose unrelated account/session properties.
-  OUTPUT="$(lipc-probe "$SERVICE" 2>&1)"
+  # -v reports each property with its access/type/name columns. It also
+  # reads values for readable properties, so capture everything in memory
+  # and emit ONLY the allowlisted metadata columns below. Never log values.
+  OUTPUT="$(lipc-probe "$SERVICE" -v 2>&1)"
   STATUS=$?
   if [ "$STATUS" -ne 0 ] || [ -z "$OUTPUT" ]; then
     say "Service could not be queried (exit code $STATUS)."
     return 1
   fi
 
-  # Parse only the first three columns (name, type, access). The Value column
-  # and any trailing text are discarded. If this firmware uses another format,
-  # report presence of a small known-property allowlist without printing lines.
   SAFE_ROWS="$(printf '%s\n' "$OUTPUT" | awk '
-    function trim(s) {
-      sub(/^[ \t]+/, "", s)
-      sub(/[ \t]+$/, "", s)
-      return s
-    }
     BEGIN {
-      known[1]="deleteAllHistory"
-      known[2]="emitBrowserLoadTimeMetrics"
-      known[3]="getAllSettings"
-      known[4]="getLastOpenPage"
-      known[5]="insertBookmark"
-      known[6]="insertOrUpdateHistory"
-      known[7]="invokeAction"
-      known[8]="isBookmarkPresent"
-      known[9]="migrateDataFromMesquite"
-      known[10]="updateSetting"
+      known["deleteAllHistory"]=1
+      known["emitBrowserLoadTimeMetrics"]=1
+      known["getAllSettings"]=1
+      known["getLastOpenPage"]=1
+      known["insertBookmark"]=1
+      known["insertOrUpdateHistory"]=1
+      known["invokeAction"]=1
+      known["isBookmarkPresent"]=1
+      known["migrateDataFromMesquite"]=1
+      known["updateSetting"]=1
     }
     {
       line=$0
-      name=""; type=""; access=""
-      if (index(line, "|") > 0) {
-        n=split(line, fields, "|")
-        name=trim(fields[1]); type=trim(fields[2]); access=trim(fields[3])
-      } else {
-        line=trim(line)
-        n=split(line, fields, /[ \t]+/)
-        name=fields[1]; type=fields[2]; access=fields[3]
-        sub(/:$/, "", name)
-        gsub(/[^[:alpha:]]/, "", type)
-        gsub(/[^[:alpha:]]/, "", access)
-      }
-      if (name ~ /^[A-Za-z_][A-Za-z0-9_.-]*$/ &&
+      sub(/^[ \t]+/, "", line)
+      n=split(line, fields, /[ \t]+/)
+      access=fields[1]
+      type=fields[2]
+      name=fields[3]
+      if ((access=="r" || access=="w" || access=="rw") &&
           (type=="Str" || type=="Int" || type=="Has") &&
-          (access=="r" || access=="w" || access=="rw")) {
-        if (!printed[name]++) {
-          print "property|" name "|" type "|" access
-        }
+          known[name]) {
+        if (!printed[name]++) print access "|" type "|" name
         parsed++
-      }
-      for (i=1; i<=10; i++) {
-        p=known[i]
-        if (p != "" && index(line,p)>0) found[p]=1
       }
     }
     END {
-      for (i=1; i<=10; i++) {
-        p=known[i]
-        if (found[p] && !printed[p]) print "present|" p "||"
-      }
-      if (parsed==0) print "notice|NO_ROWS_PARSED||"
+      if (parsed==0) print "NONE|||"
     }
   ' 2>/dev/null)"
 
   if [ -n "$SAFE_ROWS" ]; then
-    printf '%s\n' "$SAFE_ROWS" | while IFS='|' read -r KIND PROP TYPE ACCESS; do
-      case "$KIND" in
-        property)
+    printf '%s\n' "$SAFE_ROWS" | while IFS='|' read -r ACCESS TYPE PROP; do
+      case "$ACCESS" in
+        r|w|rw)
           say "Property: $PROP | Type: $TYPE | Access: $ACCESS"
           ;;
-        present)
-          say "Property present: $PROP (type/access format not recognized)"
-          ;;
-        notice)
-          say "The output format was not recognized; raw output was suppressed for privacy."
+        NONE)
+          say "Verbose output format was not recognized; raw output was suppressed."
           ;;
       esac
     done
   else
-    say "No property rows were returned; raw output was suppressed for privacy."
+    say "No property metadata was parsed; raw output was suppressed."
   fi
 
-  if printf '%s\n' "$SAFE_ROWS" | grep -q '^property|invokeAction|'; then
-    ACTION_META="$(printf '%s\n' "$SAFE_ROWS" | awk -F'|' '$1=="property" && $2=="invokeAction" {print $3 " " $4; exit}')"
-    say "FINDING: invokeAction is registered ($ACTION_META). No action payload was sent."
-  elif printf '%s\n' "$SAFE_ROWS" | grep -q '^present|invokeAction|'; then
-    say "FINDING: invokeAction is registered; type/access could not be parsed. No action payload was sent."
+  if printf '%s\n' "$SAFE_ROWS" | grep -qE '^(r|w|rw)\|Str\|invokeAction$'; then
+    ACTION_ACCESS="$(printf '%s\n' "$SAFE_ROWS" | awk -F'|' '$3=="invokeAction" {print $1; exit}')"
+    say "FINDING: invokeAction is a string property (access: $ACTION_ACCESS)."
+    say "Its accepted payload is still unknown. No action payload was sent."
   else
-    say "FINDING: invokeAction was not confirmed by this probe."
+    say "FINDING: invokeAction metadata was not confirmed by this probe."
+  fi
+
+  # Identify the process that owns this LIPC service using a read-only
+  # D-Bus query. Only the PID, process name, and executable path are reported.
+  if command -v dbus-send >/dev/null 2>&1; then
+    OWNER_INFO="$(dbus-send --system --print-reply --dest=org.freedesktop.DBus / org.freedesktop.DBus.GetConnectionUnixProcessID string:"$SERVICE" 2>/dev/null)"
+    OWNER_PID="$(printf '%s\n' "$OWNER_INFO" | sed -n 's/.*uint32 \([0-9][0-9]*\).*/\1/p' | head -n 1)"
+    case "$OWNER_PID" in
+      ''|*[!0-9]*)
+        say "Service owner PID could not be determined."
+        ;;
+      *)
+        OWNER_COMM="$(cat "/proc/$OWNER_PID/comm" 2>/dev/null | tr -d '\r\n')"
+        OWNER_EXE="$(readlink "/proc/$OWNER_PID/exe" 2>/dev/null)"
+        [ -n "$OWNER_COMM" ] || OWNER_COMM="unknown"
+        [ -n "$OWNER_EXE" ] || OWNER_EXE="unavailable"
+        say "Service owner PID: $OWNER_PID"
+        say "Service owner process: $OWNER_COMM"
+        say "Service owner executable: $OWNER_EXE"
+        ;;
+    esac
+  else
+    say "dbus-send is unavailable; service owner process was not queried."
   fi
 
   return 0
