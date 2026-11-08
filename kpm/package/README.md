@@ -15,11 +15,11 @@ This package currently contains a **read-only browser LIPC diagnostic**, not a s
 
 1. Run **RR-JS-Smoke-Test** first.
 2. Return to the Kindle library and open **RR-Upload-Diagnostic**.
-3. The script uploads only `/mnt/us/documents/RR-JS-Smoke-Test.log` to paste.rs, after redacting the Royal Road story/chapter path.
-4. It displays a short `https://paste.rs/...` link and saves it to `/mnt/us/documents/RR-JS-Smoke-Test-upload-url.txt`.
+3. The script uploads only `/mnt/us/documents/RR-JS-Smoke-Test.log` to pasters.io, after redacting the Royal Road story/chapter path.
+4. It displays a `https://pasters.io/...` link (expires after one week) and saves it to `/mnt/us/documents/RR-JS-Smoke-Test-upload-url.txt`. The separate deletion URL is saved to `/mnt/us/documents/RR-JS-Smoke-Test-delete-url.txt`.
 5. Send that link in the chat. The diagnostic can then be copied into this GitHub repository.
 
-The paste link is **not private**: anyone who has the link can read it. The upload is not automatic; it occurs only when you open **RR-Upload-Diagnostic**. No GitHub token or other credential is stored on the Kindle or in this public repository. After the log has been copied into GitHub, the temporary paste should be deleted.
+The paste link is **not private**: anyone who has the link can read it. It expires after one week. A separate deletion URL is saved locally at `/mnt/us/documents/RR-JS-Smoke-Test-delete-url.txt`; keep that file private. The upload is not automatic; it occurs only when you open **RR-Upload-Diagnostic**. No GitHub token or other credential is stored on the Kindle or in this public repository. After the log has been copied into GitHub, the temporary paste should be deleted.
 
 The uploader refuses logs larger than 64 KiB and stops if it detects credential-like strings. Its own log is `/mnt/us/documents/RR-Upload-Diagnostic.log`.
 
