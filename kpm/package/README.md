@@ -4,7 +4,7 @@ This package currently contains a **read-only browser LIPC diagnostic**, not a s
 
 ## Kindle library items
 
-- **RR-JS-Smoke-Test** — records safe browser settings and inventories the browser-related LIPC property names/type/access metadata. It deliberately does not navigate, launch, refresh, or inject into the browser.
+- **RR-JS-Smoke-Test** — records safe browser settings, reads verbose metadata for the browser LIPC service, and identifies the service-owning process. It suppresses property values and does not navigate, launch, refresh, or inject into the browser.
 - **RR-Upload-Diagnostic** — manually uploads a redacted copy of the latest LIPC diagnostic log to a temporary paste link. It does not need a GitHub credential.
 - **RoyalRoadTools** — the older bookmark setup/repair launcher, retained for the earlier bookmark test.
 - **KPM-Update-All** — refreshes package repositories and upgrades installed packages.
@@ -44,16 +44,17 @@ The diagnostic:
 - checks which Kindle application is in the foreground;
 - reads the last-open browser URL with query parameters and fragments removed;
 - reads only the browser's `getAllSettings` value and reports whether JavaScript and images are enabled;
-- probes only `com.lab126.kppbrowser` and `com.lab126.browser`;
-- prints property names and type/access metadata, never the property Value column;
-- reports whether `invokeAction` is registered and whether its metadata shows it as writable;
+- probes only `com.lab126.kppbrowser` and `com.lab126.browser`, using the verbose option;
+- emits only allowlisted property names, type, and access metadata, suppressing every property value;
+- reports the `invokeAction` property type and access mode;
+- identifies the LIPC service owner by PID, process name, and executable path;
 - checks whether the browser already has a remote-debugging port flag.
 
 The log is cleared at the beginning of each diagnostic run, so it contains only the latest results.
 
 ## Why injection is not enabled yet
 
-The earlier experimental script tried `com.lab126.browser gotoURL`, but that property was not verified on the device and the page stopped loading during the test. The current diagnostic does not send any browser action. Public LIPC inventories show `com.lab126.kppbrowser` exposes `getLastOpenPage` and `invokeAction`; the accepted `invokeAction` payload is not yet established. We will not guess the arguments or send a test action until its contract is known.
+The earlier experimental script tried `com.lab126.browser gotoURL`, but that property was not verified on the device and the page stopped loading during the test. The current diagnostic does not send any browser action. Public LIPC inventories show `com.lab126.kppbrowser` exposes `getLastOpenPage` and `invokeAction`. The verbose probe establishes property type and access mode, but not the accepted `invokeAction` payload. We will not guess the arguments or send a test action until its contract is known.
 
 ## Logs
 
