@@ -3,7 +3,7 @@
   "id": "royalroad-kindle-tools",
   "name": "Royal Road Kindle Tools",
   "author": "E-Abenson",
-  "description": "A read-only in-browser Royal Road session diagnostic for jailbroken Kindles.",
+  "description": "Royal Road Kindle Tools, including Kindle Batch Preparation with a corrected KOReader menu crash fix.",
   "version": [
     0,
     1,
