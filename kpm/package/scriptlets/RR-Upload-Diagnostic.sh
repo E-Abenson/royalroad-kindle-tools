@@ -9,7 +9,9 @@ DOCS="/mnt/us/documents"
 SOURCE="$DOCS/RR-JS-Smoke-Test.log"
 UPLOAD_FILE="$DOCS/.RR-JS-Smoke-Test-upload-$$.txt"
 RESPONSE_FILE="$DOCS/.RR-JS-Smoke-Test-response-$$.txt"
+HEADERS_FILE="$DOCS/.RR-JS-Smoke-Test-headers-$$.txt"
 URL_FILE="$DOCS/RR-JS-Smoke-Test-upload-url.txt"
+DELETE_FILE="$DOCS/RR-JS-Smoke-Test-delete-url.txt"
 LOG="$DOCS/RR-Upload-Diagnostic.log"
 
 umask 077
@@ -22,7 +24,7 @@ say() {
 }
 
 cleanup() {
-  rm -f "$UPLOAD_FILE" "$RESPONSE_FILE"
+  rm -f "$UPLOAD_FILE" "$RESPONSE_FILE" "$HEADERS_FILE"
 }
 trap cleanup 0 HUP INT TERM
 
@@ -63,15 +65,15 @@ if grep -Eiq '(cookie|authorization:|bearer[[:space:]]|github_pat_|gh[pousr]_[A-
   exit 1
 fi
 
-say "Uploading the redacted diagnostic to paste.rs as raw UTF-8 text..."
+say "Uploading the redacted diagnostic to pasters.io (expires in one week)..."
 say "The upload happens only because you opened this library item."
 HTTP_STATUS="$(curl -sS --connect-timeout 12 --max-time 40 \
   -X POST \
   -H "Content-Type: text/plain; charset=utf-8" \
   -H "Accept: text/plain" \
   --data-binary "@$UPLOAD_FILE" \
-  -o "$RESPONSE_FILE" -w '%{http_code}' \
-  https://paste.rs/ 2>> "$LOG")"
+  -D "$HEADERS_FILE" -o "$RESPONSE_FILE" -w '%{http_code}' \
+  'https://pasters.io/?expires=1w' 2>> "$LOG")"
 CURL_STATUS=$?
 
 if [ "$CURL_STATUS" -ne 0 ]; then
@@ -83,30 +85,41 @@ fi
 
 PASTE_URL="$(tr -d '\r\n' < "$RESPONSE_FILE" 2>/dev/null)"
 if [ "$HTTP_STATUS" != "201" ]; then
-  say "ERROR: paste.rs returned HTTP $HTTP_STATUS."
+  say "ERROR: pasters.io returned HTTP $HTTP_STATUS."
   say "Server response: $PASTE_URL"
   say "No GitHub credentials were used or stored."
   exit 1
 fi
 
 case "$PASTE_URL" in
-  https://paste.rs/*)
+  https://pasters.io/*)
     ;;
   *)
-    say "ERROR: The server response was not a paste.rs HTTPS link."
+    say "ERROR: The server did not return a pasters.io HTTPS link."
     say "Response was not saved as an upload link."
     exit 1
     ;;
 esac
 
+DELETE_URL="$(awk 'tolower($1) == "x-delete-url:" {sub(/\r$/, "", $2); print $2; exit}' "$HEADERS_FILE")"
+if [ -z "$DELETE_URL" ]; then
+  say "ERROR: Upload may have succeeded, but the service did not return its deletion URL."
+  say "The paste link is: $PASTE_URL"
+  say "Keep this link private and tell me; it expires in one week."
+  exit 1
+fi
+
 printf '%s\n' "$PASTE_URL" > "$URL_FILE"
-chmod 600 "$URL_FILE"
+printf '%s\n' "$DELETE_URL" > "$DELETE_FILE"
+chmod 600 "$URL_FILE" "$DELETE_FILE"
 
 say "UPLOAD SUCCESSFUL."
 say "TEMPORARY LINK: $PASTE_URL"
-say "The link is readable by anyone who has it. It is not a private upload."
-say "Send me that link; I will copy the diagnostic into your GitHub repository."
-say "After I confirm the repository copy, the temporary paste can be deleted."
-say "Link also saved to: $URL_FILE"
+say "The link is readable by anyone who has it; it is not private."
+say "It expires in one week. A private deletion link is saved separately on the Kindle."
+say "Send me the temporary link; I will copy the diagnostic into your GitHub repository."
+say "After I confirm the repository copy, I can guide you to delete the temporary paste."
+say "Paste link saved to: $URL_FILE"
+say "Private deletion link saved to: $DELETE_FILE"
 say "Uploader log: $LOG"
 exit 0
