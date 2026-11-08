@@ -1,0 +1,23 @@
+name: Inspect packaged Kindle Batch Preparation source
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/inspect-kindle-plugin.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Print menu function source
+        shell: bash
+        run: |
+          set -euo pipefail
+          gzip -t kpm/package/files/kindle_batch_prepare_main.lua.gz
+          gzip -dc kpm/package/files/kindle_batch_prepare_main.lua.gz | nl -ba | sed -n '520,630p'
