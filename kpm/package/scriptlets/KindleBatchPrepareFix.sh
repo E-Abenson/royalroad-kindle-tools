@@ -12,7 +12,7 @@ SOURCE_URL="https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/m
 LOG="$DOCS/KindleBatchPrepareFix.log"
 
 mkdir -p "$DOCS"
-: >> "$LOG"
+: > "$LOG"
 
 say() {
   LINE="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
@@ -140,7 +140,7 @@ fi
 rm -f "$ARCHIVE" "$TMP"
 say "SUCCESS: Updated $TARGET"
 say "Backup kept at: $BACKUP"
-say "The replacement registers its menu before converter setup and places the entry directly under Tools."
+say "The replacement registers its menu before converter setup and places the entry under More Tools."
 say "Please exit KOReader and restart it to load the updated plugin."
 say "Full log saved to: $LOG"
 exit 0
