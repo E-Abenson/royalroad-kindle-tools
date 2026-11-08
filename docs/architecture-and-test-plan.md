@@ -30,6 +30,10 @@ The repository includes a KPM package targeting `kindlehf`. It installs Kindle l
 
 It does not launch, focus, navigate, refresh, or inject into the browser. It does not dump the full verbose LIPC registry, which can contain unrelated account/session properties.
 
+## No-cable diagnostic upload
+
+The package also installs **RR-Upload-Diagnostic**. It uploads only the diagnostic log after redacting the Royal Road fiction/chapter path. The upload is a manual library action, not an automatic upload. It uses the anonymous paste.rs text-upload API; anyone with the generated link can read the paste. No GitHub credentials are stored on the Kindle or in the repository. Once the user shares the link, the log can be copied into the repository and the temporary paste deleted.
+
 ## Why the previous injection attempt was withdrawn
 
 The earlier test read the last page from `com.lab126.kppbrowser`, launched the browser, and attempted to send a JavaScript URL through `com.lab126.browser gotoURL`. The user reported that this interrupted page loading. The property was not verified against the device's actual LIPC registry. Do not repeat this call or guess the payload for `invokeAction`.
