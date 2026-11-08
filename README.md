@@ -16,7 +16,8 @@ An experimental KPM toolkit for investigating whether the jailbroken Kindle's bu
 ## What's in the repository
 
 - KPM package source in `kpm/package/`.
-- A read-only LIPC diagnostic scriptlet (**RR-JS-Smoke-Test**) that records the active app, current page without query parameters, safe browser settings, and browser-related LIPC property names/type/access metadata.
+- A read-only LIPC diagnostic scriptlet (**RR-JS-Smoke-Test**) that records browser properties/type/access metadata without changing the page.
+- A manual **RR-Upload-Diagnostic** library item that uploads a redacted log to a temporary link without requiring a GitHub token; the user shares the link so the diagnostic can be copied into this repository.
 - Existing bookmark setup/repair helpers, retained for the earlier bookmark test.
 - A one-run bootstrap scriptlet in `install/Install-RoyalRoadTools.sh`.
 - A GitHub Actions workflow that builds the KPM package, publishes a versioned GitHub Release, and updates the static KPM repository manifest.
@@ -25,7 +26,7 @@ See [Kindle installation](docs/kpm-installation.md), [architecture and staged te
 
 ## Install / update
 
-The KPM repository is already configured on the Kindle. Open **KPM-Update-All** in the Kindle library to refresh the package index and upgrade installed packages. Then open **RR-JS-Smoke-Test**.
+The KPM repository is already configured on the Kindle. Open **KPM-Update-All** in the Kindle library to refresh the package index and upgrade installed packages. Run **RR-JS-Smoke-Test**, then **RR-Upload-Diagnostic** to share its redacted log without a USB cable.
 
 For a first-time setup, the latest release includes `Install-RoyalRoadTools.sh`. The scriptlet registers this KPM repository, refreshes its index, and installs the package.
 
@@ -37,7 +38,7 @@ The current **RR-JS-Smoke-Test** is deliberately read-only. It queries only `com
 
 The next step is to use the live Kindle results to establish the accepted `invokeAction` contract from reliable local/firmware evidence before attempting any browser action again.
 
-The package does not yet collect full stories, transfer chapter data, or create EPUBs. It will stop on access-denial or Cloudflare challenge responses and will not bypass CAPTCHAs or other access controls.
+The log uploader sends only a diagnostic copy to paste.rs; the link is readable by anyone who has it. It redacts the story/chapter path and stores no GitHub credential. The package does not yet collect full stories, transfer chapter data, or create EPUBs. It will stop on access-denial or Cloudflare challenge responses and will not bypass CAPTCHAs or other access controls.
 
 ## Keep the existing EPUB project separate
 
