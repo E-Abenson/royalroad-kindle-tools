@@ -1,15 +1,12 @@
 #!/bin/sh
 # Name: KindleBatchPrepareFix
 # Author: E-Abenson / ChatGPT
-# Installs the corrected Kindle Batch Preparation plugin source.
-# All output is displayed by sh_integration and saved in Documents.
+# Finds the installed Kindle Batch Preparation plugin by its metadata,
+# patches its Lua source, and re-enables it only after validation.
 
 DOCS="/mnt/us/documents"
 KO_ROOT="/mnt/us/koreader"
-ACTIVE_PLUGIN_DIR="$KO_ROOT/plugins/kindle-batch-prepare-addon-fixed.koplugin"
-DISABLED_PLUGIN_DIR="$KO_ROOT/plugins/kindle-batch-prepare-addon-fixed.disabled"
-PLUGIN_DIR="$ACTIVE_PLUGIN_DIR"
-RESTORE_DISABLED=0
+PLUGIN_ROOT="$KO_ROOT/plugins"
 SOURCE_URL="https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/main/kpm/package/files/kindle_batch_prepare_main.lua.gz"
 LOG="$DOCS/KindleBatchPrepareFix.log"
 
@@ -53,22 +50,60 @@ fail() {
 say "============================================================"
 say "KINDLE BATCH PREPARATION — CRASH FIX"
 say "Starting at $(date)"
+say "Searching plugin folders under: $PLUGIN_ROOT"
 say "Log: $LOG"
 
-# If the plugin was renamed to .disabled to stop the crash, patch it
-# while it remains disabled, then restore the normal folder name.
-if [ ! -d "$ACTIVE_PLUGIN_DIR" ] && [ -d "$DISABLED_PLUGIN_DIR" ]; then
-  PLUGIN_DIR="$DISABLED_PLUGIN_DIR"
-  RESTORE_DISABLED=1
-  say "Found the safely disabled plugin folder. It will remain disabled until the fixed file is installed."
+if [ ! -d "$PLUGIN_ROOT" ]; then
+  fail 1 "KOReader plugin directory does not exist: $PLUGIN_ROOT"
 fi
-TARGET="$PLUGIN_DIR/main.lua"
 
-if [ ! -d "$PLUGIN_DIR" ]; then
-  fail 1 "Plugin folder not found. Expected either $ACTIVE_PLUGIN_DIR or $DISABLED_PLUGIN_DIR"
+# Locate by the plugin's own metadata, not by a hard-coded directory name.
+FOUND_DIR=""
+FOUND_COUNT=0
+say "Plugin folders currently present:"
+for candidate in "$PLUGIN_ROOT"/*; do
+  [ -d "$candidate" ] || continue
+  say "  $(basename "$candidate")"
+  if [ -f "$candidate/main.lua" ] && [ -f "$candidate/_meta.lua" ] &&
+     grep -Fq "Kindle Batch Preparation" "$candidate/_meta.lua"; then
+    FOUND_DIR="$candidate"
+    FOUND_COUNT=$((FOUND_COUNT + 1))
+    say "Identified matching plugin metadata in: $candidate"
+  fi
+done
+
+if [ "$FOUND_COUNT" -eq 0 ]; then
+  fail 1 "No plugin folder with matching Kindle Batch Preparation _meta.lua, main.lua, and metadata was found."
 fi
-if [ ! -f "$TARGET" ]; then
-  fail 1 "Existing main.lua not found: $TARGET"
+if [ "$FOUND_COUNT" -gt 1 ]; then
+  fail 1 "Found $FOUND_COUNT matching plugin folders. Refusing to guess which one to replace."
+fi
+
+PLUGIN_DIR="$FOUND_DIR"
+TARGET="$PLUGIN_DIR/main.lua"
+RESTORE_DIR=""
+BASE_NAME="$(basename "$PLUGIN_DIR")"
+
+case "$BASE_NAME" in
+  *.disabled)
+    RESTORE_NAME="${BASE_NAME%.disabled}"
+    case "$RESTORE_NAME" in
+      *.koplugin) ;;
+      *) RESTORE_NAME="$RESTORE_NAME.koplugin" ;;
+    esac
+    RESTORE_DIR="$PLUGIN_ROOT/$RESTORE_NAME"
+    say "Plugin is disabled; it will be patched before being re-enabled."
+    ;;
+  *.koplugin)
+    say "Plugin folder is already active."
+    ;;
+  *)
+    fail 1 "Found the plugin, but its folder suffix is unexpected: $BASE_NAME"
+    ;;
+esac
+
+if [ -n "$RESTORE_DIR" ] && [ -e "$RESTORE_DIR" ]; then
+  fail 1 "Cannot safely re-enable plugin because the destination already exists: $RESTORE_DIR"
 fi
 
 ARCHIVE="$PLUGIN_DIR/main.lua.download.gz.$$"
@@ -108,7 +143,7 @@ if [ ! -s "$TMP" ]; then
   fail 3 "Decompressed main.lua is empty."
 fi
 
-# Place the plugin entry in More Tools before installation.
+# Set the requested KOReader menu section, then validate the full payload.
 say "Setting the plugin menu location to More Tools..."
 if ! sed 's/sorting_hint = "tools"/sorting_hint = "more_tools"/' "$TMP" > "$STAGED"; then
   fail 3 "Could not set the More Tools menu location."
@@ -118,7 +153,6 @@ if [ ! -s "$STAGED" ]; then
 fi
 mv -f "$STAGED" "$TMP"
 
-# Verify that this is the intended plugin and that the crash fix is present.
 for marker in \
   "KOREADER_BATCH_PREPARE_MENU_FIX_V2" \
   "Kindle batch preparation: registering menu widget" \
@@ -130,8 +164,8 @@ for marker in \
     fail 3 "Downloaded main.lua failed validation: missing marker: $marker"
   fi
 done
-
 say "Download and crash-fix validation passed."
+
 STAMP="$(date '+%Y%m%d-%H%M%S')"
 BACKUP="$PLUGIN_DIR/main.lua.before-menu-fix-$STAMP.bak"
 say "Creating backup: $BACKUP"
@@ -150,15 +184,12 @@ fi
 
 rm -f "$ARCHIVE" "$TMP"
 
-if [ "$RESTORE_DISABLED" -eq 1 ]; then
-  say "Restoring the plugin folder's normal .koplugin name..."
-  if [ -e "$ACTIVE_PLUGIN_DIR" ]; then
-    fail 5 "Cannot restore plugin folder because $ACTIVE_PLUGIN_DIR already exists. Fixed files remain in $DISABLED_PLUGIN_DIR"
+if [ -n "$RESTORE_DIR" ]; then
+  say "Restoring plugin folder to: $RESTORE_DIR"
+  if ! mv "$PLUGIN_DIR" "$RESTORE_DIR"; then
+    fail 5 "The fixed main.lua is installed, but the disabled folder could not be renamed. It remains at $PLUGIN_DIR"
   fi
-  if ! mv "$DISABLED_PLUGIN_DIR" "$ACTIVE_PLUGIN_DIR"; then
-    fail 5 "Could not restore the plugin folder name. Fixed files remain in $DISABLED_PLUGIN_DIR"
-  fi
-  PLUGIN_DIR="$ACTIVE_PLUGIN_DIR"
+  PLUGIN_DIR="$RESTORE_DIR"
   TARGET="$PLUGIN_DIR/main.lua"
   BACKUP="$PLUGIN_DIR/$(basename "$BACKUP")"
   say "Plugin folder restored successfully."
