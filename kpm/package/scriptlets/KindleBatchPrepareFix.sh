@@ -1,13 +1,15 @@
 #!/bin/sh
 # Name: KindleBatchPrepareFix
 # Author: E-Abenson / ChatGPT
-# Installs the diagnostic menu-registration fix for Kindle Batch Preparation.
+# Installs the corrected Kindle Batch Preparation plugin source.
 # All output is displayed by sh_integration and saved in Documents.
 
 DOCS="/mnt/us/documents"
 KO_ROOT="/mnt/us/koreader"
-PLUGIN_DIR="$KO_ROOT/plugins/kindle-batch-prepare-addon-fixed.koplugin"
-TARGET="$PLUGIN_DIR/main.lua"
+ACTIVE_PLUGIN_DIR="$KO_ROOT/plugins/kindle-batch-prepare-addon-fixed.koplugin"
+DISABLED_PLUGIN_DIR="$KO_ROOT/plugins/kindle-batch-prepare-addon-fixed.disabled"
+PLUGIN_DIR="$ACTIVE_PLUGIN_DIR"
+RESTORE_DISABLED=0
 SOURCE_URL="https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/main/kpm/package/files/kindle_batch_prepare_main.lua.gz"
 LOG="$DOCS/KindleBatchPrepareFix.log"
 
@@ -43,18 +45,27 @@ fail() {
   CODE="$1"
   shift
   say "FAILED: $*"
-  say "No replacement was installed."
+  say "No active plugin replacement was completed."
   say "Full log: $LOG"
   exit "$CODE"
 }
 
 say "============================================================"
-say "KINDLE BATCH PREPARATION — MENU FIX"
+say "KINDLE BATCH PREPARATION — CRASH FIX"
 say "Starting at $(date)"
 say "Log: $LOG"
 
+# If the plugin was renamed to .disabled to stop the crash, patch it
+# while it remains disabled, then restore the normal folder name.
+if [ ! -d "$ACTIVE_PLUGIN_DIR" ] && [ -d "$DISABLED_PLUGIN_DIR" ]; then
+  PLUGIN_DIR="$DISABLED_PLUGIN_DIR"
+  RESTORE_DISABLED=1
+  say "Found the safely disabled plugin folder. It will remain disabled until the fixed file is installed."
+fi
+TARGET="$PLUGIN_DIR/main.lua"
+
 if [ ! -d "$PLUGIN_DIR" ]; then
-  fail 1 "Plugin folder not found: $PLUGIN_DIR"
+  fail 1 "Plugin folder not found. Expected either $ACTIVE_PLUGIN_DIR or $DISABLED_PLUGIN_DIR"
 fi
 if [ ! -f "$TARGET" ]; then
   fail 1 "Existing main.lua not found: $TARGET"
@@ -97,8 +108,7 @@ if [ ! -s "$TMP" ]; then
   fail 3 "Decompressed main.lua is empty."
 fi
 
-# Put the plugin entry in KOReader's More Tools section.
-# Patch the downloaded source before validating and installing it.
+# Place the plugin entry in More Tools before installation.
 say "Setting the plugin menu location to More Tools..."
 if ! sed 's/sorting_hint = "tools"/sorting_hint = "more_tools"/' "$TMP" > "$STAGED"; then
   fail 3 "Could not set the More Tools menu location."
@@ -108,19 +118,20 @@ if [ ! -s "$STAGED" ]; then
 fi
 mv -f "$STAGED" "$TMP"
 
-# Refuse to install an HTML error page or an unrelated file.
+# Verify that this is the intended plugin and that the crash fix is present.
 for marker in \
   "KOREADER_BATCH_PREPARE_MENU_FIX_V2" \
   "Kindle batch preparation: registering menu widget" \
   "function PLUGIN:addToMainMenu(menu_items)" \
   "function PLUGIN:prepareAllBooks()" \
+  "for choice_index, mb in ipairs(choices) do" \
   'sorting_hint = "more_tools"'; do
   if ! grep -Fq "$marker" "$TMP"; then
     fail 3 "Downloaded main.lua failed validation: missing marker: $marker"
   fi
 done
 
-say "Download verified."
+say "Download and crash-fix validation passed."
 STAMP="$(date '+%Y%m%d-%H%M%S')"
 BACKUP="$PLUGIN_DIR/main.lua.before-menu-fix-$STAMP.bak"
 say "Creating backup: $BACKUP"
@@ -138,9 +149,25 @@ if ! mv -f "$STAGED" "$TARGET"; then
 fi
 
 rm -f "$ARCHIVE" "$TMP"
+
+if [ "$RESTORE_DISABLED" -eq 1 ]; then
+  say "Restoring the plugin folder's normal .koplugin name..."
+  if [ -e "$ACTIVE_PLUGIN_DIR" ]; then
+    fail 5 "Cannot restore plugin folder because $ACTIVE_PLUGIN_DIR already exists. Fixed files remain in $DISABLED_PLUGIN_DIR"
+  fi
+  if ! mv "$DISABLED_PLUGIN_DIR" "$ACTIVE_PLUGIN_DIR"; then
+    fail 5 "Could not restore the plugin folder name. Fixed files remain in $DISABLED_PLUGIN_DIR"
+  fi
+  PLUGIN_DIR="$ACTIVE_PLUGIN_DIR"
+  TARGET="$PLUGIN_DIR/main.lua"
+  BACKUP="$PLUGIN_DIR/$(basename "$BACKUP")"
+  say "Plugin folder restored successfully."
+fi
+
 say "SUCCESS: Updated $TARGET"
 say "Backup kept at: $BACKUP"
-say "The replacement registers its menu before converter setup and places the entry under More Tools."
-say "Please exit KOReader and restart it to load the updated plugin."
+say "Crash fix installed: the reserve-menu loop no longer shadows KOReader's translation function."
+say "The menu entry is configured for More Tools."
+say "Please restart KOReader to load the corrected plugin."
 say "Full log saved to: $LOG"
 exit 0
