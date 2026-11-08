@@ -4,7 +4,8 @@ This package currently contains a **read-only browser LIPC diagnostic**, not a s
 
 ## Kindle library items
 
-- **RR-JS-Smoke-Test** — records safe browser settings, reads verbose metadata for the browser LIPC service, and identifies the service-owning process. It suppresses property values and does not navigate, launch, refresh, or inject into the browser.
+- **RR-JS-Smoke-Test** — legacy read-only browser diagnostic; retained for compatibility.
+- **RR-LIPC-Metadata-Check** — uniquely named build 0.1.40 read-only test. It prints its build marker, safe browser settings, allowlisted LIPC metadata, and the service-owning process. Readable property values are suppressed.
 - **RR-Upload-Diagnostic** — manually uploads a redacted copy of the latest LIPC diagnostic log to a temporary paste link. It does not need a GitHub credential.
 - **RoyalRoadTools** — the older bookmark setup/repair launcher, retained for the earlier bookmark test.
 - **KPM-Update-All** — refreshes package repositories and upgrades installed packages.
@@ -13,7 +14,7 @@ This package currently contains a **read-only browser LIPC diagnostic**, not a s
 
 ## Upload the diagnostic without a USB cable
 
-1. Run **RR-JS-Smoke-Test** first.
+1. Run **RR-LIPC-Metadata-Check** first (build 0.1.40).
 2. Return to the Kindle library and open **RR-Upload-Diagnostic**.
 3. The script uploads only `/mnt/us/documents/RR-JS-Smoke-Test.log` to pasters.io, after redacting the Royal Road story/chapter path.
 4. It displays a `https://pasters.io/...` link (expires after one week) and saves it to `/mnt/us/documents/RR-JS-Smoke-Test-upload-url.txt`. The separate deletion URL is saved to `/mnt/us/documents/RR-JS-Smoke-Test-delete-url.txt`.
@@ -40,7 +41,7 @@ The installer log is saved to `/mnt/us/documents/KindleBatchPrepareFix.log`. The
 4. Open **RR-JS-Smoke-Test** from the Kindle library.
 5. Read the on-screen output, or use **RR-Upload-Diagnostic** to send a redacted copy without a cable.
 
-The diagnostic:
+The legacy diagnostic:
 - checks which Kindle application is in the foreground;
 - reads the last-open browser URL with query parameters and fragments removed;
 - reads only the browser's `getAllSettings` value and reports whether JavaScript and images are enabled;
