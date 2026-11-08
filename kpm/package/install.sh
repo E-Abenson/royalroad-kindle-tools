@@ -28,7 +28,8 @@ install_scriptlet "scriptlets/RR-JS-Smoke-Test.sh" "$DOCS/RR-JS-Smoke-Test.sh"
 install_scriptlet "scriptlets/KPM-Update-All.sh" "$DOCS/KPM-Update-All.sh"
 install_scriptlet "scriptlets/KindleBatchPrepareFix.sh" "$DOCS/KindleBatchPrepareFix.sh"
 install_scriptlet "scriptlets/KindleBatchPrepareDiagnostics.sh" "$DOCS/KindleBatchPrepareDiagnostics.sh"
-say "All five library launchers are installed."
+install_scriptlet "scriptlets/RR-Upload-Diagnostic.sh" "$DOCS/RR-Upload-Diagnostic.sh"
+say "All six library launchers are installed."
 
 # A busy browser DB does not fail the package install; the launcher can retry.
 if [ -f "tools/add-browser-bookmark.sh" ]; then
