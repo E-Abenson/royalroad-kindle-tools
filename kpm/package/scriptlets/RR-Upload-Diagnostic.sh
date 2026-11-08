@@ -63,9 +63,12 @@ if grep -Eiq '(cookie|authorization:|bearer[[:space:]]|github_pat_|gh[pousr]_[A-
   exit 1
 fi
 
-say "Uploading the redacted diagnostic to paste.rs..."
+say "Uploading the redacted diagnostic to paste.rs as raw UTF-8 text..."
 say "The upload happens only because you opened this library item."
 HTTP_STATUS="$(curl -sS --connect-timeout 12 --max-time 40 \
+  -X POST \
+  -H "Content-Type: text/plain; charset=utf-8" \
+  -H "Accept: text/plain" \
   --data-binary "@$UPLOAD_FILE" \
   -o "$RESPONSE_FILE" -w '%{http_code}' \
   https://paste.rs/ 2>> "$LOG")"
