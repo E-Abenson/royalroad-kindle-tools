@@ -10,11 +10,11 @@
       "description": "Read-only Royal Road browser-session diagnostic for jailbroken Kindles.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.36/royalroad-kindle-tools_0.1.36_kindlehf.kpkg",
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.37/royalroad-kindle-tools_0.1.37_kindlehf.kpkg",
           "version": [
             0,
             1,
-            36
+            37
           ],
           "dependencies": [],
           "supported_platforms": [
