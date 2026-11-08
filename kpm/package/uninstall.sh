@@ -23,7 +23,7 @@ if [ -f "$ROOT/tools/remove-browser-bookmark.sh" ]; then
   fi
 fi
 
-for ITEM in RoyalRoadTools.sh RR-JS-Smoke-Test.sh KPM-Update-All.sh; do
+for ITEM in RoyalRoadTools.sh RR-JS-Smoke-Test.sh RR-Upload-Diagnostic.sh KPM-Update-All.sh KindleBatchPrepareFix.sh KindleBatchPrepareDiagnostics.sh; do
   if [ -f "$DOCS/$ITEM" ]; then
     say "Removing library item: $ITEM"
     rm -f "$DOCS/$ITEM"
