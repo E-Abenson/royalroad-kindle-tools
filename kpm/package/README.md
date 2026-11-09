@@ -5,6 +5,7 @@ This package contains a read-only LIPC service inventory and the maintenance too
 ## Kindle library items
 
 - **RR-LIPC-READONLY-PROBE** — lists the Kindle's registered LIPC services with lipc-probe -a -v and records a read-only snapshot of KPP-related processes. It does not set LIPC properties, send events, navigate, refresh, or run browser JavaScript.
+- **RR-LIPC-READONLY-UPLOAD** — optionally uploads only the probe log to pasters.io after an explicit typed confirmation. The paste is requested to expire after one week. The script does not run the probe, upload other files, or interact with the browser; it saves the paste and remote-delete links locally with owner-only permissions.
 - **RoyalRoadTools-Cleanup** — a persistent cleanup runner. It processes a queue of retired test scripts, logs, temporary files, package-cache files and the exact old Royal Road Session Test bookmark. Each item is removed from the pending queue only after deletion is verified. Failed items stay queued for the next run.
 - **RoyalRoadTools-Cleanup-Queue.txt** — the queue template in the repository. Add future cleanup targets here as one TYPE|VALUE line. The installer merges new lines into the Kindle's queue without overwriting pending work or re-adding completed work.
 - **RoyalRoadTools-Version-Info** — regenerates Kindle-Version-Report.txt with device firmware, KPM versions and installed package versions, KOReader revision, and the installed Kindle Batch Preparation plugin code fingerprint.
@@ -33,6 +34,8 @@ Use exact paths and narrow patterns. Never add broad wildcards for user document
 ## Current Kindle logs
 
 - /mnt/us/documents/RR-LIPC-READONLY-PROBE.log — latest read-only LIPC inventory.
+- /mnt/us/documents/RR-LIPC-READONLY-UPLOAD-URL.txt — latest uploaded diagnostic link, when one has been created.
+- /mnt/us/documents/RR-LIPC-READONLY-UPLOAD-DELETE-URL.txt — private remote-delete link returned by pasters.io, when supplied.
 - /mnt/us/documents/RoyalRoadTools-Cleanup.log — latest cleanup run and per-item results.
 - /mnt/us/documents/KPM-Update-All.log — latest package update result.
 - /mnt/us/documents/KindleBatchPrepareFix.log — latest KOReader plugin repair result.
@@ -41,4 +44,4 @@ The diagnostic and maintenance logs are cleared at the start of their respective
 
 ## Safety and limits
 
-The LIPC probe uses only lipc-probe -a -v, ps, and command-availability checks. It does not write to LIPC, change the browser database, interact with the browser, or run app code. The cleanup uses narrow, validated filenames and package-relative paths; it never recursively deletes folders. It removes only the exact old bookmark with the project-installed title and JavaScript URL scheme, after backing up and verifying the browser database. It does not reset browser history, cookies, unrelated bookmarks, KOReader books, EPUBs, or the KOReader plugin folder.
+The LIPC probe uses only lipc-probe -a -v, ps, and command-availability checks. The uploader is separate and manual: it asks the user to type UPLOAD, sends only the diagnostic log to pasters.io, and requests one-week expiry. The paste link is public to anyone who has it; inspect the log before consenting to upload. It does not write to LIPC, change the browser database, interact with the browser, or run app code. The cleanup uses narrow, validated filenames and package-relative paths; it never recursively deletes folders. It removes only the exact old bookmark with the project-installed title and JavaScript URL scheme, after backing up and verifying the browser database. It does not reset browser history, cookies, unrelated bookmarks, KOReader books, EPUBs, or the KOReader plugin folder.
