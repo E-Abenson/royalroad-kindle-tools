@@ -5,7 +5,8 @@ This package currently contains a **read-only browser LIPC diagnostic**, not a s
 ## Kindle library items
 
 - **RR-JS-Smoke-Test** — legacy read-only browser diagnostic; retained for compatibility.
-- **RR-LIPC-Metadata-Check** — uniquely named build 0.1.40 read-only test. It prints its build marker, safe browser settings, allowlisted LIPC metadata, and the service-owning process. Readable property values are suppressed.
+- **RR-LIPC-Metadata-Check** — reads safe browser settings, allowlisted LIPC metadata, and the service-owning process. Readable property values are suppressed.
+- **RR-KPP-Bundle-Scan** — scans the installed KPP JavaScript bundle and main executable for a narrow set of browser/action identifiers. It reports matching strings only, redacts URL-like text, and never executes app code.
 - **RR-Upload-Diagnostic** — manually uploads a redacted copy of the latest LIPC diagnostic log to a temporary paste link. It does not need a GitHub credential.
 - **RoyalRoadTools** — the older bookmark setup/repair launcher, retained for the earlier bookmark test.
 - **KPM-Update-All** — refreshes package repositories and upgrades installed packages.
@@ -14,7 +15,7 @@ This package currently contains a **read-only browser LIPC diagnostic**, not a s
 
 ## Upload the diagnostic without a USB cable
 
-1. Run **RR-LIPC-Metadata-Check** first (build 0.1.40).
+1. Run the requested diagnostic launcher first.
 2. Return to the Kindle library and open **RR-Upload-Diagnostic**.
 3. The script uploads only `/mnt/us/documents/RR-JS-Smoke-Test.log` to pasters.io, after redacting the Royal Road story/chapter path.
 4. It displays a `https://pasters.io/...` link (expires after one week) and saves it to `/mnt/us/documents/RR-JS-Smoke-Test-upload-url.txt`. The separate deletion URL is saved to `/mnt/us/documents/RR-JS-Smoke-Test-delete-url.txt`.
@@ -52,6 +53,10 @@ The legacy diagnostic:
 - checks whether the browser already has a remote-debugging port flag.
 
 The log is cleared at the beginning of each diagnostic run, so it contains only the latest results.
+
+## Read-only KPP bundle inspection
+
+Open **RR-KPP-Bundle-Scan** from the Kindle library to inspect the installed KPP Hermes JavaScript bundle and native KPP executable for browser/action identifiers. It reads files under `/app` but does not modify them or execute their contents. Only allowlisted string matches are logged, and URL-like text is redacted. The output is saved in `/mnt/us/documents/RR-JS-Smoke-Test.log`; use **RR-Upload-Diagnostic** to share it without a cable.
 
 ## Why injection is not enabled yet
 
