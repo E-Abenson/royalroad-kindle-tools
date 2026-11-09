@@ -5,7 +5,7 @@
 # Only narrow, allowlisted string matches are written to the diagnostic log.
 
 DOCS="/mnt/us/documents"
-LOG="$DOCS/RR-JS-Smoke-Test.log"
+LOG="$DOCS/RR-KPP-Bundle-Scan.log"
 HBC="/app/KPPMainApp/js/KPPMainApp.js.hbc"
 NATIVE="/app/bin/KPPMainAppV2"
 mkdir -p "$DOCS"
