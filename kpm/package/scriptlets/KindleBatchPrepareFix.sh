@@ -7,7 +7,7 @@ DOCS="/mnt/us/documents"
 KO_ROOT="/mnt/us/koreader"
 PLUGIN_ROOT="$KO_ROOT/plugins"
 DEFAULT_PLUGIN_DIR="$PLUGIN_ROOT/kindle-batch-prepare-addon-fixed.koplugin"
-SOURCE_URL="https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/main/kpm/package/files/kindle_batch_prepare_main.lua.gz"
+LOCAL_SOURCE="$DOCS/KindleBatchPrepare-main.lua.gz"
 LOG="$DOCS/KindleBatchPrepareFix.log"
 
 mkdir -p "$DOCS"
@@ -135,18 +135,14 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-say "Downloading corrected main.lua from GitHub..."
-if command -v curl >/dev/null 2>&1; then
-  if ! run_and_show curl -fL --retry 2 --connect-timeout 15 --max-time 180 --silent --show-error -o "$ARCHIVE" "$SOURCE_URL"; then
-    fail 2 "GitHub download failed (curl)."
-  fi
-elif command -v wget >/dev/null 2>&1; then
-  if ! run_and_show wget -O "$ARCHIVE" "$SOURCE_URL"; then
-    fail 2 "GitHub download failed (wget)."
-  fi
-else
-  fail 2 "Neither curl nor wget is available on this Kindle."
+say "Using the locally bundled plugin source installed by KPM..."
+if [ ! -s "$LOCAL_SOURCE" ]; then
+  fail 2 "Local plugin source is missing: $LOCAL_SOURCE. Run KPM-Update-All to install the bundled source, then rerun this fixer."
 fi
+if ! cp "$LOCAL_SOURCE" "$ARCHIVE"; then
+  fail 2 "Could not copy the local bundled plugin source."
+fi
+say "Local source copied; no network connection is required."
 
 if [ ! -s "$ARCHIVE" ]; then
   fail 3 "Downloaded archive is empty."
