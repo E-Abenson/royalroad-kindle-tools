@@ -1,54 +1,34 @@
-# Kindle installation
+# Kindle installation and maintenance
 
-The KPM package currently contains a **read-only browser LIPC diagnostic** and a manual diagnostic-log uploader. It is not yet a story downloader or EPUB builder.
+## Update
 
-## Install / update using KPM
+Open **KPM-Update-All** from the Kindle library. It refreshes the configured package repositories and upgrades installed KPM packages. Its current run is saved in `/mnt/us/documents/KPM-Update-All.log`.
 
-If the repository is already registered, open **KPM-Update-All** in the Kindle library to refresh the package index and upgrade installed KPM packages. Output is shown live and saved to `/mnt/us/documents/KPM-Update-All.log`.
+## Clean up completed experiments
 
-For initial installation, open the one-time `Install-RoyalRoadTools` scriptlet. It registers the repository, refreshes KPM, and installs the package. Its log is `/mnt/us/documents/RoyalRoadTools-install.log`.
+After installing the cleanup release, open **RoyalRoadTools-Cleanup** once from the Kindle library. It removes the old RR-JS-Smoke-Test and RR-LIPC-Metadata-Check launchers, their obsolete uploader, old Royal Road bookmarklet source/helpers, the old KOReader diagnostics launcher, their old logs and local upload/deletion links, and the old Royal Road Session Test bookmark previously installed by this project. It first backs up the browser database and verifies the exact title/type match before deleting. It also tries to delete the old pasters.io paste if its saved deletion URL is available.
 
-## Run the detailed read-only diagnostic
+The cleanup deliberately keeps **RR-KPP-Bundle-Scan** and its uploader because that investigation is not finished. It also keeps **KPM-Update-All**, **KindleBatchPrepareFix**, and the installed KOReader plugin.
 
-1. Open a Royal Road chapter in the Kindle's built-in browser.
-2. Let it finish loading. Do not refresh during the test.
-3. Return to the Kindle Home screen.
-4. Open **RR-JS-Smoke-Test** from the Kindle library.
+## Version report
 
-The script checks the foreground application, reads the last-open URL with query parameters removed, and reports the safe JavaScript/image settings. It probes only `com.lab126.kppbrowser` and `com.lab126.browser`, printing property names and type/access metadata while discarding values. It specifically reports whether `invokeAction` is registered and write-enabled. The log is cleared before each run.
+Open **RoyalRoadTools-Version-Info**. It writes and displays `/mnt/us/documents/Kindle-Version-Report.txt`. The report includes Kindle model/firmware, KPM CLI/library and installed package versions, KOReader revision when available, the Kindle Batch Preparation plugin metadata version and `main.lua` checksum, the bundled repair-source checksum, and the KPP application executable fingerprint.
 
-The script does **not** navigate, refresh, inject JavaScript, modify bookmarks, read cookies, or access chapter text.
+Open the report again after each KPM or KOReader update. It is refreshed on demand, not automatically.
 
-## Upload the log without a cable
+## Kindle Batch Preparation repair
 
-1. After running the diagnostic, return to the Kindle library.
-2. Open **RR-Upload-Diagnostic**.
-3. The uploader creates a redacted temporary copy and posts it to paste.rs. It removes the Royal Road story/chapter path from the log.
-4. The Kindle displays a short paste link. Send that link in the chat.
-5. The diagnostic can then be retrieved and committed into the GitHub repository.
+Keep **KindleBatchPrepareFix** installed. It is an on-demand repair/reinstall utility, not a background service. Use it only if the separate Kindle Batch Preparation plugin disappears, fails to load, or needs the validated menu fix reapplied. It uses the locally bundled source so no manual file copying or network download is needed. Restart KOReader after a successful repair.
 
-The paste URL is readable by anyone who has it; it is not a private upload. Uploading is a deliberate action and does not happen during KPM updates or diagnostic runs. The script uses no GitHub credentials and stores no token. After the repository copy is confirmed, the temporary paste should be deleted.
+## Remaining KPP test
 
-The uploader stores the resulting link at `/mnt/us/documents/RR-JS-Smoke-Test-upload-url.txt` and its own output at `/mnt/us/documents/RR-Upload-Diagnostic.log`.
+Open **RR-KPP-Bundle-Scan**, then **RR-Upload-Bundle-Scan**, to share the filtered static scan of the KPP application code. The scan does not execute code, navigate the browser, or send an `invokeAction` request.
 
-## Other library utilities
-
-- **KPM-Update-All** refreshes repositories and upgrades installed packages.
-- **KindleBatchPrepareFix** installs the backed-up and validated KOReader menu fix. Restart KOReader after it reports success.
-- **KindleBatchPrepareDiagnostics** gathers diagnostics for the separate KOReader add-on.
-- **RoyalRoadTools** retains the earlier bookmark repair function.
-
-## Logs
+## Active logs
 
 - `/mnt/us/documents/KPM-Update-All.log`
-- `/mnt/us/documents/RR-JS-Smoke-Test.log`
-- `/mnt/us/documents/RR-JS-Smoke-Test-upload-url.txt`
-- `/mnt/us/documents/RR-Upload-Diagnostic.log`
 - `/mnt/us/documents/KindleBatchPrepareFix.log`
-- `/mnt/us/documents/KindleBatchPrepareDiagnostics.log`
-- `/mnt/us/documents/RoyalRoadTools-package.log`
-- `/mnt/us/documents/RoyalRoadTools-install.log`
+- `/mnt/us/documents/RR-KPP-Bundle-Scan.log`
+- `/mnt/us/documents/RR-Upload-Bundle-Scan.log`
 
-## Safety and current limits
-
-The diagnostic does not change the browser database, bookmarks, root filesystem, cookies, credentials, or browser settings. The uploader shares only the diagnostic log after redacting the story path. The paste link is accessible to anyone who knows it. Full story collection and EPUB creation have not been implemented.
+Each active script clears its own log at the start of a run. Obsolete experiment logs are removed by the cleanup launcher.

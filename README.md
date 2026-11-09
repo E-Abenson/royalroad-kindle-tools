@@ -1,45 +1,39 @@
 # Royal Road Kindle Tools
 
-An experimental KPM toolkit for investigating whether the jailbroken Kindle's built-in browser can be controlled locally to retrieve Royal Road pages and eventually build a single offline EPUB.
+An experimental KPM toolkit for investigating the jailbroken Kindle's built-in KPP browser and, if ordinary access proves reliable, eventually building an offline EPUB. It is not yet a story downloader.
 
-## Device and confirmed findings
+## Device facts and confirmed browser findings
 
 - Kindle: 10th generation; exact Basic/Paperwhite variant not yet identified.
-- Firmware: 5.18.1.1.1 (hard-float firmware family).
-- SpringBoard jailbreak completed.
-- Kindle Package Manager works.
-- The built-in browser can open Royal Road chapters.
-- Direct `curl` from the Kindle received HTTP 403 with Cloudflare challenge markers.
-- KPP browser LIPC exposes `com.lab126.kppbrowser.getLastOpenPage`.
-- The browser database bookmark table was inspected previously, but the current LIPC diagnostic does not modify it.
+- Firmware last reported: `5.18.1.1.1` (refresh on-device with the version report).
+- SpringBoard jailbreak completed; KPM works.
+- The built-in Kindle browser can open Royal Road chapters.
+- A direct Kindle `curl` request received HTTP 403 with Cloudflare challenge markers.
+- `com.lab126.kppbrowser` exposes `getLastOpenPage` and a write-only string property named `invokeAction`.
+- The active LIPC service owner was reported as `KPPMainApp` at `/app/bin/KPPMainAppV2`.
+- The accepted `invokeAction` string format remains unknown; no payload has been sent.
 
-## What's in the repository
+## Current Kindle tools
 
-- KPM package source in `kpm/package/`.
-- A read-only LIPC diagnostic scriptlet (**RR-JS-Smoke-Test**) that records browser properties/type/access metadata without changing the page.
-- A manual **RR-Upload-Diagnostic** library item that uploads a redacted log to a temporary link without requiring a GitHub token; the user shares the link so the diagnostic can be copied into this repository.
-- Existing bookmark setup/repair helpers, retained for the earlier bookmark test.
-- A one-run bootstrap scriptlet in `install/Install-RoyalRoadTools.sh`.
-- A GitHub Actions workflow that builds the KPM package, publishes a versioned GitHub Release, and updates the static KPM repository manifest.
+- **RR-KPP-Bundle-Scan** — the one remaining read-only investigation, scanning installed KPP application files for browser/action strings.
+- **RR-Upload-Bundle-Scan** — manually shares the filtered scan log via an expiring paste link.
+- **RoyalRoadTools-Version-Info** — creates `/mnt/us/documents/Kindle-Version-Report.txt` with installed versions and code fingerprints.
+- **KPM-Update-All** — updates installed KPM packages.
+- **KindleBatchPrepareFix** — on-demand repair/reinstall tool for the separate KOReader Kindle Batch Preparation plugin. It is not continuously running.
+- **RoyalRoadTools-Cleanup** — one-time removal of completed smoke/LIPC/bookmarklet tests and their obsolete logs/links.
 
-See [Kindle installation](docs/kpm-installation.md), [architecture and staged test plan](docs/architecture-and-test-plan.md), and [package README](kpm/package/README.md).
+## Update and maintenance
 
-## Install / update
+Open **KPM-Update-All** from the Kindle library to refresh the repository index and upgrade packages. Then open **RoyalRoadTools-Version-Info** to refresh the version report. The report is a snapshot; rerun it after updating KPM or KOReader.
 
-The KPM repository is already configured on the Kindle. Open **KPM-Update-All** in the Kindle library to refresh the package index and upgrade installed packages. Run **RR-JS-Smoke-Test**, then **RR-Upload-Diagnostic** to share its redacted log without a USB cable.
+Open **RoyalRoadTools-Cleanup** once after installing the cleanup release. It removes old test launchers and their artifacts, and removes only the old Royal Road Session Test bookmark after backing up and verifying the browser database. It preserves the current bundle scan, its uploader, the KPM updater, the KOReader repair tool, and the KOReader plugin itself.
 
-For a first-time setup, the latest release includes `Install-RoyalRoadTools.sh`. The scriptlet registers this KPM repository, refreshes its index, and installs the package.
+Keep **KindleBatchPrepareFix** installed. Use it only when the separate KOReader plugin needs to be repaired or reinstalled. It is not a background service.
 
-## Current status
+## Remaining browser investigation
 
-The previous diagnostic attempted to send JavaScript through an unverified `com.lab126.browser gotoURL` property. The user observed that the browser page stopped loading during this attempt. That approach has been withdrawn.
+The current scan searches the installed KPP JavaScript Hermes bundle and native executable as data. It does not execute either file, navigate the browser, or send an `invokeAction` payload. The next step is to identify the action string from reliable installed-code evidence, not to guess it.
 
-The current **RR-JS-Smoke-Test** is deliberately read-only. It queries only `com.lab126.kppbrowser` and `com.lab126.browser`, emits property names and type/access metadata, discards property values, checks the safe JavaScript/image settings, and looks for an already-enabled remote-debugging flag. It clears its own log at the start of each run. It does not launch, focus, navigate, refresh, or inject into the browser, and it does not send an `invokeAction` payload.
+Stop on access-denial or Cloudflare challenge responses. Do not attempt CAPTCHA or other access-control bypasses. Full chapter collection and EPUB creation have not been implemented.
 
-The next step is to use the live Kindle results to establish the accepted `invokeAction` contract from reliable local/firmware evidence before attempting any browser action again.
-
-The log uploader sends only a diagnostic copy to paste.rs; the link is readable by anyone who has it. It redacts the story/chapter path and stores no GitHub credential. The package does not yet collect full stories, transfer chapter data, or create EPUBs. It will stop on access-denial or Cloudflare challenge responses and will not bypass CAPTCHAs or other access controls.
-
-## Keep the existing EPUB project separate
-
-Nothing in this repository modifies the existing Apps Script downloader or EPUB builder. A future local Kindle collector/EPUB adapter will remain separate until ordinary browser retrieval has been demonstrated to work reliably.
+See [architecture and staged test plan](docs/architecture-and-test-plan.md) and [KPM installation](docs/kpm-installation.md).

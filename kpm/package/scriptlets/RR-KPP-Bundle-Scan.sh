@@ -49,9 +49,9 @@ scan_file() {
   # URL-like substrings are removed before anything reaches the log.
   MATCHES="$(
     $STRINGS -n 5 "$FILE" 2>/dev/null |
-    grep -i -E -C 3 'invokeAction|com\.lab126\.kppbrowser|kppbrowser|insertBookmark|getLastOpenPage|deleteAllHistory|updateSetting|goBack|goForward|loadUrl|loadURL|reloadPage|navigateTo|browser.{0,24}(action|navigate|reload|load)|action.{0,24}(browser|navigate|reload|load)' |
+    grep -i -E 'invokeAction|com\.lab126\.kppbrowser|kppbrowser|insertBookmark|getLastOpenPage|deleteAllHistory|updateSetting|goBack|goForward|loadUrl|loadURL|reloadPage|navigateTo|browser.{0,24}(action|navigate|reload|load)|action.{0,24}(browser|navigate|reload|load)' |
     awk '
-      NR <= 120 {
+      NR <= 120 && $0 !~ /(cookie|authorization|bearer|token|secret|password|email)/i {
         gsub(/https?:\/\/[^[:space:]"]+/, "[URL omitted]")
         if (length($0) > 280) $0=substr($0,1,280) "..."
         print

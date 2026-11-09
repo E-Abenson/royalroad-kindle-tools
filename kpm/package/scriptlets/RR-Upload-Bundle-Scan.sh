@@ -1,7 +1,7 @@
 #!/bin/sh
 # Name: RR-Upload-Bundle-Scan
 # Author: E-Abenson
-# Manually upload a redacted copy of the latest browser diagnostic.
+# Manually upload the filtered output of the KPP bundle scan.
 # The paste URL is unlisted-by-link, not private. Anyone with the URL can read it.
 # This script runs only when the user opens RR-Upload-Bundle-Scan from the library.
 
@@ -29,7 +29,7 @@ cleanup() {
 trap cleanup 0 HUP INT TERM
 
 say "============================================================"
-say "ROYAL ROAD — DIAGNOSTIC LOG UPLOADER"
+say "ROYAL ROAD — KPP BUNDLE SCAN UPLOADER"
 say "This uploads only the filtered KPP bundle scan log, not browser data."
 say "The scanner filters results and omits Royal Road page paths before upload."
 
@@ -116,10 +116,10 @@ chmod 600 "$URL_FILE" "$DELETE_FILE"
 say "UPLOAD SUCCESSFUL."
 say "TEMPORARY LINK: $PASTE_URL"
 say "The link is readable by anyone who has it; it is not private."
-say "It expires in one week. A private deletion link is saved separately on the Kindle."
+say "It expires in one week. A separate deletion URL is saved locally on the Kindle; do not share it."
 say "Send me the temporary link so I can review the scan results."
 say "After I confirm the repository copy, I can guide you to delete the temporary paste."
 say "Paste link saved to: $URL_FILE"
-say "Private deletion link saved to: $DELETE_FILE"
+say "Deletion URL saved to: $DELETE_FILE"
 say "Uploader log: $LOG"
 exit 0

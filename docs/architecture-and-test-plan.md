@@ -2,79 +2,42 @@
 
 ## Goal
 
-Use the Kindle's own built-in browser session to retrieve Royal Road pages that the user can open normally, validate that every chapter is complete, and eventually build one offline EPUB. Avoid manual chapter-by-chapter copying.
+Use the Kindle's own built-in browser session to retrieve Royal Road pages that the user can open normally, validate completeness, and eventually build one offline EPUB. Avoid manual chapter-by-chapter copying.
 
 ## Confirmed device facts
 
 - Kindle: 10th generation; exact model variant not yet identified.
-- Firmware: 5.18.1.1.1 (hard-float family).
+- Firmware last reported: 5.18.1.1.1; refresh with the on-device version report.
 - SpringBoard jailbreak completed; KPM works.
 - The built-in Kindle browser can open Royal Road chapters.
-- A separate Kindle `curl` request to a Royal Road chapter returned HTTP 403 with Cloudflare challenge markers.
-- `com.lab126.kppbrowser.getLastOpenPage` is available through LIPC.
-- The user's diagnostic confirmed `com.lab126.kppbrowser.invokeAction` exists. Its accepted payload is still unknown.
-- A public LIPC inventory lists browser properties such as `getAllSettings`, `getLastOpenPage`, and `invokeAction`. It does not establish the accepted arguments for `invokeAction`.
+- A separate Kindle `curl` request to Royal Road returned HTTP 403 with Cloudflare challenge markers.
+- `com.lab126.kppbrowser.getLastOpenPage` is readable.
+- `com.lab126.kppbrowser.invokeAction` exists as a write-only string property.
+- The LIPC owner was identified as `KPPMainApp`, executable `/app/bin/KPPMainAppV2`.
+- The accepted `invokeAction` string format remains unknown. No action payload has been sent.
 
-## Current package state
+## Current tools
 
-The repository includes a KPM package targeting `kindlehf`. It installs Kindle library scriptlets and uses a GitHub Actions workflow to build a versioned `.kpkg`, publish a GitHub Release, and update `kpm-repo/manifest.json`.
+The KPM package installs one pending **RR-KPP-Bundle-Scan** scriptlet and its manual uploader, plus KPM update, KOReader plugin repair, version-report and one-time cleanup launchers. The older smoke/LIPC test scripts, test bookmarklet and helpers, and KOReader diagnostics launcher have been retired.
 
-**RR-JS-Smoke-Test is a detailed, read-only diagnostic.** It:
-- clears its log at the beginning of each run;
-- reads the active app;
-- reads the browser's last-open page, omitting query parameters and fragments;
-- reads the safe JavaScript/image settings from `getAllSettings`;
-- probes only `com.lab126.kppbrowser` and `com.lab126.browser`;
-- reports property names and type/access metadata, discarding values;
-- checks process command lines for an already-enabled remote-debugging flag.
+**KindleBatchPrepareFix remains on purpose.** It repairs/reinstalls the separate KOReader Kindle Batch Preparation plugin from the bundled local Lua source. It is a manual utility, not a background service; it does not belong to the retired browser-test group.
 
-It does not launch, focus, navigate, refresh, or inject into the browser. It does not dump the full verbose LIPC registry, which can contain unrelated account/session properties.
+## Browser action discovery
 
-## No-cable diagnostic upload
+The KPP bundle scanner reads the installed Hermes JavaScript bundle and native KPP executable as data. It filters for a narrow set of browser/LIPC action strings and redacts URL-like content. It does not execute the app code, contact the browser, navigate, refresh, or send `invokeAction`.
 
-The package also installs **RR-Upload-Diagnostic**. It uploads only the diagnostic log after redacting the Royal Road fiction/chapter path. The upload is a manual library action, not an automatic upload. It uses the anonymous paste.rs text-upload API; anyone with the generated link can read the paste. No GitHub credentials are stored on the Kindle or in the repository. Once the user shares the link, the log can be copied into the repository and the temporary paste deleted.
+The next step is to inspect those filtered strings and, only if they reveal an actual call site or documented action schema, design a harmless test. Do not guess the action payload.
 
-## Why the previous injection attempt was withdrawn
+## Future stages — only after ordinary access is demonstrated
 
-The earlier test read the last page from `com.lab126.kppbrowser`, launched the browser, and attempted to send a JavaScript URL through `com.lab126.browser gotoURL`. The user reported that this interrupted page loading. The property was not verified against the device's actual LIPC registry. Do not repeat this call or guess the payload for `invokeAction`.
+1. Test retrieval of a small number of chapter pages that are already accessible to the user.
+2. Stop on a challenge, access denial, unexpected redirect, or incomplete page; do not retry around access controls.
+3. Only after reliable ordinary retrieval, design a local collector with chapter order, progress, storage checks and EPUB validation.
 
-The latest detailed test is intended to report the exact browser-related property names and their type/access metadata on the user's firmware. It does not test or invoke `invokeAction`. Once the metadata is available, research its accepted action payload using reliable firmware/source evidence before attempting any browser action.
+Do not attempt CAPTCHA/proof-of-work bypasses. Keep the existing Apps Script receiver and EPUB builder separate and unchanged.
 
-## Stage 1: establish a verified browser-control channel
+## Cleanup and versions
 
-1. Run the detailed read-only diagnostic while a Royal Road chapter has fully loaded.
-2. Inspect the reported `com.lab126.kppbrowser` property names and access metadata.
-3. Establish the accepted payload for a supported action from local evidence or firmware source.
-4. Only then build a reversible test that does not change the current URL or reload the page.
-5. Confirm the harmless visual result in the browser.
+**RoyalRoadTools-Cleanup** removes finished test files and their old browser bookmark, after backup and verification. It preserves the KOReader plugin and its repair utility.
 
-Do not use bookmarklets as the control mechanism; the user already reported that bookmarklet JavaScript did not work.
-
-## Stage 2: test ordinary chapter retrieval
-
-Only after the injection/control channel is verified:
-- read the chapter content already rendered in the browser;
-- check whether normal same-origin requests return complete pages;
-- use a very small number of sequential requests;
-- stop immediately on a challenge, access denial, unexpected redirect, or malformed/incomplete page.
-
-Do not retry around a challenge or attempt CAPTCHA/proof-of-work bypasses.
-
-## Stage 3: build the local collector and EPUB
-
-Only after Stage 2 proves reliable:
-- discover the chapter list from ordinary accessible story-page data;
-- retain chapter order and canonical URLs;
-- collect chapters conservatively and save progress locally;
-- validate non-empty content, expected chapter markers, and completeness;
-- report failures rather than silently producing partial books;
-- package a single EPUB with titles, metadata, formatting, and images where available.
-
-The existing Apps Script receiver URL and authentication are not configured in this repository. Do not commit private endpoints, secrets, chapter text, or session data. Keep the existing EPUB builder untouched.
-
-## Security and reversibility
-
-- Never read, print, copy, or transmit cookies, credentials, authorization headers, or private browser storage.
-- Do not dump the entire verbose LIPC registry; it may contain unrelated account/session properties.
-- Do not write to rootfs or remount the system read-write.
-- Stop on Cloudflare challenges and respect the site's access controls and rate limits.
+**RoyalRoadTools-Version-Info** writes a version inventory document on the Kindle, including device firmware, KPM and package versions, KOReader revision when available, and fingerprints of installed plugin code. Reopen it after updates.
