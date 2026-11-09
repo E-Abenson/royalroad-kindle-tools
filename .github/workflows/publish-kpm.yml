@@ -86,6 +86,7 @@ jobs:
           PACKAGE="$(find dist -maxdepth 1 -type f -name '*.kpkg' | head -n 1)"
           test -n "$PACKAGE"
           tar -tzf "$PACKAGE" | grep -qx 'manifest.json'
+          tar -tzf "$PACKAGE" | grep -q 'kindle_batch_prepare_main.lua.gz' || { echo "KPM package is missing the bundled Kindle Batch Preparation source"; exit 1; }
           sha256sum "$PACKAGE" | tee dist/SHA256SUMS
           echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
 
