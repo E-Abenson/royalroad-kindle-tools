@@ -1,7 +1,7 @@
 #!/bin/sh
 # Name: RR-LIPC-READONLY-UPLOAD
 # Uploads only the read-only LIPC diagnostic log to pasters.io.
-# This is manual and requires explicit confirmation. It does not run the probe.
+# The user starts this dedicated launcher; it prompts when interactive input is available. It does not run the probe.
 
 DOCS="/mnt/us/documents"
 LOG="$DOCS/RR-LIPC-READONLY-PROBE.log"
