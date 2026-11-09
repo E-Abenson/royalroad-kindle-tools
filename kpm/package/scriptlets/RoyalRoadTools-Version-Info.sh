@@ -78,8 +78,8 @@ if [ -r "$KPM_DB" ] && command -v sqlite3 >/dev/null 2>&1; then
 else
   say "Installed package version: unavailable from KPM database"
 fi
-say "Bundle-scan launcher: $( [ -x "$DOCS/RR-KPP-Bundle-Scan.sh" ] && echo present || echo missing )"
-say "Bundle-scan uploader: $( [ -x "$DOCS/RR-Upload-Bundle-Scan.sh" ] && echo present || echo missing )"
+say "Read-only LIPC probe launcher: $( [ -x "$DOCS/RR-LIPC-READONLY-PROBE.sh" ] && echo present || echo missing )"
+say "Read-only LIPC uploader launcher: $( [ -x "$DOCS/RR-LIPC-READONLY-UPLOAD.sh" ] && echo present || echo missing )"
 say "KPM updater launcher: $( [ -x "$DOCS/KPM-Update-All.sh" ] && echo present || echo missing )"
 say ""
 
