@@ -10,11 +10,10 @@ say() {
   printf '%s\n' "$LINE" | tee -a "$LOG"
 }
 
-# Atomic replacement lets KPM-Update-All safely upgrade its own launcher.
 install_scriptlet() {
   SOURCE="$1"
   DEST="$2"
-  TEMP="${DEST}.new.$$"
+  TEMP="\${DEST}.new.$$"
   say "Installing library item: $(basename "$DEST")"
   cp "$SOURCE" "$TEMP"
   chmod 755 "$TEMP"
@@ -23,44 +22,32 @@ install_scriptlet() {
 }
 
 say "Royal Road Kindle Tools — package installation/upgrade started."
-
-# Ship the compressed plugin source onto Kindle storage as part of the KPM
-# package. The repair launcher uses this local copy, so it does not need DNS
-# or access to raw.githubusercontent.com.
-BUNDLE_SOURCE="files/kindle_batch_prepare_main.lua.gz"
-BUNDLE_DEST="$DOCS/KindleBatchPrepare-main.lua.gz"
-BUNDLE_TEMP="${BUNDLE_DEST}.new.$"
-say "Installing bundled Kindle Batch Preparation source..."
-if [ ! -s "$BUNDLE_SOURCE" ]; then
-  say "ERROR: KPM package is missing $BUNDLE_SOURCE"
-  exit 1
-fi
-if ! gzip -t "$BUNDLE_SOURCE"; then
-  say "ERROR: Bundled Kindle Batch Preparation source failed gzip validation."
-  exit 1
-fi
-cp "$BUNDLE_SOURCE" "$BUNDLE_TEMP"
-chmod 644 "$BUNDLE_TEMP"
-mv -f "$BUNDLE_TEMP" "$BUNDLE_DEST"
-say "Installed local plugin source: $BUNDLE_DEST"
-install_scriptlet "scriptlets/RoyalRoadTools.sh" "$DOCS/RoyalRoadTools.sh"
-install_scriptlet "scriptlets/RR-JS-Smoke-Test.sh" "$DOCS/RR-JS-Smoke-Test.sh"
-install_scriptlet "scriptlets/RR-LIPC-Metadata-Check.sh" "$DOCS/RR-LIPC-Metadata-Check.sh"
 install_scriptlet "scriptlets/RR-KPP-Bundle-Scan.sh" "$DOCS/RR-KPP-Bundle-Scan.sh"
+install_scriptlet "scriptlets/RR-Upload-Bundle-Scan.sh" "$DOCS/RR-Upload-Bundle-Scan.sh"
 install_scriptlet "scriptlets/KPM-Update-All.sh" "$DOCS/KPM-Update-All.sh"
 install_scriptlet "scriptlets/KindleBatchPrepareFix.sh" "$DOCS/KindleBatchPrepareFix.sh"
-install_scriptlet "scriptlets/KindleBatchPrepareDiagnostics.sh" "$DOCS/KindleBatchPrepareDiagnostics.sh"
-install_scriptlet "scriptlets/RR-Upload-Diagnostic.sh" "$DOCS/RR-Upload-Diagnostic.sh"
-say "All eight library launchers are installed."
+install_scriptlet "scriptlets/RoyalRoadTools-Version-Info.sh" "$DOCS/RoyalRoadTools-Version-Info.sh"
 
-# A busy browser DB does not fail the package install; the launcher can retry.
-if [ -f "tools/add-browser-bookmark.sh" ]; then
-  say "Checking the Royal Road browser bookmark..."
-  if sh "tools/add-browser-bookmark.sh"; then
-    say "Bookmark setup check completed."
-  else
-    say "WARNING: Bookmark setup did not complete. Open RoyalRoadTools in the library to retry."
-  fi
+# Keep the cleanup launcher only until its one-time task has completed.
+if [ ! -f "$DOCS/RoyalRoadTools-Cleanup.done" ]; then
+  install_scriptlet "scriptlets/RoyalRoadTools-Cleanup.sh" "$DOCS/RoyalRoadTools-Cleanup.sh"
 fi
 
+PACKAGE_VERSION="$(awk '
+  /"version"[[:space:]]*:/ {
+    if (getline > 0) { gsub(/[^0-9]/, ""); a=$0 }
+    if (getline > 0) { gsub(/[^0-9]/, ""); b=$0 }
+    if (getline > 0) { gsub(/[^0-9]/, ""); c=$0 }
+    if (a != "" && b != "" && c != "") print a "." b "." c
+    exit
+  }
+' manifest.json)"
+{
+  printf 'version=%s\n' "\${PACKAGE_VERSION:-unknown}"
+  printf 'installed_at=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+} > "$DOCS/RoyalRoadTools-installed-version.txt"
+chmod 600 "$DOCS/RoyalRoadTools-installed-version.txt" 2>/dev/null || true
+
+say "Installed tools: current bundle scan, uploader, version report, KPM updater, and KOReader repair."
+say "Package version stamp: \${PACKAGE_VERSION:-unknown}"
 say "Royal Road Kindle Tools package setup finished."
