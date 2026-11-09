@@ -97,7 +97,7 @@ if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V3" not in source:
         local bar = string.rep("#", filled) .. string.rep("-", 20 - filled)
         local free = state and friendlyBytes(state.free_bytes) or "unknown"
         return string.format(
-            "Preparing book %d of %d\\\\n%s\\\\n[%s] %3.0f%%\\\\n%-28s\\\\nFree storage: %8s\\\\nTap anywhere to open controls",
+            "Preparing book %d of %d\\n%s\\n[%s] %3.0f%%\\n%-28s\\nFree storage: %8s\\nTap anywhere to open controls",
             book_number, book_total, title, bar, percent, stage, free
         )
     end
@@ -122,9 +122,9 @@ if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V3" not in source:
         local keep_going = Trapper:info(progress_text, not first_update)
         first_update = false
         if not keep_going then
-            writeFile(pause_path, "pause\\\\n")
+            writeFile(pause_path, "pause\\n")
             local abort_batch = Trapper:confirm(
-                _("Preparation is paused at a safe checkpoint.\\\\n\\\\nResume to continue, or abort to discard the incomplete book and stop the rest of the batch. Completed books are kept."),
+                _("Preparation is paused at a safe checkpoint.\\n\\nResume to continue, or abort to discard the incomplete book and stop the rest of the batch. Completed books are kept."),
                 _("Resume"),
                 _("Abort batch")
             )
