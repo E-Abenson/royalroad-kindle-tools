@@ -35,7 +35,7 @@ jobs:
         with:
           python-version: "3.x"
 
-      - name: Patch Kindle Batch Preparation controls
+      - name: Patch Kindle Batch Preparation controls (validated source)
         run: python scripts/patch_batch_controls.py
 
       - name: Validate all POSIX shell scripts
