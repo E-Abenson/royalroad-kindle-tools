@@ -23,6 +23,26 @@ install_scriptlet() {
 }
 
 say "Royal Road Kindle Tools — package installation/upgrade started."
+
+# Ship the compressed plugin source onto Kindle storage as part of the KPM
+# package. The repair launcher uses this local copy, so it does not need DNS
+# or access to raw.githubusercontent.com.
+BUNDLE_SOURCE="files/kindle_batch_prepare_main.lua.gz"
+BUNDLE_DEST="$DOCS/KindleBatchPrepare-main.lua.gz"
+BUNDLE_TEMP="${BUNDLE_DEST}.new.$"
+say "Installing bundled Kindle Batch Preparation source..."
+if [ ! -s "$BUNDLE_SOURCE" ]; then
+  say "ERROR: KPM package is missing $BUNDLE_SOURCE"
+  exit 1
+fi
+if ! gzip -t "$BUNDLE_SOURCE"; then
+  say "ERROR: Bundled Kindle Batch Preparation source failed gzip validation."
+  exit 1
+fi
+cp "$BUNDLE_SOURCE" "$BUNDLE_TEMP"
+chmod 644 "$BUNDLE_TEMP"
+mv -f "$BUNDLE_TEMP" "$BUNDLE_DEST"
+say "Installed local plugin source: $BUNDLE_DEST"
 install_scriptlet "scriptlets/RoyalRoadTools.sh" "$DOCS/RoyalRoadTools.sh"
 install_scriptlet "scriptlets/RR-JS-Smoke-Test.sh" "$DOCS/RR-JS-Smoke-Test.sh"
 install_scriptlet "scriptlets/RR-LIPC-Metadata-Check.sh" "$DOCS/RR-LIPC-Metadata-Check.sh"
