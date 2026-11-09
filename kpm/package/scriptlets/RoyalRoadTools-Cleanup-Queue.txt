@@ -1,0 +1,54 @@
+# Royal Road Kindle Tools cleanup queue template.
+# Add one TYPE|VALUE entry per retired artifact in future releases.
+# DOC|name                 removes one exact file from /mnt/us/documents
+# DOCGLOB|pattern          removes matching files in /mnt/us/documents (no subdirectories)
+# PKG|relative/path        removes one exact file from the installed KPM package cache
+# PKGDIR|relative/path     removes a directory only when it is empty
+# REMOTE_DELETE|filename  deletes a saved pasters.io paste using its local delete URL
+# BOOKMARK|title           removes only the named project test JavaScript bookmark
+#
+# The installer merges these entries into the Kindle's pending queue.
+# The cleaner removes an entry from that queue only after deletion is verified.
+# Completed entries are recorded locally so later updates do not re-add them.
+
+DOC|RR-JS-Smoke-Test.sh
+DOC|RR-JS-Smoke-Test.log
+DOC|RR-JS-Smoke-Test-upload-url.txt
+REMOTE_DELETE|RR-JS-Smoke-Test-delete-url.txt
+DOC|RR-LIPC-Metadata-Check.sh
+DOC|RR-LIPC-Metadata-Check.log
+DOC|RR-Upload-Diagnostic.sh
+DOC|RR-Upload-Diagnostic.log
+DOC|RR-KPP-Bundle-Scan.sh
+DOC|RR-KPP-Bundle-Scan.log
+DOC|RR-KPP-Bundle-Scan-upload-url.txt
+REMOTE_DELETE|RR-KPP-Bundle-Scan-delete-url.txt
+DOC|RR-Upload-Bundle-Scan.sh
+DOC|RR-Upload-Bundle-Scan.log
+DOC|KindleBatchPrepareDiagnostics.sh
+DOC|KindleBatchPrepareDiagnostics.log
+DOC|RoyalRoadTools.sh
+DOC|RoyalRoadTools-installed-version.txt
+DOC|RoyalRoadTools-package.log
+DOC|RoyalRoadTools-install.log
+DOC|RoyalRoadTools-launch.log
+DOC|RoyalRoadTools-bookmark.log
+DOC|RoyalRoadTools.log
+DOCGLOB|RoyalRoadTools-test-*.log
+DOCGLOB|.RoyalRoadTools-launch-status.*
+DOCGLOB|.RoyalRoadTools-install-status.*
+DOCGLOB|.KindleBatchPrepareFix-status.*
+DOCGLOB|.RR-JS-Smoke-Test-upload-*.txt
+DOCGLOB|.RR-JS-Smoke-Test-response-*.txt
+DOCGLOB|.RR-JS-Smoke-Test-headers-*.txt
+DOCGLOB|.RR-KPP-Bundle-Scan-upload-*.txt
+DOCGLOB|.RR-KPP-Bundle-Scan-response-*.txt
+DOCGLOB|.RR-KPP-Bundle-Scan-headers-*.txt
+PKG|scriptlets/RR-KPP-Bundle-Scan.sh
+PKG|scriptlets/RR-Upload-Bundle-Scan.sh
+PKG|bookmarklets/chapter-session-test.jsurl
+PKG|tools/add-browser-bookmark.sh
+PKG|tools/remove-browser-bookmark.sh
+PKGDIR|bookmarklets
+PKGDIR|tools
+BOOKMARK|Royal Road Session Test
