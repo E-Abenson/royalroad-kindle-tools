@@ -22,6 +22,8 @@ The KPM package installs **RR-LIPC-READONLY-PROBE**, its optional manually confi
 
 **RR-LIPC-READONLY-PROBE** runs lipc-probe -a -v to inventory registered LIPC services and takes a read-only snapshot of KPP-related processes. It does not set properties, send events, or interact with the browser.
 
+**RR-LIPC-READONLY-UPLOAD** is a separate, optional script. It uploads only the saved probe log to pasters.io after an explicit typed confirmation when interactive input is available; when the Kindle launcher has no keyboard input, opening this dedicated uploader starts the transfer. It requests one-week expiry and stores the paste URL and remote-delete URL privately on the Kindle. Review the diagnostic first: the paste is accessible to anyone with its link.
+
 **KindleBatchPrepareFix remains on purpose.** It repairs/reinstalls the separate KOReader Kindle Batch Preparation plugin from the bundled local Lua source. It is a manual utility, not a background service; it does not belong to the retired browser-test group.
 
 ## LIPC service discovery
