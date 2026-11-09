@@ -1,33 +1,22 @@
 #!/bin/sh
 DOCS="/mnt/us/documents"
-LOG="$DOCS/RoyalRoadTools-package.log"
-mkdir -p "$DOCS"
-say() {
-  LINE="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
-  printf '%s\n' "$LINE" | tee -a "$LOG"
-}
 
 if [ "$1" = "upgrade" ]; then
-  say "KPM is upgrading this package; preserving the existing library launchers during the transition."
+  # Preserve the user's library launchers during package replacement.
   exit 0
 fi
 
-say "Royal Road Kindle Tools — uninstall started."
-ROOT="$(CDPATH= cd "$(dirname "$0")" && pwd)"
-if [ -f "$ROOT/tools/remove-browser-bookmark.sh" ]; then
-  say "Removing the package's exact browser bookmark..."
-  if sh "$ROOT/tools/remove-browser-bookmark.sh"; then
-    say "Bookmark removal check completed."
-  else
-    say "WARNING: Could not remove the bookmark automatically; see $LOG."
-  fi
-fi
-
-for ITEM in RoyalRoadTools.sh RR-JS-Smoke-Test.sh RR-Upload-Diagnostic.sh KPM-Update-All.sh KindleBatchPrepareFix.sh KindleBatchPrepareDiagnostics.sh; do
-  if [ -f "$DOCS/$ITEM" ]; then
-    say "Removing library item: $ITEM"
-    rm -f "$DOCS/$ITEM"
-  fi
+for ITEM in \
+  RR-KPP-Bundle-Scan.sh RR-Upload-Bundle-Scan.sh \
+  RoyalRoadTools-Cleanup.sh RoyalRoadTools-Version-Info.sh \
+  KPM-Update-All.sh KindleBatchPrepareFix.sh; do
+  rm -f "$DOCS/$ITEM"
 done
 
-say "Royal Road Kindle Tools removed. Local backup and log files were kept."
+for ITEM in \
+  Kindle-Version-Report.txt RoyalRoadTools-installed-version.txt \
+  RoyalRoadTools-Cleanup.done RR-KPP-Bundle-Scan.log \
+  RR-KPP-Bundle-Scan-upload-url.txt RR-KPP-Bundle-Scan-delete-url.txt \
+  RR-Upload-Bundle-Scan.log KPM-Update-All.log KindleBatchPrepareFix.log; do
+  rm -f "$DOCS/$ITEM"
+done
