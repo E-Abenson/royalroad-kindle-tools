@@ -48,9 +48,9 @@ if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V3" not in source:
         "pause checkpoint",
     )
     once(
-        '    p_convert.add_argument("--cancel-file", default="")\n',
-        '    p_convert.add_argument("--cancel-file", default="")\n'
-        '    p_convert.add_argument("--pause-file", default="")\n',
+        '    p_convert.add_argument("--cancel-file", default="")\\n',
+        '    p_convert.add_argument("--cancel-file", default="")\\n'
+        '    p_convert.add_argument("--pause-file", default="")\\n',
         "pause CLI argument",
     )
     once(
