@@ -8,7 +8,7 @@ DOCS="/mnt/us/documents"
 LOG="$DOCS/KPM-Update-All.log"
 
 mkdir -p "$DOCS"
-: >> "$LOG"
+: > "$LOG"
 
 say() {
   LINE="[$(date '+%Y-%m-%d %H:%M:%S')] $*"
