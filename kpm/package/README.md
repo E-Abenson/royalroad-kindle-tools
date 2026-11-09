@@ -58,6 +58,12 @@ The log is cleared at the beginning of each diagnostic run, so it contains only 
 
 Open **RR-KPP-Bundle-Scan** from the Kindle library to inspect the installed KPP Hermes JavaScript bundle and native KPP executable for browser/action identifiers. It reads files under `/app` but does not modify them or execute their contents. Only allowlisted string matches are logged, and URL-like text is redacted. The output is saved in `/mnt/us/documents/RR-JS-Smoke-Test.log`; use **RR-Upload-Diagnostic** to share it without a cable.
 
+
+
+## Fresh KPM build note
+
+The KPP bundle scanner is a separate library launcher installed as `/mnt/us/documents/RR-KPP-Bundle-Scan.sh`. Run it only after a package upgrade whose release asset contains that scriptlet. It prints `ROYAL ROAD — KPP BUNDLE SCAN — READ ONLY` when it starts.
+
 ## Why injection is not enabled yet
 
 The earlier experimental script tried `com.lab126.browser gotoURL`, but that property was not verified on the device and the page stopped loading during the test. The current diagnostic does not send any browser action. Public LIPC inventories show `com.lab126.kppbrowser` exposes `getLastOpenPage` and `invokeAction`. The verbose probe establishes property type and access mode, but not the accepted `invokeAction` payload. We will not guess the arguments or send a test action until its contract is known.
