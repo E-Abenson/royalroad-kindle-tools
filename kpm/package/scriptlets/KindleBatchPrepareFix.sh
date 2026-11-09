@@ -172,10 +172,18 @@ mv -f "$STAGED" "$TMP"
 
 # Confirm the translation-function shadowing crash is fixed in the actual payload.
 for marker in \
-  "KOREADER_BATCH_PREPARE_MENU_FIX_V2" \
+  "KOREADER_BATCH_PREPARE_MENU_FIX_V3" \
+  "# KOREADER_BATCH_PREPARE_V2" \
   "function PLUGIN:addToMainMenu(menu_items)" \
   "function PLUGIN:prepareAllBooks()" \
   "for choice_index, mb in ipairs(choices) do" \
+  'self.pause_file = getattr(args, "pause_file", "") or ""' \
+  'p_convert.add_argument("--pause-file", default="")' \
+  '--pause-file", pause_path,' \
+  "Tap anywhere to open controls" \
+  "Pause this book at the next safe checkpoint?" \
+  '_("Resume")' \
+  '_("Abort batch")' \
   'sorting_hint = "more_tools"'; do
   if ! grep -Fq "$marker" "$TMP"; then
     fail 3 "Downloaded main.lua failed validation: missing marker: $marker"
@@ -194,7 +202,7 @@ local _ = require("gettext")
 
 return {
     fullname = _("Kindle Batch Preparation"),
-    description = _("Prepare the Kindle's local KFX library for KOReader in a cancellable batch, with progress and a low-storage reserve."),
+    description = _("Prepare the Kindle's local KFX library for KOReader in a pausable and cancellable batch, with progress and a low-storage reserve."),
     version = "1.0",
 }
 META
