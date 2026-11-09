@@ -42,6 +42,7 @@ merge_cleanup_queue() {
 
 say "Royal Road Kindle Tools — installing current toolset."
 install_scriptlet "scriptlets/RR-LIPC-READONLY-PROBE.sh" "$DOCS/RR-LIPC-READONLY-PROBE.sh"
+install_scriptlet "scriptlets/RR-LIPC-READONLY-UPLOAD.sh" "$DOCS/RR-LIPC-READONLY-UPLOAD.sh"
 install_scriptlet "scriptlets/RoyalRoadTools-Cleanup.sh" "$DOCS/RoyalRoadTools-Cleanup.sh"
 install_scriptlet "scriptlets/KPM-Update-All.sh" "$DOCS/KPM-Update-All.sh"
 install_scriptlet "scriptlets/KindleBatchPrepareFix.sh" "$DOCS/KindleBatchPrepareFix.sh"
@@ -78,6 +79,6 @@ else
   say "Cleanup left one or more items pending. They remain in the queue for retry."
 fi
 
-say "Installed the read-only LIPC probe, persistent cleanup queue, version report, KPM updater and KOReader repair tool."
+say "Installed the read-only LIPC probe and its manually confirmed uploader, persistent cleanup queue, version report, KPM updater and KOReader repair tool."
 say "Package version: $PACKAGE_VERSION"
 say "Installation complete."
