@@ -3,7 +3,7 @@
   "id": "royalroad-kindle-tools",
   "name": "Royal Road Kindle Tools",
   "author": "E-Abenson",
-  "description": "KPP browser investigation, Kindle version inventory, and KOReader Kindle Batch Preparation repair utilities.",
+  "description": "Read-only LIPC service inventory and Kindle browser investigation utilities with persistent cleanup queue and KOReader maintenance tools.",
   "version": [
     0,
     1,
