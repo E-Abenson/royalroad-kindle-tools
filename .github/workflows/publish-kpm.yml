@@ -25,6 +25,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Refresh checkout to latest main before packaging
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -94,7 +99,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" "install/Install-RoyalRoadTools.sh" "dist/SHA256SUMS" \
+          gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
             --notes "KPM package build. This version contains the browser-session diagnostic only."
 
