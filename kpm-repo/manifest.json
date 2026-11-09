@@ -10,11 +10,11 @@
       "description": "Read-only LIPC service inventory and Kindle browser investigation utilities with persistent cleanup and KOReader maintenance tools.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.64/royalroad-kindle-tools_0.1.64_kindlehf.kpkg",
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.65/royalroad-kindle-tools_0.1.65_kindlehf.kpkg",
           "version": [
             0,
             1,
-            64
+            65
           ],
           "dependencies": [],
           "supported_platforms": [
