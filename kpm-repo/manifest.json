@@ -7,14 +7,14 @@
     "royalroad-kindle-tools": {
       "name": "Royal Road Kindle Tools",
       "author": "E-Abenson",
-      "description": "Read-only Royal Road browser-session diagnostic for jailbroken Kindles.",
+      "description": "Read-only LIPC service inventory and Kindle browser investigation utilities with persistent cleanup and KOReader maintenance tools.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.60/royalroad-kindle-tools_0.1.60_kindlehf.kpkg",
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.62/royalroad-kindle-tools_0.1.62_kindlehf.kpkg",
           "version": [
             0,
             1,
-            60
+            62
           ],
           "dependencies": [],
           "supported_platforms": [
