@@ -1,12 +1,12 @@
 #!/bin/sh
 # Name: KindleBatchPrepareFix
-# Author: E-Abenson / ChatGPT
-# Finds the installed Kindle Batch Preparation plugin by its metadata,
-# patches its Lua source, and re-enables it only after validation.
+# Reinstalls or repairs Kindle Batch Preparation in KOReader.
+# Can rebuild the entire plugin folder if it has disappeared.
 
 DOCS="/mnt/us/documents"
 KO_ROOT="/mnt/us/koreader"
 PLUGIN_ROOT="$KO_ROOT/plugins"
+DEFAULT_PLUGIN_DIR="$PLUGIN_ROOT/kindle-batch-prepare-addon-fixed.koplugin"
 SOURCE_URL="https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/main/kpm/package/files/kindle_batch_prepare_main.lua.gz"
 LOG="$DOCS/KindleBatchPrepareFix.log"
 
@@ -42,48 +42,68 @@ fail() {
   CODE="$1"
   shift
   say "FAILED: $*"
-  say "No active plugin replacement was completed."
+  say "No unverified plugin was activated."
   say "Full log: $LOG"
   exit "$CODE"
 }
 
 say "============================================================"
-say "KINDLE BATCH PREPARATION — CRASH FIX"
+say "KINDLE BATCH PREPARATION — REPAIR / REINSTALL"
 say "Starting at $(date)"
-say "Searching plugin folders under: $PLUGIN_ROOT"
+say "KOReader root: $KO_ROOT"
+say "Plugin directory: $PLUGIN_ROOT"
 say "Log: $LOG"
 
+if [ ! -d "$KO_ROOT" ]; then
+  fail 1 "KOReader root not found: $KO_ROOT"
+fi
 if [ ! -d "$PLUGIN_ROOT" ]; then
-  fail 1 "KOReader plugin directory does not exist: $PLUGIN_ROOT"
+  fail 1 "KOReader plugins directory not found: $PLUGIN_ROOT"
 fi
 
-# Locate by the plugin's own metadata, not by a hard-coded directory name.
-FOUND_DIR=""
+# Find an existing copy by metadata first, and also recognise the known
+# plugin folder name if its _meta.lua has been lost.
+PLUGIN_DIR=""
 FOUND_COUNT=0
-say "Plugin folders currently present:"
+RESTORE_DIR=""
+
 for candidate in "$PLUGIN_ROOT"/*; do
   [ -d "$candidate" ] || continue
-  say "  $(basename "$candidate")"
-  if [ -f "$candidate/main.lua" ] && [ -f "$candidate/_meta.lua" ] &&
-     grep -Fq "Kindle Batch Preparation" "$candidate/_meta.lua"; then
-    FOUND_DIR="$candidate"
+  MATCH=0
+  if [ -f "$candidate/_meta.lua" ] && grep -Fq "Kindle Batch Preparation" "$candidate/_meta.lua"; then
+    MATCH=1
+  fi
+  case "$(basename "$candidate")" in
+    kindle-batch-prepare-addon-fixed.koplugin|kindle-batch-prepare-addon-fixed.disabled)
+      MATCH=1
+      ;;
+  esac
+  if [ "$MATCH" -eq 1 ]; then
+    PLUGIN_DIR="$candidate"
     FOUND_COUNT=$((FOUND_COUNT + 1))
-    say "Identified matching plugin metadata in: $candidate"
+    say "Found existing plugin candidate: $PLUGIN_DIR"
   fi
 done
 
-if [ "$FOUND_COUNT" -eq 0 ]; then
-  fail 1 "No plugin folder with matching Kindle Batch Preparation _meta.lua, main.lua, and metadata was found."
-fi
 if [ "$FOUND_COUNT" -gt 1 ]; then
-  fail 1 "Found $FOUND_COUNT matching plugin folders. Refusing to guess which one to replace."
+  fail 1 "Found multiple plugin candidates. Refusing to choose between them."
 fi
 
-PLUGIN_DIR="$FOUND_DIR"
-TARGET="$PLUGIN_DIR/main.lua"
-RESTORE_DIR=""
-BASE_NAME="$(basename "$PLUGIN_DIR")"
+CREATED_DIR=0
+if [ "$FOUND_COUNT" -eq 0 ]; then
+  if [ -e "$DEFAULT_PLUGIN_DIR" ]; then
+    fail 1 "The expected plugin path exists but is not a directory: $DEFAULT_PLUGIN_DIR"
+  fi
+  say "No existing plugin folder was found."
+  say "Recreating the missing plugin folder: $DEFAULT_PLUGIN_DIR"
+  if ! mkdir -p "$DEFAULT_PLUGIN_DIR"; then
+    fail 1 "Could not create plugin directory: $DEFAULT_PLUGIN_DIR"
+  fi
+  PLUGIN_DIR="$DEFAULT_PLUGIN_DIR"
+  CREATED_DIR=1
+fi
 
+BASE_NAME="$(basename "$PLUGIN_DIR")"
 case "$BASE_NAME" in
   *.disabled)
     RESTORE_NAME="${BASE_NAME%.disabled}"
@@ -92,29 +112,30 @@ case "$BASE_NAME" in
       *) RESTORE_NAME="$RESTORE_NAME.koplugin" ;;
     esac
     RESTORE_DIR="$PLUGIN_ROOT/$RESTORE_NAME"
-    say "Plugin is disabled; it will be patched before being re-enabled."
+    if [ -e "$RESTORE_DIR" ]; then
+      fail 1 "Cannot re-enable plugin because destination already exists: $RESTORE_DIR"
+    fi
+    say "Plugin is disabled; it will be re-enabled only after the corrected files are installed."
     ;;
   *.koplugin)
-    say "Plugin folder is already active."
+    say "Plugin folder is already active or newly recreated."
     ;;
   *)
-    fail 1 "Found the plugin, but its folder suffix is unexpected: $BASE_NAME"
+    fail 1 "Unexpected plugin folder suffix: $BASE_NAME"
     ;;
 esac
 
-if [ -n "$RESTORE_DIR" ] && [ -e "$RESTORE_DIR" ]; then
-  fail 1 "Cannot safely re-enable plugin because the destination already exists: $RESTORE_DIR"
-fi
-
+TARGET="$PLUGIN_DIR/main.lua"
 ARCHIVE="$PLUGIN_DIR/main.lua.download.gz.$$"
 TMP="$PLUGIN_DIR/main.lua.download.$$"
 STAGED="$PLUGIN_DIR/main.lua.new.$$"
-trap 'rm -f "$ARCHIVE" "$TMP" "$STAGED"' EXIT
+META_STAGED="$PLUGIN_DIR/_meta.lua.new.$$"
+trap 'rm -f "$ARCHIVE" "$TMP" "$STAGED" "$META_STAGED"' EXIT
 trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-say "Downloading corrected main.lua from the GitHub repository..."
+say "Downloading corrected main.lua from GitHub..."
 if command -v curl >/dev/null 2>&1; then
   if ! run_and_show curl -fL --retry 2 --connect-timeout 15 --max-time 180 --silent --show-error -o "$ARCHIVE" "$SOURCE_URL"; then
     fail 2 "GitHub download failed (curl)."
@@ -131,7 +152,7 @@ if [ ! -s "$ARCHIVE" ]; then
   fail 3 "Downloaded archive is empty."
 fi
 if ! command -v gzip >/dev/null 2>&1; then
-  fail 3 "gzip is not available to unpack the verified source file."
+  fail 3 "gzip is not available."
 fi
 if ! gzip -t "$ARCHIVE"; then
   fail 3 "Downloaded source is not a valid gzip file."
@@ -143,19 +164,19 @@ if [ ! -s "$TMP" ]; then
   fail 3 "Decompressed main.lua is empty."
 fi
 
-# Set the requested KOReader menu section, then validate the full payload.
-say "Setting the plugin menu location to More Tools..."
+# KOReader's filemanager menu order has a 'more_tools' submenu under Tools.
+say "Configuring the plugin entry for Tools → More tools..."
 if ! sed 's/sorting_hint = "tools"/sorting_hint = "more_tools"/' "$TMP" > "$STAGED"; then
-  fail 3 "Could not set the More Tools menu location."
+  fail 3 "Could not set the More tools menu location."
 fi
 if [ ! -s "$STAGED" ]; then
   fail 3 "Patched main.lua is empty."
 fi
 mv -f "$STAGED" "$TMP"
 
+# Confirm the translation-function shadowing crash is fixed in the actual payload.
 for marker in \
   "KOREADER_BATCH_PREPARE_MENU_FIX_V2" \
-  "Kindle batch preparation: registering menu widget" \
   "function PLUGIN:addToMainMenu(menu_items)" \
   "function PLUGIN:prepareAllBooks()" \
   "for choice_index, mb in ipairs(choices) do" \
@@ -164,41 +185,74 @@ for marker in \
     fail 3 "Downloaded main.lua failed validation: missing marker: $marker"
   fi
 done
-say "Download and crash-fix validation passed."
+if grep -Fq 'for _, mb in ipairs(choices) do' "$TMP"; then
+  fail 3 "The faulty loop that caused the KOReader crash is still present."
+fi
+say "Corrected Lua source passed validation."
 
-STAMP="$(date '+%Y%m%d-%H%M%S')"
-BACKUP="$PLUGIN_DIR/main.lua.before-menu-fix-$STAMP.bak"
-say "Creating backup: $BACKUP"
-if ! cp -p "$TARGET" "$BACKUP"; then
-  fail 4 "Could not back up the existing main.lua."
+# Restore the plugin metadata file if it disappeared.
+if [ ! -f "$PLUGIN_DIR/_meta.lua" ]; then
+  say "Creating missing _meta.lua..."
+  cat > "$META_STAGED" <<'META'
+local _ = require("gettext")
+
+return {
+    fullname = _("Kindle Batch Preparation"),
+    description = _("Prepare the Kindle's local KFX library for KOReader in a cancellable batch, with progress and a low-storage reserve."),
+    version = "1.0",
+}
+META
+  if [ ! -s "$META_STAGED" ] || ! grep -Fq 'fullname = _("Kindle Batch Preparation")' "$META_STAGED"; then
+    fail 4 "Could not create valid plugin metadata."
+  fi
+  if ! mv -f "$META_STAGED" "$PLUGIN_DIR/_meta.lua"; then
+    fail 4 "Could not install plugin metadata."
+  fi
+else
+  say "Existing _meta.lua found; preserving it."
 fi
 
-say "Staging replacement..."
+STAMP="$(date '+%Y%m%d-%H%M%S')"
+if [ -f "$TARGET" ]; then
+  BACKUP="$PLUGIN_DIR/main.lua.before-repair-$STAMP.bak"
+  say "Backing up existing main.lua to: $BACKUP"
+  if ! cp -p "$TARGET" "$BACKUP"; then
+    fail 4 "Could not back up the existing main.lua."
+  fi
+else
+  say "No previous main.lua exists; installing a fresh copy."
+  BACKUP="(none; plugin folder was missing its main.lua)"
+fi
+
+say "Installing corrected main.lua..."
 if ! cp "$TMP" "$STAGED"; then
-  fail 4 "Could not stage the replacement. Original main.lua is unchanged."
+  fail 4 "Could not stage corrected main.lua."
 fi
 chmod 644 "$STAGED" 2>/dev/null || true
 if ! mv -f "$STAGED" "$TARGET"; then
-  fail 4 "Could not atomically replace main.lua. The backup is at $BACKUP"
+  fail 4 "Could not install corrected main.lua."
 fi
-
 rm -f "$ARCHIVE" "$TMP"
+
+# Check both required plugin files exist before making a disabled folder active.
+if [ ! -s "$PLUGIN_DIR/main.lua" ] || [ ! -s "$PLUGIN_DIR/_meta.lua" ]; then
+  fail 4 "Post-install check failed: main.lua or _meta.lua is missing."
+fi
+say "Both main.lua and _meta.lua are present."
 
 if [ -n "$RESTORE_DIR" ]; then
   say "Restoring plugin folder to: $RESTORE_DIR"
   if ! mv "$PLUGIN_DIR" "$RESTORE_DIR"; then
-    fail 5 "The fixed main.lua is installed, but the disabled folder could not be renamed. It remains at $PLUGIN_DIR"
+    fail 5 "Corrected files are installed, but the disabled folder could not be renamed."
   fi
   PLUGIN_DIR="$RESTORE_DIR"
-  TARGET="$PLUGIN_DIR/main.lua"
-  BACKUP="$PLUGIN_DIR/$(basename "$BACKUP")"
-  say "Plugin folder restored successfully."
+  say "Plugin folder restored."
 fi
 
-say "SUCCESS: Updated $TARGET"
-say "Backup kept at: $BACKUP"
-say "Crash fix installed: the reserve-menu loop no longer shadows KOReader's translation function."
-say "The menu entry is configured for More Tools."
-say "Please restart KOReader to load the corrected plugin."
+say "SUCCESS: Kindle Batch Preparation has been installed at:"
+say "$PLUGIN_DIR"
+say "Crash fix verified: reserve-menu loop uses choice_index, not the gettext function name."
+say "Menu location: Tools → More tools."
+say "Restart KOReader to load the plugin."
 say "Full log saved to: $LOG"
 exit 0
