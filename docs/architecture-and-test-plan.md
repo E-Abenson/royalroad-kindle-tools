@@ -18,7 +18,7 @@ Use the Kindle's own built-in browser session to retrieve Royal Road pages that 
 
 ## Current tools
 
-The KPM package installs **RR-LIPC-READONLY-PROBE**, KPM update, KOReader plugin repair, version-report and persistent cleanup utilities.
+The KPM package installs **RR-LIPC-READONLY-PROBE**, its optional manually confirmed uploader, KPM update, KOReader plugin repair, version-report and persistent cleanup utilities.
 
 **RR-LIPC-READONLY-PROBE** runs lipc-probe -a -v to inventory registered LIPC services and takes a read-only snapshot of KPP-related processes. It does not set properties, send events, or interact with the browser.
 
