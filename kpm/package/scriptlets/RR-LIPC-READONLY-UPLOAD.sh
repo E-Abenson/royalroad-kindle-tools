@@ -13,7 +13,7 @@ HEADERS="$TMP.headers"
 BODY="$TMP.body"
 
 umask 077
-trap 'rm -f "$HEADERS" "$BODY"' EXIT HUP INT TERM
+trap 'rm -f "$HEADERS" "$BODY" "$TMP.curl-error"' EXIT HUP INT TERM
 
 say() { printf '%s\n' "$*"; }
 
@@ -40,17 +40,16 @@ if ! command -v curl >/dev/null 2>&1; then
   exit 1
 fi
 
-if [ ! -t 0 ]; then
-  say "ERROR: No interactive terminal is available."
-  say "Nothing was uploaded. Run this from the Kindle launcher so you can confirm."
-  exit 1
-fi
-
-printf 'To upload this log, type UPLOAD exactly: '
-IFS= read -r CONFIRM
-if [ "$CONFIRM" != "UPLOAD" ]; then
-  say "Cancelled. Nothing was uploaded."
-  exit 0
+if [ -t 0 ]; then
+  printf 'To upload this log, type UPLOAD exactly: '
+  IFS= read -r CONFIRM
+  if [ "$CONFIRM" != "UPLOAD" ]; then
+    say "Cancelled. Nothing was uploaded."
+    exit 0
+  fi
+else
+  say "No keyboard prompt is available in this launcher."
+  say "Opening this dedicated uploader is treated as confirmation to upload the displayed log."
 fi
 
 mkdir -p "$DOCS" 2>/dev/null
