@@ -264,6 +264,7 @@ say "Crash fix verified: reserve-menu loop uses choice_index, not the gettext fu
 say "Menu location: Tools → More tools."
 say "Controls: responsive Pause / Resume / Abort; existing helpers are upgraded in place."
 say "Output safety: incomplete conversions use a staging EPUB until completion is verified."
+say "Stale cache entries are cleared before retrying an unfinished book."
 say "Restart KOReader to load the plugin."
 say "Full log saved to: $LOG"
 exit 0
