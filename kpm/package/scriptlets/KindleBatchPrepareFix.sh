@@ -174,6 +174,7 @@ mv -f "$STAGED" "$TMP"
 for marker in \
   "KOREADER_BATCH_PREPARE_MENU_FIX_V6" \
   "function PLUGIN:createBatchLimitMenuItem()" \
+  "local choices = { 1, 2, 3, 5, 6, 10, 0 }" \
   "self.settings.max_books = 1" \
   "attempted_count >= max_books" \
   "Batch limit reached." \
