@@ -220,7 +220,7 @@ if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V6" not in source:
     once(
         'function PLUGIN:addToMainMenu(menu_items)\n',
         '''function PLUGIN:createBatchLimitMenuItem()
-    local choices = { 1, 2, 3, 5, 10, 0 }
+    local choices = { 1, 2, 3, 5, 6, 10, 0 }
     local submenu = {}
     for choice_index, limit in ipairs(choices) do
         table.insert(submenu, {
