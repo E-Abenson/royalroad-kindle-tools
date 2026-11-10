@@ -11,9 +11,10 @@ UPLOAD_URL="https://pasters.io/?expires=1w"
 TMP="/tmp/rr_lipc_upload_$$"
 HEADERS="$TMP.headers"
 BODY="$TMP.body"
+SANITIZED="$TMP.sanitized"
 
 umask 077
-trap 'rm -f "$HEADERS" "$BODY" "$TMP.curl-error"' EXIT HUP INT TERM
+trap 'rm -f "$HEADERS" "$BODY" "$SANITIZED" "$TMP.curl-error"' EXIT HUP INT TERM
 
 say() { printf '%s\n' "$*"; }
 
@@ -24,8 +25,10 @@ say "  $LOG"
 say "to pasters.io, where it can be viewed by anyone with the link."
 say "The paste is requested to expire after one week."
 say ""
-say "The log contains device, process and LIPC inventory information."
-say "Review it before proceeding. No other files are uploaded."
+say "The raw log contains device and LIPC information, including private Amazon credentials."
+say "A sanitized copy will be uploaded: credential-bearing services, identity fields"
+say "and the current browser URL are removed or redacted. The original stays local."
+say "Review the sanitized copy before proceeding. No other files are uploaded."
 say "This script does not run the diagnostic or interact with the browser."
 say ""
 
@@ -40,8 +43,55 @@ if ! command -v curl >/dev/null 2>&1; then
   exit 1
 fi
 
+# Build a share-safe copy. Entire credential-bearing service sections are omitted,
+# sensitive property values are redacted, and the current browser URL is hidden.
+if ! awk '
+function private_service(s) {
+  return s == "com.lab126.amazonRegistrationService" ||
+         s == "com.lab126.DeviceAuthenticationService" ||
+         s == "com.lab126.kppkaf" ||
+         s == "com.lab126.household" ||
+         s == "com.lab126.IdentityService" ||
+         s == "com.lab126.stored" ||
+         s == "com.lab126.KindleIdentity" ||
+         s == "com.lab126.PasswordService" ||
+         s == "com.lab126.freetime" ||
+         s == "com.lab126.accountinfoprovider"
+}
+/^[^ \t]/ {
+  service = $0
+  skip = private_service(service)
+  if (skip) {
+    print service
+    print "\t[properties omitted for credential and account safety]"
+    next
+  }
+}
+skip { next }
+/^[ \t]/ {
+  low = tolower($0)
+  if (low ~ /getlastopenpage/) {
+    sub(/\[.*/, "[URL REDACTED]")
+    print
+    next
+  }
+  if (low ~ /(token|cookie|auth|password|session|secret|credential|email|primaryuserid|directedid|activeprofile|household|username|userid|phone|guid|ubid|passcode)/) {
+    if ($0 ~ /\[/) sub(/\[.*/, "[REDACTED]")
+    else $0 = $0 " [REDACTED]"
+  }
+}
+{ print }
+' "$LOG" > "$SANITIZED"; then
+  say "ERROR: Could not create sanitized diagnostic copy."
+  exit 1
+fi
+if [ ! -s "$SANITIZED" ]; then
+  say "ERROR: Sanitization produced an empty file; nothing was uploaded."
+  exit 1
+fi
+
 if [ -t 0 ]; then
-  printf 'To upload this log, type UPLOAD exactly: '
+  printf 'To upload the SANITIZED log, type UPLOAD exactly: '
   IFS= read -r CONFIRM
   if [ "$CONFIRM" != "UPLOAD" ]; then
     say "Cancelled. Nothing was uploaded."
@@ -49,16 +99,16 @@ if [ -t 0 ]; then
   fi
 else
   say "No keyboard prompt is available in this launcher."
-  say "Opening this dedicated uploader is treated as confirmation to upload the displayed log."
+  say "Opening this dedicated uploader is treated as confirmation to upload the SANITIZED copy."
 fi
 
 mkdir -p "$DOCS" 2>/dev/null
 say ""
-say "Uploading the LIPC diagnostic log..."
+say "Uploading the sanitized LIPC diagnostic copy..."
 
 HTTP_CODE="$(curl -sS --connect-timeout 10 --max-time 45 \
   -D "$HEADERS" -o "$BODY" -w '%{http_code}' \
-  --data-binary "@$LOG" "$UPLOAD_URL" 2>"$TMP.curl-error")"
+  --data-binary "@$SANITIZED" "$UPLOAD_URL" 2>"$TMP.curl-error")"
 CURL_STATUS=$?
 
 if [ "$CURL_STATUS" -ne 0 ]; then
@@ -144,6 +194,6 @@ else
   say "No remote delete link was returned by the service."
 fi
 say ""
-say "Only the diagnostic log was uploaded. No other files were sent."
+say "Only the sanitized diagnostic copy was uploaded. The original log was not changed and remains local."
 sync 2>/dev/null
 exit 0
