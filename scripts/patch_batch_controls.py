@@ -21,10 +21,6 @@ if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V5" not in source:
     once(
         "-- KOREADER_BATCH_PREPARE_MENU_FIX_V2",
         "-- KOREADER_BATCH_PREPARE_MENU_FIX_V5",
-    "local partial_epub_path = epub_path:gsub",
-    "The converter reported success but the staged EPUB is missing.",
-    "commit_failed",
-    "cache:clearBookCache(book)",
         "source version",
     )
     once(
@@ -289,6 +285,10 @@ compile(block.group(1), "batch_progress.py", "exec")
 
 required = [
     "-- KOREADER_BATCH_PREPARE_MENU_FIX_V5",
+    "local partial_epub_path = epub_path:gsub",
+    "The converter reported success but the staged EPUB is missing.",
+    "commit_failed",
+    "cache:clearBookCache(book)",
     'local PATCH_MARKER = "# KOREADER_BATCH_PREPARE_V2"',
     'local LEGACY_PATCH_MARKER = "# KOREADER_BATCH_PREPARE_V1"',
     'if source:find(LEGACY_PATCH_MARKER, 1, true) then',
