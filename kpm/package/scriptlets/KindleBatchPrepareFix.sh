@@ -176,7 +176,7 @@ for marker in \
   "function PLUGIN:createBatchLimitMenuItem()" \
   "self.settings.max_books = 1" \
   "attempted_count >= max_books" \
-  "Batch limit reached." \\
+  "Batch limit reached." \
   ".batch-partial.epub" \
   "The converter reported success but the staged EPUB is missing." \
   "cache:clearBookCache(book)" \
