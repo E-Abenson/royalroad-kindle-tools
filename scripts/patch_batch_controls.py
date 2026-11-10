@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Patch and validate Kindle Batch Preparation pause/resume/abort controls."""
+"""Patch and validate Kindle Batch Preparation controls and bounded batch runs."""
 
 import gzip
 import re
@@ -17,10 +17,10 @@ def once(old: str, new: str, label: str) -> None:
     source = source.replace(old, new, 1)
 
 
-if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V5" not in source:
+if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V6" not in source:
     once(
         "-- KOREADER_BATCH_PREPARE_MENU_FIX_V2",
-        "-- KOREADER_BATCH_PREPARE_MENU_FIX_V5",
+        "-- KOREADER_BATCH_PREPARE_MENU_FIX_V6",
         "source version",
     )
     once(
@@ -139,30 +139,30 @@ if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V5" not in source:
             local result = source
             result = replaceOnce(
                 result,
-                '        self.cancel_file = getattr(args, "cancel_file", "") or ""\n',
-                '        self.cancel_file = getattr(args, "cancel_file", "") or ""\n'
-                    .. '        self.pause_file = getattr(args, "pause_file", "") or ""\n',
+                '        self.cancel_file = getattr(args, "cancel_file", "") or ""\\n',
+                '        self.cancel_file = getattr(args, "cancel_file", "") or ""\\n'
+                    .. '        self.pause_file = getattr(args, "pause_file", "") or ""\\n',
                 "legacy pause-file setting"
             )
             result = replaceOnce(
                 result,
-                '    def check_cancel(self):\n'
-                    .. '        if self.cancel_file and os.path.exists(self.cancel_file):\n'
-                    .. '            raise BatchConversionCancelled("Batch preparation cancelled")\n',
-                '    def check_cancel(self):\n'
-                    .. '        while True:\n'
-                    .. '            if self.cancel_file and os.path.exists(self.cancel_file):\n'
-                    .. '                raise BatchConversionCancelled("Batch preparation cancelled")\n'
-                    .. '            if not self.pause_file or not os.path.exists(self.pause_file):\n'
-                    .. '                return\n'
-                    .. '            time.sleep(0.15)\n',
+                '    def check_cancel(self):\\n'
+                    .. '        if self.cancel_file and os.path.exists(self.cancel_file):\\n'
+                    .. '            raise BatchConversionCancelled("Batch preparation cancelled")\\n',
+                '    def check_cancel(self):\\n'
+                    .. '        while True:\\n'
+                    .. '            if self.cancel_file and os.path.exists(self.cancel_file):\\n'
+                    .. '                raise BatchConversionCancelled("Batch preparation cancelled")\\n'
+                    .. '            if not self.pause_file or not os.path.exists(self.pause_file):\\n'
+                    .. '                return\\n'
+                    .. '            time.sleep(0.15)\\n',
                 "legacy pause checkpoint"
             )
             result = replaceOnce(
                 result,
-                '    p_convert.add_argument("--cancel-file", default="")\n',
-                '    p_convert.add_argument("--cancel-file", default="")\n'
-                    .. '    p_convert.add_argument("--pause-file", default="")\n',
+                '    p_convert.add_argument("--cancel-file", default="")\\n',
+                '    p_convert.add_argument("--cancel-file", default="")\\n'
+                    .. '    p_convert.add_argument("--pause-file", default="")\\n',
                 "legacy pause CLI argument"
             )
             result = replaceOnce(
@@ -203,8 +203,92 @@ if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V5" not in source:
 
     once(
         '            help_text = _("Convert all locally available Kindle KFX books one after another. Existing prepared books are skipped. Tap the progress message to pause, then choose Abort to stop the current book and the whole batch."),',
-        '            help_text = _("Convert all locally available Kindle KFX books one after another. Existing prepared books are skipped. Tap the progress message to open controls. Pause waits for a safe checkpoint; Resume continues; Abort stops this and all remaining books."),',
-        "help text",
+        '            help_text = _("Prepare eligible Kindle KFX books. The batch limit controls the maximum number of new conversion attempts in one run; already prepared books do not count. Pause waits for a safe checkpoint; Resume continues; Abort stops the batch."),',
+        "batch help text",
+    )
+    once(
+        '            text = _("Prepare all Kindle books for KOReader"),',
+        '            text = _("Prepare Kindle books for KOReader"),',
+        "batch menu action label",
+    )
+    once(
+        '    if not self.settings.min_free_mb then self.settings.min_free_mb = DEFAULT_MIN_FREE_MB end\n',
+        '    if not self.settings.min_free_mb then self.settings.min_free_mb = DEFAULT_MIN_FREE_MB end\n'
+        '    if self.settings.max_books == nil then self.settings.max_books = 1 end\n',
+        "safe default batch limit",
+    )
+    once(
+        'function PLUGIN:addToMainMenu(menu_items)\n',
+        '''function PLUGIN:createBatchLimitMenuItem()
+    local choices = { 1, 2, 3, 5, 10, 0 }
+    local submenu = {}
+    for choice_index, limit in ipairs(choices) do
+        table.insert(submenu, {
+            text = limit == 0 and _("All remaining eligible books") or T(_("Up to %1 new books"), limit),
+            checked_func = function() return self.settings.max_books == limit end,
+            callback = function()
+                self.settings.max_books = limit
+                self:saveSettings()
+                if limit == 0 then
+                    self:showInfo(_("The next batch will attempt all remaining eligible books."), 4)
+                else
+                    self:showInfo(T(_("The next batch will attempt up to %1 new book conversions. Already prepared books do not count against this limit."), limit), 4)
+                end
+            end,
+        })
+    end
+    return {
+        text_func = function()
+            local limit = self.settings.max_books or 1
+            if limit == 0 then return _("Batch limit: all remaining books") end
+            return T(_("Batch limit: up to %1 new books"), limit)
+        end,
+        sub_item_table = submenu,
+    }
+end
+
+function PLUGIN:addToMainMenu(menu_items)
+''',
+        "batch limit submenu",
+    )
+    once(
+        '        table.insert(sub_items, self:createReserveMenuItem())\n',
+        '        table.insert(sub_items, self:createBatchLimitMenuItem())\n'
+        '        table.insert(sub_items, self:createReserveMenuItem())\n',
+        "add batch limit submenu",
+    )
+    once(
+        '        local aborted = false\n'
+        '        for index, book in ipairs(convertible) do\n',
+        '        local aborted = false\n'
+        '        local max_books = math.max(0, math.floor(tonumber(self.settings.max_books) or 1))\n'
+        '        local attempted_count = 0\n'
+        '        local not_attempted_count = 0\n'
+        '        for index, book in ipairs(convertible) do\n',
+        "batch attempt limit counters",
+    )
+    once(
+        '            else\n'
+        '                local status, result = self:prepareOneBook(helper, cache, settings, book, index, #convertible)\n',
+        '            elseif max_books > 0 and attempted_count >= max_books then\n'
+        '                not_attempted_count = not_attempted_count + 1\n'
+        '            else\n'
+        '                attempted_count = attempted_count + 1\n'
+        '                local status, result = self:prepareOneBook(helper, cache, settings, book, index, #convertible)\n',
+        "enforce maximum new conversion attempts",
+    )
+    once(
+        '        else\n'
+        '            summary = summary .. "\\n\\nAll eligible books have been checked."\n'
+        '        end\n',
+        '        else\n'
+        '            if not_attempted_count > 0 then\n'
+        '                summary = summary .. string.format("\\n\\nBatch limit reached. %d eligible books were left untouched. Increase the limit or run the batch again to continue.", not_attempted_count)\n'
+        '            else\n'
+        '                summary = summary .. "\\n\\nAll eligible books have been checked."\n'
+        '            end\n'
+        '        end\n',
+        "batch limit completion summary",
     )
 
     function_start = source.find("function PLUGIN:convertWithProgress")
@@ -276,13 +360,13 @@ if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V5" not in source:
     path.write_bytes(gzip.compress(source.encode("utf-8"), mtime=0))
 
 data = gzip.decompress(path.read_bytes()).decode("utf-8")
-block = re.search(r"local PROGRESS_CLASS = \[==\[(.*?)\]==\]", data, re.S)
+block = re.search(r"local PROGRESS_CLASS = \\[==\\[(.*?)\\]==\\]", data, re.S)
 if not block:
     raise SystemExit("Embedded Python progress class was not found")
 compile(block.group(1), "batch_progress.py", "exec")
 
 required = [
-    "-- KOREADER_BATCH_PREPARE_MENU_FIX_V5",
+    "-- KOREADER_BATCH_PREPARE_MENU_FIX_V6",
     "local partial_epub_path = epub_path:gsub",
     "The converter reported success but the staged EPUB is missing.",
     "commit_failed",
@@ -297,9 +381,16 @@ required = [
     "Pause this book at the next safe checkpoint?",
     '_("Resume")',
     '_("Abort batch")',
+    "function PLUGIN:createBatchLimitMenuItem()",
+    "Batch limit: all remaining books",
+    "self.settings.max_books = 1",
+    "local max_books = math.max(0, math.floor(tonumber(self.settings.max_books) or 1))",
+    "attempted_count >= max_books",
+    "not_attempted_count = not_attempted_count + 1",
+    "Batch limit reached.",
 ]
 for marker in required:
     if marker not in data:
         raise SystemExit("Batch controls validation failed; missing: " + marker)
 
-print("Validated V1-to-V2 helper migration, pause checkpoints, and distinct Pause/Resume/Abort controls.")
+print("Validated helper migration, pause/resume/abort, staged output protection, and selectable batch-size limits.")
