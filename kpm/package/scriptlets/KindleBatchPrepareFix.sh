@@ -172,7 +172,11 @@ mv -f "$STAGED" "$TMP"
 
 # Confirm the translation-function shadowing crash is fixed in the actual payload.
 for marker in \
-  "KOREADER_BATCH_PREPARE_MENU_FIX_V5" \
+  "KOREADER_BATCH_PREPARE_MENU_FIX_V6" \
+  "function PLUGIN:createBatchLimitMenuItem()" \
+  "self.settings.max_books = 1" \
+  "attempted_count >= max_books" \
+  "Batch limit reached." \\
   ".batch-partial.epub" \
   "The converter reported success but the staged EPUB is missing." \
   "cache:clearBookCache(book)" \
@@ -263,7 +267,7 @@ say "$PLUGIN_DIR"
 say "Crash fix verified: reserve-menu loop uses choice_index, not the gettext function name."
 say "Menu location: Tools → More tools."
 say "Controls: responsive Pause / Resume / Abort; existing helpers are upgraded in place."
-say "Output safety: incomplete conversions use a staging EPUB until completion is verified."
+say "Batch size: selectable maximum number of new conversions per run; default is one."\nsay "Output safety: incomplete conversions use a staging EPUB until completion is verified."
 say "Stale cache entries are cleared before retrying an unfinished book."
 say "Restart KOReader to load the plugin."
 say "Full log saved to: $LOG"
