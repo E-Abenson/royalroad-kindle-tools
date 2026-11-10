@@ -16,7 +16,7 @@ An experimental KPM toolkit for investigating the jailbroken Kindle's built-in K
 ## Current Kindle tools
 
 - **RR-LIPC-READONLY-PROBE** — lists registered LIPC services using lipc-probe -a -v and records a read-only KPP process snapshot. It does not set LIPC properties, send events, navigate, refresh, or run JavaScript.
-- **RR-LIPC-READONLY-UPLOAD** — separately uploads only that log to pasters.io. It asks you to type UPLOAD when keyboard input is available; otherwise opening the dedicated launcher starts the transfer. It requests one-week expiry, stores the paste link and delete link locally, and does not run the probe or interact with the browser.
+- **RR-LIPC-READONLY-UPLOAD** — separately uploads a sanitized copy of that log to pasters.io. Credential-bearing service sections and identity fields are omitted or redacted, and the current browser URL is hidden. The raw log remains unchanged. It asks you to type UPLOAD when keyboard input is available; otherwise opening the dedicated launcher starts the transfer. It requests one-week expiry, stores the paste link and delete link locally, and does not run the probe or interact with the browser.
 - **RoyalRoadTools-Cleanup** — persistent, queue-based cleanup for retired tests, scripts, logs, temporary files and exact old bookmarklets. Successful items are removed from the queue; failed or unverifiable items remain for retry.
 - **RoyalRoadTools-Version-Info** — creates /mnt/us/documents/Kindle-Version-Report.txt with installed versions and code fingerprints.
 - **KPM-Update-All** — updates installed KPM packages.
