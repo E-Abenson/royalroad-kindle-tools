@@ -360,7 +360,7 @@ function PLUGIN:addToMainMenu(menu_items)
     path.write_bytes(gzip.compress(source.encode("utf-8"), mtime=0))
 
 data = gzip.decompress(path.read_bytes()).decode("utf-8")
-block = re.search(r"local PROGRESS_CLASS = \\[==\\[(.*?)\\]==\\]", data, re.S)
+block = re.search(r"local PROGRESS_CLASS = " + re.escape("[==[") + r"(.*?)" + re.escape("]==]"), data, re.S)
 if not block:
     raise SystemExit("Embedded Python progress class was not found")
 compile(block.group(1), "batch_progress.py", "exec")
