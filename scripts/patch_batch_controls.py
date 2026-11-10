@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Patch the bundled Kindle Batch Preparation source before KPM packaging."""
+"""Patch and validate Kindle Batch Preparation pause/resume/abort controls."""
 
 import gzip
 import re
@@ -17,62 +17,107 @@ def once(old: str, new: str, label: str) -> None:
     source = source.replace(old, new, 1)
 
 
-if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V3" not in source:
+if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V4" not in source:
     once(
         "-- KOREADER_BATCH_PREPARE_MENU_FIX_V2",
-        "-- KOREADER_BATCH_PREPARE_MENU_FIX_V3",
+        "-- KOREADER_BATCH_PREPARE_MENU_FIX_V4",
         "source version",
     )
     once(
         'local PATCH_MARKER = "# KOREADER_BATCH_PREPARE_V1"',
         'local PATCH_MARKER = "# KOREADER_BATCH_PREPARE_V2"',
-        "helper marker",
+        "new helper marker",
     )
     once(
-        '        self.cancel_file = getattr(args, "cancel_file", "") or ""\n',
-        '        self.cancel_file = getattr(args, "cancel_file", "") or ""\n'
-        '        self.pause_file = getattr(args, "pause_file", "") or ""\n',
-        "pause path",
+        'local PATCH_MARKER = "# KOREADER_BATCH_PREPARE_V2"',
+        'local PATCH_MARKER = "# KOREADER_BATCH_PREPARE_V2"\nlocal LEGACY_PATCH_MARKER = "# KOREADER_BATCH_PREPARE_V1"',
+        "legacy helper marker",
     )
     once(
-        '    def check_cancel(self):\n'
-        '        if self.cancel_file and os.path.exists(self.cancel_file):\n'
-        '            raise BatchConversionCancelled("Batch preparation cancelled")\n',
-        '    def check_cancel(self):\n'
-        '        while True:\n'
-        '            if self.cancel_file and os.path.exists(self.cancel_file):\n'
-        '                raise BatchConversionCancelled("Batch preparation cancelled")\n'
-        '            if not self.pause_file or not os.path.exists(self.pause_file):\n'
-        '                return\n'
-        '            time.sleep(0.15)\n',
-        "pause checkpoint",
+        "# KOREADER_BATCH_PREPARE_V1",
+        "# KOREADER_BATCH_PREPARE_V2",
+        "embedded helper version marker",
     )
-    once(
-        '    p_convert.add_argument("--cancel-file", default="")\\n',
-        '    p_convert.add_argument("--cancel-file", default="")\\n'
-        '    p_convert.add_argument("--pause-file", default="")\\n',
-        "pause CLI argument",
-    )
-    once(
-        '    os.remove(progress_path .. ".tmp")\n',
-        '    os.remove(progress_path .. ".tmp")\n'
-        '    if cancel_path and cancel_path ~= "" then\n'
-        '        os.remove(cancel_path .. ".pause")\n'
-        '    end\n',
-        "pause cleanup",
-    )
-    once(
-        '    local cancel_path = temp_base .. ".cancel"\n',
-        '    local cancel_path = temp_base .. ".cancel"\n'
-        '    local pause_path = cancel_path .. ".pause"\n',
-        "pause marker",
-    )
-    once(
-        '        "--cancel-file", cancel_path,\n',
-        '        "--cancel-file", cancel_path,\n'
-        '        "--pause-file", pause_path,\n',
-        "pause process argument",
-    )
+
+    legacy_gate = '''    if source:find(PATCH_MARKER, 1, true) then
+        return false, "already_patched"
+    end
+    if not source:find("VERSION = 1", 1, true) or not source:find("def cmd_convert(args):", 1, true) then
+'''
+    legacy_upgrade = '''    if source:find(PATCH_MARKER, 1, true) then
+        return false, "already_patched"
+    end
+
+    -- Upgrade the previous progress-enabled helper in place. Do not try to
+    -- apply the original v0.0.11 patch a second time: its imports and convert
+    -- function have already been modified by the V1 installation.
+    if source:find(LEGACY_PATCH_MARKER, 1, true) then
+        local ok, patched = pcall(function()
+            local result = source
+            result = replaceOnce(
+                result,
+                '        self.cancel_file = getattr(args, "cancel_file", "") or ""\n',
+                '        self.cancel_file = getattr(args, "cancel_file", "") or ""\n'
+                    .. '        self.pause_file = getattr(args, "pause_file", "") or ""\n',
+                "legacy pause-file setting"
+            )
+            result = replaceOnce(
+                result,
+                '    def check_cancel(self):\n'
+                    .. '        if self.cancel_file and os.path.exists(self.cancel_file):\n'
+                    .. '            raise BatchConversionCancelled("Batch preparation cancelled")\n',
+                '    def check_cancel(self):\n'
+                    .. '        while True:\n'
+                    .. '            if self.cancel_file and os.path.exists(self.cancel_file):\n'
+                    .. '                raise BatchConversionCancelled("Batch preparation cancelled")\n'
+                    .. '            if not self.pause_file or not os.path.exists(self.pause_file):\n'
+                    .. '                return\n'
+                    .. '            time.sleep(0.15)\n',
+                "legacy pause checkpoint"
+            )
+            result = replaceOnce(
+                result,
+                '    p_convert.add_argument("--cancel-file", default="")\n',
+                '    p_convert.add_argument("--cancel-file", default="")\n'
+                    .. '    p_convert.add_argument("--pause-file", default="")\n',
+                "legacy pause CLI argument"
+            )
+            result = replaceOnce(
+                result,
+                LEGACY_PATCH_MARKER,
+                PATCH_MARKER,
+                "helper version marker"
+            )
+            return result
+        end)
+        if not ok then
+            return nil, tostring(patched)
+        end
+
+        local backup_path = helper_path .. ".batch-prepare.bak"
+        if not readFile(backup_path) then
+            local backup_ok, backup_err = writeFile(backup_path, source)
+            if not backup_ok then
+                return nil, "Could not create helper backup: " .. tostring(backup_err)
+            end
+        end
+        local temp_path = helper_path .. ".batch-prepare.tmp"
+        local write_ok, write_err = writeFile(temp_path, patched)
+        if not write_ok then
+            return nil, "Could not write upgraded helper: " .. tostring(write_err)
+        end
+        local rename_ok, rename_err = os.rename(temp_path, helper_path)
+        if not rename_ok then
+            os.remove(temp_path)
+            return nil, "Could not replace upgraded helper: " .. tostring(rename_err)
+        end
+        return true, "pause_support_upgraded"
+    end
+
+    if not source:find("VERSION = 1", 1, true) or not source:find("def cmd_convert(args):", 1, true) then
+'''
+    once(legacy_gate, legacy_upgrade, "legacy helper migration path")
+
     once(
         '            help_text = _("Convert all locally available Kindle KFX books one after another. Existing prepared books are skipped. Tap the progress message to pause, then choose Abort to stop the current book and the whole batch."),',
         '            help_text = _("Convert all locally available Kindle KFX books one after another. Existing prepared books are skipped. Tap the progress message to open controls. Pause waits for a safe checkpoint; Resume continues; Abort stops this and all remaining books."),',
@@ -118,7 +163,7 @@ if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V3" not in source:
         end
 
         -- Reuse the same InfoMessage after its first display. Recreating it
-        -- every 150 ms flushes touch events and can swallow the tap.
+        -- every 150 ms flushes touch events and can swallow the user's tap.
         local keep_going = Trapper:info(progress_text, not first_update)
         first_update = false
         if not keep_going then
@@ -154,8 +199,10 @@ if not block:
 compile(block.group(1), "batch_progress.py", "exec")
 
 required = [
-    "-- KOREADER_BATCH_PREPARE_MENU_FIX_V3",
+    "-- KOREADER_BATCH_PREPARE_MENU_FIX_V4",
     'local PATCH_MARKER = "# KOREADER_BATCH_PREPARE_V2"',
+    'local LEGACY_PATCH_MARKER = "# KOREADER_BATCH_PREPARE_V1"',
+    'if source:find(LEGACY_PATCH_MARKER, 1, true) then',
     'self.pause_file = getattr(args, "pause_file", "") or ""',
     'p_convert.add_argument("--pause-file", default="")',
     '"--pause-file", pause_path,',
@@ -168,4 +215,4 @@ for marker in required:
     if marker not in data:
         raise SystemExit("Batch controls validation failed; missing: " + marker)
 
-print("Validated responsive touch refresh and distinct Pause, Resume, Abort controls.")
+print("Validated V1-to-V2 helper migration, pause checkpoints, and distinct Pause/Resume/Abort controls.")
