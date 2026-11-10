@@ -259,6 +259,7 @@ say "SUCCESS: Kindle Batch Preparation has been installed at:"
 say "$PLUGIN_DIR"
 say "Crash fix verified: reserve-menu loop uses choice_index, not the gettext function name."
 say "Menu location: Tools → More tools."
+say "Controls: responsive Pause / Resume / Abort; existing progress helpers are upgraded in place."
 say "Restart KOReader to load the plugin."
 say "Full log saved to: $LOG"
 exit 0
