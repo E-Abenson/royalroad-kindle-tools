@@ -30,7 +30,7 @@ To add future cleanup targets, add one line to kpm/package/scriptlets/RoyalRoadT
 
 The cleanup deliberately preserves RR-LIPC-READONLY-PROBE and its log, KPM-Update-All and its log, KindleBatchPrepareFix and its log, the installed KOReader plugin, KOReader books and EPUBs.
 
-Open **RR-LIPC-READONLY-PROBE** after updating, then review /mnt/us/documents/RR-LIPC-READONLY-PROBE.log. When ready to share it, open **RR-LIPC-READONLY-UPLOAD**. It asks you to type `UPLOAD` when the launcher supports keyboard input; otherwise opening this dedicated uploader starts the transfer. The paste is accessible to anyone with its link and is requested to expire after one week, so review the log first. Open **RoyalRoadTools-Version-Info** to refresh the version report.
+Open **RR-LIPC-READONLY-PROBE** after updating, then review /mnt/us/documents/RR-LIPC-READONLY-PROBE.log. When ready to share it, open **RR-LIPC-READONLY-UPLOAD**. It asks you to type `UPLOAD` when the launcher supports keyboard input; otherwise opening this dedicated uploader starts the transfer. The sanitized paste is accessible to anyone with its link and is requested to expire after one week. The uploader hides credential values and personal identifiers before sending it. Open **RoyalRoadTools-Version-Info** to refresh the version report.
 
 Keep **KindleBatchPrepareFix** installed. Use it only when the separate KOReader plugin needs to be repaired or reinstalled. It is not a background service.
 
