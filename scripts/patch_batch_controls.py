@@ -34,8 +34,8 @@ if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V4" not in source:
         "legacy helper marker",
     )
     once(
-        "# KOREADER_BATCH_PREPARE_V1",
-        "# KOREADER_BATCH_PREPARE_V2",
+        "\n# KOREADER_BATCH_PREPARE_V1\n",
+        "\n# KOREADER_BATCH_PREPARE_V2\n",
         "embedded helper version marker",
     )
 
