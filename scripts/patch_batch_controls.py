@@ -382,6 +382,7 @@ required = [
     '_("Resume")',
     '_("Abort batch")',
     "function PLUGIN:createBatchLimitMenuItem()",
+    "local choices = { 1, 2, 3, 5, 6, 10, 0 }",
     "Batch limit: all remaining books",
     "self.settings.max_books = 1",
     "local max_books = math.max(0, math.floor(tonumber(self.settings.max_books) or 1))",
