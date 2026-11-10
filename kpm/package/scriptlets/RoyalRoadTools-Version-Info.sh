@@ -1,6 +1,6 @@
 #!/bin/sh
 # Name: RoyalRoadTools-Version-Info
-# Report build: 1.2
+# Report build: 1.3
 # Refreshes a readable software inventory on the Kindle.
 
 DOCS="/mnt/us/documents"
@@ -112,8 +112,8 @@ if [ -n "$PLUGIN_DIR" ]; then
     say "Plugin metadata: _meta.lua missing"
   fi
   say "Installed main.lua fingerprint: $(fingerprint "$MAIN")"
-  if [ -r "$MAIN" ] && grep -Fq 'KOREADER_BATCH_PREPARE_MENU_FIX_V5' "$MAIN"; then
-    say "Plugin source revision: V5 (responsive controls and staged EPUB output)"
+  if [ -r "$MAIN" ] && grep -Fq 'KOREADER_BATCH_PREPARE_MENU_FIX_V6' "$MAIN"; then
+    say "Plugin source revision: V6 (selectable batch limit, responsive controls, staged EPUB output)"
   elif [ -r "$MAIN" ]; then
     say "Plugin source revision: older than V5 or unverified"
   else
@@ -142,6 +142,11 @@ if [ -n "$PLUGIN_DIR" ]; then
     say "KFX decoder progress support: not found"
   else
     say "KFX decoder source: not found"
+  fi
+  if [ -r "$MAIN" ] && grep -Fq 'function PLUGIN:createBatchLimitMenuItem()' "$MAIN"; then
+    say "Batch size selector: present (default maximum: one new conversion per run)"
+  elif [ -r "$MAIN" ]; then
+    say "Batch size selector: not present"
   fi
   if [ -r "$MAIN" ] && grep -Fq '.batch-partial.epub' "$MAIN"; then
     say "Interrupted-output protection: staged EPUB before final cache commit"
