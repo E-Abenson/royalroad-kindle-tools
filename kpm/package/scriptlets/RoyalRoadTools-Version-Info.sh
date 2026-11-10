@@ -1,6 +1,6 @@
 #!/bin/sh
 # Name: RoyalRoadTools-Version-Info
-# Report build: 1.1
+# Report build: 1.2
 # Refreshes a readable software inventory on the Kindle.
 
 DOCS="/mnt/us/documents"
@@ -112,12 +112,41 @@ if [ -n "$PLUGIN_DIR" ]; then
     say "Plugin metadata: _meta.lua missing"
   fi
   say "Installed main.lua fingerprint: $(fingerprint "$MAIN")"
-  if [ -r "$MAIN" ] && grep -Fq 'KOREADER_BATCH_PREPARE_MENU_FIX_V2' "$MAIN"; then
-    say "Menu crash-fix marker: present"
+  if [ -r "$MAIN" ] && grep -Fq 'KOREADER_BATCH_PREPARE_MENU_FIX_V5' "$MAIN"; then
+    say "Plugin source revision: V5 (responsive controls and staged EPUB output)"
   elif [ -r "$MAIN" ]; then
-    say "Menu crash-fix marker: not found"
+    say "Plugin source revision: older than V5 or unverified"
   else
     say "main.lua: missing"
+  fi
+
+  HELPER="$KO_ROOT/plugins/kindle.koplugin/dist/kindle_helper.py"
+  YJ_BOOK="$KO_ROOT/plugins/kindle.koplugin/dist/kfxlib/yj_book.py"
+  if [ -r "$HELPER" ] && grep -Fq '# KOREADER_BATCH_PREPARE_V2' "$HELPER"; then
+    say "Converter helper: V2 (pause checkpoints)"
+    if grep -Fq 'self.pause_file' "$HELPER" && grep -Fq -- '--pause-file' "$HELPER"; then
+      say "Pause/resume helper support: present"
+    else
+      say "Pause/resume helper support: marker present but implementation check failed"
+    fi
+  elif [ -r "$HELPER" ] && grep -Fq '# KOREADER_BATCH_PREPARE_V1' "$HELPER"; then
+    say "Converter helper: V1 (old progress/cancel build; pause migration needed)"
+  elif [ -r "$HELPER" ]; then
+    say "Converter helper: installed, but patch version unrecognized"
+  else
+    say "Converter helper: not found"
+  fi
+  if [ -r "$YJ_BOOK" ] && grep -Fq 'KOREADER_BATCH_PREPARE_PROGRESS_V1' "$YJ_BOOK"; then
+    say "KFX decoder progress support: present"
+  elif [ -r "$YJ_BOOK" ]; then
+    say "KFX decoder progress support: not found"
+  else
+    say "KFX decoder source: not found"
+  fi
+  if [ -r "$MAIN" ] && grep -Fq '.batch-partial.epub' "$MAIN"; then
+    say "Interrupted-output protection: staged EPUB before final cache commit"
+  elif [ -r "$MAIN" ]; then
+    say "Interrupted-output protection: not present"
   fi
 else
   say "Plugin code fingerprint: unavailable"
