@@ -17,10 +17,14 @@ def once(old: str, new: str, label: str) -> None:
     source = source.replace(old, new, 1)
 
 
-if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V4" not in source:
+if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V5" not in source:
     once(
         "-- KOREADER_BATCH_PREPARE_MENU_FIX_V2",
-        "-- KOREADER_BATCH_PREPARE_MENU_FIX_V4",
+        "-- KOREADER_BATCH_PREPARE_MENU_FIX_V5",
+    "local partial_epub_path = epub_path:gsub",
+    "The converter reported success but the staged EPUB is missing.",
+    "commit_failed",
+    "cache:clearBookCache(book)",
         "source version",
     )
     once(
@@ -57,6 +61,71 @@ if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V4" not in source:
         '        "--cancel-file", cancel_path,\n'
         '        "--pause-file", pause_path,\n',
         "pause process argument",
+    )
+    once(
+        '    local positions_path = epub_path:gsub("%.epub$", ".positions.json")\n'
+        '    for _, path in ipairs({ epub_path, meta_path, positions_path }) do\n',
+        '    local positions_path = epub_path:gsub("%.epub$", ".positions.json")\n'
+        '    local partial_epub_path = epub_path:gsub("%.epub$", ".batch-partial.epub")\n'
+        '    local partial_positions_path = partial_epub_path:gsub("%.epub$", ".positions.json")\n'
+        '    for _, path in ipairs({ epub_path, meta_path, positions_path, partial_epub_path, partial_positions_path }) do\n',
+        "cleanup of staged EPUB and position map",
+    )
+    once(
+        '    local epub_path, meta_path = cache:getCachePaths(book)\n'
+        '    local cache_ok, cache_err = cache:ensureCacheDir()\n',
+        '    local epub_path, meta_path = cache:getCachePaths(book)\n'
+        '    local partial_epub_path = epub_path:gsub("%.epub$", ".batch-partial.epub")\n'
+        '    local partial_positions_path = partial_epub_path:gsub("%.epub$", ".positions.json")\n'
+        '    os.remove(partial_epub_path)\n'
+        '    os.remove(partial_positions_path)\n'
+        '    local cache_ok, cache_err = cache:ensureCacheDir()\n',
+        "staged output paths",
+    )
+    once(
+        '        "--output", epub_path,\n',
+        '        "--output", partial_epub_path,\n',
+        "write conversion to staging EPUB",
+    )
+    once(
+        '    if result.ok ~= true then\n'
+        '        cleanupBatchFiles(epub_path, meta_path, "", "", "", "")\n'
+        '    end\n'
+        '    return result\n',
+        '    if result.ok == true then\n'
+        '        local final_positions_path = epub_path:gsub("%.epub$", ".positions.json")\n'
+        '        if not lfs.attributes(partial_epub_path) then\n'
+        '            cleanupBatchFiles(epub_path, meta_path, "", "", "", "")\n'
+        '            return nil, { code = "missing_output", message = "The converter reported success but the staged EPUB is missing." }\n'
+        '        end\n'
+        '        local rename_ok, rename_err = os.rename(partial_epub_path, epub_path)\n'
+        '        if not rename_ok then\n'
+        '            cleanupBatchFiles(epub_path, meta_path, "", "", "", "")\n'
+        '            return nil, { code = "commit_failed", message = "Could not commit the completed EPUB: " .. tostring(rename_err) }\n'
+        '        end\n'
+        '        if lfs.attributes(partial_positions_path) then\n'
+        '            local positions_ok, positions_err = os.rename(partial_positions_path, final_positions_path)\n'
+        '            if not positions_ok then\n'
+        '                os.remove(epub_path)\n'
+        '                cleanupBatchFiles(epub_path, meta_path, "", "", "", "")\n'
+        '                return nil, { code = "positions_commit_failed", message = "Could not commit the reading-position map: " .. tostring(positions_err) }\n'
+        '            end\n'
+        '        end\n'
+        '        result.output_path = epub_path\n'
+        '    else\n'
+        '        cleanupBatchFiles(epub_path, meta_path, "", "", "", "")\n'
+        '    end\n'
+        '    return result\n',
+        "atomic commit of staged EPUB",
+    )
+    once(
+        '    if fresh then return "cached" end\n'
+        '    local result, err = self:convertWithProgress(helper, cache, settings, book, index, total)\n',
+        '    if fresh then return "cached" end\n'
+        '    -- Remove stale or interrupted cache contents before starting again.\n'
+        '    cache:clearBookCache(book)\n'
+        '    local result, err = self:convertWithProgress(helper, cache, settings, book, index, total)\n',
+        "clear stale cache before retry",
     )
 
     legacy_gate = '''    if source:find(PATCH_MARKER, 1, true) then
@@ -219,7 +288,7 @@ if not block:
 compile(block.group(1), "batch_progress.py", "exec")
 
 required = [
-    "-- KOREADER_BATCH_PREPARE_MENU_FIX_V4",
+    "-- KOREADER_BATCH_PREPARE_MENU_FIX_V5",
     'local PATCH_MARKER = "# KOREADER_BATCH_PREPARE_V2"',
     'local LEGACY_PATCH_MARKER = "# KOREADER_BATCH_PREPARE_V1"',
     'if source:find(LEGACY_PATCH_MARKER, 1, true) then',
