@@ -58,7 +58,14 @@ function private_service(s) {
          s == "com.lab126.freetime" ||
          s == "com.lab126.accountinfoprovider"
 }
-/^[^ \t]/ {
+/^---- Browser \/ KPP \/ Chrome \/ WebKit matches ----$/ {
+  print
+  print "[Duplicate excerpt omitted; the complete service inventory appears above.]"
+  skip_matches = 1
+  next
+}
+skip_matches { next }
+/^[^ \t]+$/ && $0 ~ /^[A-Za-z][A-Za-z0-9_-]*(\.[A-Za-z0-9_-]+)+$/ {
   service = $0
   skip = private_service(service)
   if (skip) {
@@ -68,19 +75,20 @@ function private_service(s) {
   }
 }
 skip { next }
-/^[ \t]/ {
+{
   low = tolower($0)
   if (low ~ /getlastopenpage/) {
     sub(/\[.*/, "[URL REDACTED]")
     print
     next
   }
-  if (low ~ /(token|cookie|auth|password|session|secret|credential|email|primaryuserid|directedid|activeprofile|household|username|userid|phone|guid|ubid|passcode)/) {
+  if (low ~ /(token|cookie|auth|password|session|secret|credential|email|primaryuserid|directedid|profile|household|user|phone|guid|ubid|passcode)/) {
     if ($0 ~ /\[/) sub(/\[.*/, "[REDACTED]")
-    else $0 = $0 " [REDACTED]"
+    else if ($0 ~ /=/) sub(/=.*/, "=[REDACTED]")
+    else $0 = "[REDACTED]"
   }
+  print
 }
-{ print }
 ' "$LOG" > "$SANITIZED"; then
   say "ERROR: Could not create sanitized diagnostic copy."
   exit 1
