@@ -1,0 +1,44 @@
+name: Inspect batch menu source
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/inspect-batch-source.yml"
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Print batch menu and conversion loop context
+        run: |
+          python - <<'PY'
+          import gzip
+          from pathlib import Path
+          p = Path("kpm/package/files/kindle_batch_prepare_main.lua.gz")
+          s = gzip.decompress(p.read_bytes()).decode("utf-8")
+          lines = s.splitlines()
+          needles = (
+              "convert all locally available",
+              "for _, book",
+              "for index, book",
+              "for i, book",
+              "function PLUGIN:",
+              "books =",
+              "batch",
+          )
+          hits = []
+          for i, line in enumerate(lines):
+              low = line.lower()
+              if any(n in low for n in needles):
+                  hits.append(i)
+          chosen = set()
+          for i in hits:
+              chosen.update(range(max(0, i-8), min(len(lines), i+18)))
+          for i in sorted(chosen):
+              print(f"{i+1:05d}: {lines[i]}")
+          PY
