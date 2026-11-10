@@ -172,8 +172,10 @@ mv -f "$STAGED" "$TMP"
 
 # Confirm the translation-function shadowing crash is fixed in the actual payload.
 for marker in \
-  "KOREADER_BATCH_PREPARE_MENU_FIX_V3" \
+  "KOREADER_BATCH_PREPARE_MENU_FIX_V4" \
   "# KOREADER_BATCH_PREPARE_V2" \
+  'local LEGACY_PATCH_MARKER = "# KOREADER_BATCH_PREPARE_V1"' \
+  "legacy pause checkpoint" \
   "function PLUGIN:addToMainMenu(menu_items)" \
   "function PLUGIN:prepareAllBooks()" \
   "for choice_index, mb in ipairs(choices) do" \
