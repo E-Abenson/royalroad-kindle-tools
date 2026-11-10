@@ -115,9 +115,7 @@ if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V5" not in source:
         "atomic commit of staged EPUB",
     )
     once(
-        '    if fresh then return "cached" end\n'
         '    local result, err = self:convertWithProgress(helper, cache, settings, book, index, total)\n',
-        '    if fresh then return "cached" end\n'
         '    -- Remove stale or interrupted cache contents before starting again.\n'
         '    cache:clearBookCache(book)\n'
         '    local result, err = self:convertWithProgress(helper, cache, settings, book, index, total)\n',
