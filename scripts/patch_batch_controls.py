@@ -38,6 +38,26 @@ if "-- KOREADER_BATCH_PREPARE_MENU_FIX_V4" not in source:
         "\n# KOREADER_BATCH_PREPARE_V2\n",
         "embedded helper version marker",
     )
+    once(
+        '    os.remove(progress_path .. ".tmp")\n',
+        '    os.remove(progress_path .. ".tmp")\n'
+        '    if cancel_path and cancel_path ~= "" then\n'
+        '        os.remove(cancel_path .. ".pause")\n'
+        '    end\n',
+        "pause marker cleanup",
+    )
+    once(
+        '    local cancel_path = temp_base .. ".cancel"\n',
+        '    local cancel_path = temp_base .. ".cancel"\n'
+        '    local pause_path = cancel_path .. ".pause"\n',
+        "pause marker path",
+    )
+    once(
+        '        "--cancel-file", cancel_path,\n',
+        '        "--cancel-file", cancel_path,\n'
+        '        "--pause-file", pause_path,\n',
+        "pause process argument",
+    )
 
     legacy_gate = '''    if source:find(PATCH_MARKER, 1, true) then
         return false, "already_patched"
