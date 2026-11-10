@@ -115,7 +115,7 @@ if [ -n "$PLUGIN_DIR" ]; then
   if [ -r "$MAIN" ] && grep -Fq 'KOREADER_BATCH_PREPARE_MENU_FIX_V6' "$MAIN"; then
     say "Plugin source revision: V6 (selectable batch limit, responsive controls, staged EPUB output)"
   elif [ -r "$MAIN" ]; then
-    say "Plugin source revision: older than V5 or unverified"
+    say "Plugin source revision: older than V6 or unverified"
   else
     say "main.lua: missing"
   fi
