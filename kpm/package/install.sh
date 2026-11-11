@@ -46,7 +46,10 @@ install_scriptlet "scriptlets/RR-LIPC-READONLY-UPLOAD.sh" "$DOCS/RR-LIPC-READONL
 install_scriptlet "scriptlets/RoyalRoadTools-Cleanup.sh" "$DOCS/RoyalRoadTools-Cleanup.sh"
 install_scriptlet "scriptlets/KPM-Update-All.sh" "$DOCS/KPM-Update-All.sh"
 install_scriptlet "scriptlets/KindleBatchPrepareFix.sh" "$DOCS/KindleBatchPrepareFix.sh"
-install_scriptlet "scriptlets/RoyalRoadTools-Version-Info.sh" "$DOCS/RoyalRoadTools-Version-Info.sh"
+mkdir -p "$DOCS/.royalroadtools"
+install_scriptlet "scriptlets/RoyalRoadTools-Version-Info.sh" "$DOCS/.royalroadtools/version-info.sh"
+# Remove the old visible manual launcher; the report is now generated automatically.
+rm -f "$DOCS/RoyalRoadTools-Version-Info.sh"
 
 merge_cleanup_queue
 
@@ -81,4 +84,10 @@ fi
 
 say "Installed the read-only LIPC probe and its manually confirmed uploader, persistent cleanup queue, version report, KPM updater and KOReader repair tool."
 say "Package version: $PACKAGE_VERSION"
+say "Generating the current Kindle version report..."
+if sh "$DOCS/.royalroadtools/version-info.sh"; then
+  say "Version report generated and previous report replaced: $DOCS/Kindle-Version-Report.txt"
+else
+  say "WARNING: Package installed, but the automatic version report could not be generated."
+fi
 say "Installation complete."
