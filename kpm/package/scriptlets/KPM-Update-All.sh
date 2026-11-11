@@ -6,6 +6,7 @@
 KPM="/var/local/kmc/bin/kpm"
 DOCS="/mnt/us/documents"
 LOG="$DOCS/KPM-Update-All.log"
+VERSION_REPORT="$DOCS/.royalroadtools/version-info.sh"
 
 mkdir -p "$DOCS"
 : > "$LOG"
@@ -65,6 +66,16 @@ say "Automatic confirmation is enabled."
 if run_and_show "$KPM" -y upgrade; then
   say "SUCCESS — KPM upgrade completed."
   say "All available upgrades have been processed."
+  if [ -x "$VERSION_REPORT" ]; then
+    say "Refreshing Kindle-Version-Report.txt..."
+    if sh "$VERSION_REPORT" >> "$LOG" 2>&1; then
+      say "SUCCESS — version report regenerated; previous report replaced."
+    else
+      say "WARNING — KPM upgrade succeeded, but the version report could not be regenerated."
+    fi
+  else
+    say "WARNING — automatic version report generator is missing: $VERSION_REPORT"
+  fi
   say "Finished: $(date)"
   exit 0
 else
