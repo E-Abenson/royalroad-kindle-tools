@@ -5,10 +5,10 @@ This package contains a **read-only static KPP browser interface inspector** and
 ## Kindle library items
 
 - **RR-KPP-Interface-Inspector** — inspects a small set of installed KPP/browser application files for fixed interface markers such as `invokeAction`, JavaScript evaluation method names, navigation methods, WebView/WebKit/Chromium markers, and debugging symbols. It reports only file paths and the names of markers found. Raw strings are never printed to the report. The inspector itself remains offline.
-- **RR-KPP-Interface-Inspector-Upload** — a separate, optional launcher. It uploads only the sanitised inspector report to `pasters.io`, requests a one-day expiry, and writes the returned share link at the top of the local report. Anyone with the link can read the paste; it is not password protected. The remote deletion URL is stored separately in a mode-600 local file and is never printed in the report.
+- **Automatic KPP research** — the package installer runs the read-only inspector, exports the exact Hermes bundle to a private local folder, and then uploads only the sanitised inspector report to `pasters.io` with a one-day expiry. The returned share URL is written at the top of the inspector log. The compiled application bundle is never uploaded to the paste service.
 - **RoyalRoadTools-Cleanup** — a persistent cleanup runner. It processes a queue of retired test scripts, logs, temporary files, package-cache files, saved paste links, and the exact old Royal Road Session Test bookmark. Each item is removed from the pending queue only after deletion is verified. Failed items stay queued for retry.
 - **RoyalRoadTools-Cleanup-Queue.txt** — the repository queue template. Add future cleanup targets here as one TYPE|VALUE line. The installer merges new lines into the Kindle's queue without overwriting pending work or re-adding completed work.
-- **RoyalRoadTools-Version-Info** — regenerates Kindle-Version-Report.txt with device firmware, KPM versions and installed package versions, KOReader revision, and the installed Kindle Batch Preparation plugin code fingerprint.
+- **Internal version-report helper** — regenerates Kindle-Version-Report.txt with device firmware, KPM versions and installed package versions, KOReader revision, and the installed Kindle Batch Preparation plugin code fingerprint. It is installed under `.royalroadtools` and is not a Kindle library launcher.
 - **KPM-Update-All** — refreshes package repositories and upgrades installed packages. Its log is cleared at the start of each run.
 - **KindleBatchPrepareFix** — an on-demand repair/reinstall utility for the separate Kindle Batch Preparation KOReader plugin. It is not a background service. Keep it; use it only if that plugin needs repair or reinstalling. Its log is cleared at the start of each run.
 
@@ -33,7 +33,8 @@ Use exact paths and narrow patterns. Never add broad wildcards for user document
 
 ## Current Kindle logs
 
-- `/mnt/us/documents/RR-KPP-Interface-Inspector.log` — latest static interface inspection report; after a successful upload, the pasters.io share link is at the very top.
+- `/mnt/us/documents/RR-KPP-Interface-Inspector.log` — automatically refreshed static interface inspection report; after a successful upload, the one-day pasters.io share link is at the very top.
+- `/mnt/us/documents/KPP-Bytecode-Export.txt` — automatic export status and bundle checksum.
 - `/mnt/us/documents/RoyalRoadTools-Cleanup.log` — latest cleanup run and per-item results.
 - `/mnt/us/documents/KPM-Update-All.log` — latest package update result.
 - `/mnt/us/documents/KindleBatchPrepareFix.log` — latest KOReader plugin repair result.
@@ -42,7 +43,7 @@ The maintenance logs are cleared at the start of their respective runs. Retired 
 
 ## Safety and limits
 
-The inspector is intentionally narrower than the previous LIPC dump. It does **not** run `lipc-probe` or `lipc-get-prop`, read LIPC property values, read the browser URL/settings, inspect cookies/history/bookmarks/database rows, send LIPC writes/events, navigate, refresh, or execute JavaScript. It scans only filenames matching KPP/browser/WebKit/Chromium/Juno patterns under selected application directories, limits the scan to 80 files and skips files over approximately 50 MB. It extracts strings locally but writes only fixed marker names and file paths to its report; raw strings are held in a private temporary file and removed on exit. The inspector itself makes no network request. The separate upload launcher sends only this fixed-marker/file-path report to pasters.io after the user deliberately opens that launcher; it requests one-day expiry and the paste is readable by anyone with its link.
+The inspector is intentionally narrower than the previous LIPC dump. It does **not** run `lipc-probe` or `lipc-get-prop`, read LIPC property values, read the browser URL/settings, inspect cookies/history/bookmarks/database rows, send LIPC writes/events, navigate, refresh, or execute JavaScript. It scans only filenames matching KPP/browser/WebKit/Chromium/Juno patterns under selected application directories, limits the scan to 80 files and skips files over approximately 50 MB. It extracts strings locally but writes only fixed marker names and file paths to its report; raw strings are held in a private temporary file and removed on exit. During package installation/upgrade the inspector and upload helper run automatically. Only the fixed-marker/file-path report goes to pasters.io, with a one-day expiry; anyone with the link can read it. The binary `KPPMainApp.js.hbc` copy stays in a local directory with restrictive permissions and is never sent to pasters.io.
 
 A marker only establishes that text is embedded in a file. It does not prove that a method is callable or reveal a supported `invokeAction` payload. Do not guess or send one. Do not share a full `lipc-probe -a -v` dump: broad LIPC output can include private account and authentication values.
 
