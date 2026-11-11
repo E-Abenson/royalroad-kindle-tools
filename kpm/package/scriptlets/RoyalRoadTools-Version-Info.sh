@@ -197,7 +197,7 @@ if [ -s "$BUNDLE_COPY" ]; then
   say "Bundle size: $(wc -c < "$BUNDLE_COPY" | tr -d ' ') bytes"
   say "Bundle SHA256: $(fingerprint "$BUNDLE_COPY")"
   if command -v od >/dev/null 2>&1; then
-    HBC_VERSION="$(od -An -tu4 -j 4 -N 4 "$BUNDLE_COPY" 2>/dev/null | tr -d ' ')"
+    HBC_VERSION="$(od -An -tu4 -j 8 -N 4 "$BUNDLE_COPY" 2>/dev/null | tr -d ' ')"
     say "Hermes bytecode version (header field): ${HBC_VERSION:-unavailable}"
   fi
 else
