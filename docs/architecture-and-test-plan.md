@@ -20,7 +20,7 @@ Use the Kindle's own built-in browser session to retrieve Royal Road pages that 
 
 The KPM package installs **RR-KPP-Interface-Inspector**, KPM update, KOReader plugin repair, version-report and persistent cleanup utilities.
 
-**RR-KPP-Interface-Inspector** performs a narrow static scan of selected system application directories. It checks candidate KPP/browser/WebKit/Chromium/Juno files for fixed interface markers such as `invokeAction`, JavaScript evaluation method names, navigation method names and debugging symbols. It prints only candidate file paths and marker names, never raw string contents. It does not run any LIPC command, read browser settings or URLs, inspect browser databases, set properties, send events, navigate, refresh, execute JavaScript, or use the network.
+**RR-KPP-Interface-Inspector** performs a narrow static scan of selected system application directories. It checks candidate KPP/browser/WebKit/Chromium/Juno files for fixed interface markers such as `invokeAction`, JavaScript evaluation method names, navigation method names and debugging symbols. It prints only candidate file paths and marker names, never raw string contents. It does not run any LIPC command, read browser settings or URLs, inspect browser databases, set properties, send events, navigate, refresh, execute JavaScript, or use the network. A separate **RR-KPP-Interface-Inspector-Upload** launcher can optionally upload only this sanitised report to pasters.io after the user deliberately opens it; it requests a one-week expiry and writes the returned link at the top of the local log. The paste is readable by anyone with its link.
 
 **Important:** The previous full `lipc-probe -a -v` inventory is retired. Broad LIPC dumps may expose authentication and account values from unrelated services. Do not run or share a full-system dump. Its old launcher, local log, uploader and saved paste links are queued for cleanup.
 
@@ -30,7 +30,7 @@ The KPM package installs **RR-KPP-Interface-Inspector**, KPM update, KOReader pl
 
 The previous read-only investigation found the browser service `com.lab126.kppbrowser`, with a write-only string property named `invokeAction`. Its accepted action format is not known.
 
-Open **RR-KPP-Interface-Inspector** and review `/mnt/us/documents/RR-KPP-Interface-Inspector.log`. Static markers are leads only: a string embedded in an application file does not prove the corresponding method is callable or that it accepts a particular payload.
+Open **RR-KPP-Interface-Inspector** and review `/mnt/us/documents/RR-KPP-Interface-Inspector.log`. To share the report, separately open **RR-KPP-Interface-Inspector-Upload**; the upload is optional and does not run automatically. Static markers are leads only: a string embedded in an application file does not prove the corresponding method is callable or that it accepts a particular payload.
 
 Do not write to `invokeAction`, change LIPC properties, or send events until a specific action schema is established from reliable implementation evidence. Do not try guessed JavaScript-injection payloads.
 

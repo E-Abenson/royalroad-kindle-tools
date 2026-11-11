@@ -15,7 +15,8 @@ An experimental KPM toolkit for investigating the jailbroken Kindle's built-in K
 
 ## Current Kindle tools
 
-- **RR-KPP-Interface-Inspector** — performs read-only static inspection of selected KPP/browser application files for interface markers. It reports only file paths and fixed marker names; it does not query LIPC values, touch the browser session, or upload anything.
+- **RR-KPP-Interface-Inspector** — performs read-only static inspection of selected KPP/browser application files for interface markers. It reports only file paths and fixed marker names; it does not query LIPC values, touch the browser session, or use the network.
+- **RR-KPP-Interface-Inspector-Upload** — a separate, deliberately opened launcher that uploads only the inspector report to pasters.io. It requests a one-week expiry and puts the returned link at the top of the local report. Anyone who obtains the link can read it; it is not password protected.
 - **RoyalRoadTools-Cleanup** — persistent cleanup for retired tests, scripts, logs, temporary files, package-cache files, saved paste links, and the exact old bookmark. Successful items are removed from the queue; failed items remain for retry.
 - **RoyalRoadTools-Version-Info** — creates `/mnt/us/documents/Kindle-Version-Report.txt` with installed versions and code fingerprints.
 - **KPM-Update-All** — updates installed KPM packages.
@@ -27,7 +28,7 @@ Open **KPM-Update-All** from the Kindle library. During package update, the inst
 
 To add future cleanup targets, add one line to `kpm/package/scriptlets/RoyalRoadTools-Cleanup-Queue.txt`. The next package update removes the retired broad LIPC dump and uploader, their local logs and saved links, along with the older smoke-test and KPP-bundle-scan artifacts already queued. It preserves the new KPP interface inspector, KPM updater, version report, and KOReader plugin repair tool.
 
-Open **RR-KPP-Interface-Inspector** after updating, then review `/mnt/us/documents/RR-KPP-Interface-Inspector.log`. Share only that report if you want the static findings reviewed. There is no upload function in the inspector.
+Open **RR-KPP-Interface-Inspector** after updating, then review `/mnt/us/documents/RR-KPP-Interface-Inspector.log`. To share it, deliberately open **RR-KPP-Interface-Inspector-Upload** as a separate step. A successful pasters.io link is written at the top of that log; the paste is requested to expire after one week. The upload launcher sends only the inspector report, not raw strings or browser data. Anyone with the link can read it.
 
 Open **RoyalRoadTools-Version-Info** to refresh the version report. Keep **KindleBatchPrepareFix** installed; use it only when the separate KOReader plugin needs repair or reinstalling.
 

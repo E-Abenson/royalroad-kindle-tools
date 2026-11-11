@@ -5,7 +5,7 @@
 Open **KPM-Update-All** from the Kindle library. It refreshes the configured package repositories and upgrades installed KPM packages.
 
 As part of package installation or upgrade, the package installer:
-1. Installs the current read-only KPP interface inspector and maintenance launchers.
+1. Installs the read-only KPP interface inspector, its separate optional pasters.io upload launcher, and the maintenance launchers.
 2. Merges new entries from the repository cleanup queue template into the existing Kindle queue.
 3. Runs **RoyalRoadTools-Cleanup** automatically.
 
@@ -38,9 +38,11 @@ Keep **KindleBatchPrepareFix** installed. It is an on-demand repair/reinstall ut
 
 Open **RR-KPP-Interface-Inspector**. It scans selected installed application files for fixed interface marker names and writes `/mnt/us/documents/RR-KPP-Interface-Inspector.log`.
 
-The inspector does not run LIPC commands, read browser URLs/settings/cookies/history/database rows, send LIPC writes/events, navigate, refresh, execute JavaScript, or use the network. It prints only file paths and fixed marker names, not raw strings. Review the report before sharing it. Do not share a full-system `lipc-probe -a -v` dump; unrelated LIPC services can expose private account and authentication values.
+The inspector does not run LIPC commands, read browser URLs/settings/cookies/history/database rows, send LIPC writes/events, navigate, refresh, execute JavaScript, or use the network. It prints only file paths and fixed marker names, not raw strings. Do not share a full-system `lipc-probe -a -v` dump; unrelated LIPC services can expose private account and authentication values.
 
-The previous broad LIPC probe, uploader, log and saved paste links are queued for removal by the next package update. The KPP interface inspector has no uploader.
+To share the report, separately open **RR-KPP-Interface-Inspector-Upload**. This deliberately uploads only the inspector report to `pasters.io`, requests that the paste expire after one week, and writes the returned link at the top of the local inspector log. Anyone who obtains that link can read the report; it is not password protected. The private remote-delete URL is stored separately with restrictive local permissions, not in the report.
+
+The previous broad LIPC probe, its old uploader, logs and saved paste links are queued for removal by the next package update. The new inspector upload action is separate and optional.
 
 ## Active logs
 
