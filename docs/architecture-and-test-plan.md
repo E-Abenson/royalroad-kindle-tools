@@ -18,9 +18,9 @@ Use the Kindle's own built-in browser session to retrieve Royal Road pages that 
 
 ## Current tools
 
-The KPM package installs **RR-KPP-Interface-Inspector**, KPM update, KOReader plugin repair, version-report and persistent cleanup utilities.
+The KPM package installs **RR-KPP-Interface-Inspector**, an internal Hermes-bundle export helper, an internal pasters.io report uploader, KOReader plugin repair, automatic version reporting, KPM update and persistent cleanup utilities.
 
-**RR-KPP-Interface-Inspector** performs a narrow static scan of selected system application directories. It checks candidate KPP/browser/WebKit/Chromium/Juno files for fixed interface markers such as `invokeAction`, JavaScript evaluation method names, navigation method names and debugging symbols. It prints only candidate file paths and marker names, never raw string contents. It does not run any LIPC command, read browser settings or URLs, inspect browser databases, set properties, send events, navigate, refresh, execute JavaScript, or use the network. A separate **RR-KPP-Interface-Inspector-Upload** launcher can optionally upload only this sanitised report to pasters.io after the user deliberately opens it; it requests a one-day expiry and writes the returned link at the top of the local log. The paste is readable by anyone with its link.
+**RR-KPP-Interface-Inspector** performs a narrow static scan of selected system application directories. It checks candidate KPP/browser/WebKit/Chromium/Juno files for fixed interface markers such as `invokeAction`, JavaScript evaluation method names, navigation method names and debugging symbols. It prints only candidate file paths and marker names, never raw string contents. It does not run any LIPC command, read browser settings or URLs, inspect browser databases, set properties, send events, navigate, refresh, execute JavaScript, or use the network. During each KPM package installation/upgrade, the installer runs the inspector automatically, saves a private local copy of `/app/KPPMainApp/js/KPPMainApp.js.hbc` under `/mnt/us/documents/.rr-kpp-research/`, and uploads only the sanitised text report to pasters.io with a one-day expiry. The returned link is placed at the top of the local inspector log. The Hermes bytecode bundle is never uploaded to pasters.io.
 
 **Important:** The previous full `lipc-probe -a -v` inventory is retired. Broad LIPC dumps may expose authentication and account values from unrelated services. Do not run or share a full-system dump. Its old launcher, local log, uploader and saved paste links are queued for cleanup.
 
@@ -30,7 +30,7 @@ The KPM package installs **RR-KPP-Interface-Inspector**, KPM update, KOReader pl
 
 The previous read-only investigation found the browser service `com.lab126.kppbrowser`, with a write-only string property named `invokeAction`. Its accepted action format is not known.
 
-Open **RR-KPP-Interface-Inspector** and review `/mnt/us/documents/RR-KPP-Interface-Inspector.log`. To share the report, separately open **RR-KPP-Interface-Inspector-Upload**; the upload is optional and does not run automatically. Static markers are leads only: a string embedded in an application file does not prove the corresponding method is callable or that it accepts a particular payload.
+The installer automatically runs **RR-KPP-Interface-Inspector** and writes `/mnt/us/documents/RR-KPP-Interface-Inspector.log`. The private Hermes bundle copy is refreshed at the same time. Static markers are leads only: a string embedded in an application file does not prove the corresponding method is callable or that it accepts a particular payload.
 
 Do not write to `invokeAction`, change LIPC properties, or send events until a specific action schema is established from reliable implementation evidence. Do not try guessed JavaScript-injection payloads.
 
@@ -46,4 +46,4 @@ Do not attempt CAPTCHA/proof-of-work bypasses. Keep the existing Apps Script rec
 
 The cleanup queue removes retired smoke-test scripts and logs, old KPP bundle-scan scripts/logs/paste links, the previous broad LIPC probe and uploader, their logs and saved delete links, and the exact old browser bookmark after backup and verification. It preserves the new KPP interface inspector, the KOReader plugin and its repair utility.
 
-**RoyalRoadTools-Version-Info** writes a version inventory document on the Kindle, including device firmware, KPM and package versions, KOReader revision when available, and fingerprints of installed plugin code. Reopen it after updates.
+`Kindle-Version-Report.txt` is automatically regenerated during package installation/upgrade and after a successful Kindle Batch Preparation repair. It includes device firmware, KPM and package versions, KOReader revision when available, plugin fingerprints, and the local KPP bytecode export status/checksum. There is no separate manual version-report launcher.
