@@ -108,7 +108,7 @@ case "$PASTE_ID" in
 esac
 
 EXPIRES="$(awk 'tolower($1) == "x-paste-expires-in:" { sub(/\r$/, "", $2); print $2; exit }' "$HEADERS" 2>/dev/null)"
-[ -n "$EXPIRES" ] || EXPIRES="Not reported; one-week expiry was requested"
+[ -n "$EXPIRES" ] || EXPIRES="Not reported; one-day expiry was requested"
 
 DELETE_URL="$(awk 'tolower($1) == "x-delete-url:" { sub(/\r$/, "", $2); print $2; exit }' "$HEADERS" 2>/dev/null)"
 DELETE_NOTE="No delete URL was returned; the paste will expire automatically."
@@ -153,7 +153,7 @@ esac
 if ! chmod 600 "$NEW_LOG" 2>/dev/null || ! mv -f "$NEW_LOG" "$LOG"; then
   echo "ERROR: The paste was created, but the local log could not be updated."
   echo "The share link is: $PASTE_URL"
-  echo "The paste will expire after the requested one-week period."
+  echo "The paste will expire after the requested one-day period."
   exit 1
 fi
 chmod 600 "$LOG" 2>/dev/null || true
