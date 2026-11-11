@@ -5,7 +5,7 @@
 Open **KPM-Update-All** from the Kindle library. It refreshes the configured package repositories and upgrades installed KPM packages.
 
 As part of package installation or upgrade, the package installer:
-1. Installs the current read-only LIPC probe and maintenance launchers.
+1. Installs the current read-only KPP interface inspector and maintenance launchers.
 2. Merges new entries from the repository cleanup queue template into the existing Kindle queue.
 3. Runs **RoyalRoadTools-Cleanup** automatically.
 
@@ -22,7 +22,7 @@ Edit kpm/package/scriptlets/RoyalRoadTools-Cleanup-Queue.txt in the GitHub repos
 - REMOTE_DELETE|filename — use a saved pasters.io deletion URL in /mnt/us/documents
 - BOOKMARK|Royal Road Session Test — remove only the exact project test JavaScript bookmark
 
-Use exact paths and narrow patterns. Never add broad wildcards for user documents, story files, EPUBs, KOReader books, the active LIPC probe, KPM updater, or plugin repair tool. The installer will merge new items on the next package update. It will not re-add any item listed in the completed ledger.
+Use exact paths and narrow patterns. Never add broad wildcards for user documents, story files, EPUBs, KOReader books, the active interface inspector, KPM updater, or plugin repair tool. The installer will merge new items on the next package update. It will not re-add any item listed in the completed ledger.
 
 ## Version report
 
@@ -34,13 +34,17 @@ Open the report again after each KPM or KOReader update. It is refreshed on dema
 
 Keep **KindleBatchPrepareFix** installed. It is an on-demand repair/reinstall utility, not a background service. Use it only if the separate KOReader plugin disappears, fails to load, or needs the validated menu fix reapplied. It uses the locally bundled source so no manual file copying or network download is needed. Restart KOReader after a successful repair.
 
-## Remaining LIPC investigation
+## KPP interface inspector
 
-Open **RR-LIPC-READONLY-PROBE** after updating. It runs lipc-probe -a -v to list registered services and saves a read-only KPP process snapshot to /mnt/us/documents/RR-LIPC-READONLY-PROBE.log. It does not write LIPC properties, send events, or interact with the browser.
+Open **RR-KPP-Interface-Inspector**. It scans selected installed application files for fixed interface marker names and writes `/mnt/us/documents/RR-KPP-Interface-Inspector.log`.
+
+The inspector does not run LIPC commands, read browser URLs/settings/cookies/history/database rows, send LIPC writes/events, navigate, refresh, execute JavaScript, or use the network. It prints only file paths and fixed marker names, not raw strings. Review the report before sharing it. Do not share a full-system `lipc-probe -a -v` dump; unrelated LIPC services can expose private account and authentication values.
+
+The previous broad LIPC probe, uploader, log and saved paste links are queued for removal by the next package update. The KPP interface inspector has no uploader.
 
 ## Active logs
 
-- /mnt/us/documents/RR-LIPC-READONLY-PROBE.log
+- /mnt/us/documents/RR-KPP-Interface-Inspector.log
 - /mnt/us/documents/RoyalRoadTools-Cleanup.log
 - /mnt/us/documents/KPM-Update-All.log
 - /mnt/us/documents/KindleBatchPrepareFix.log

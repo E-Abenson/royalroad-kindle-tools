@@ -7,7 +7,7 @@
     "royalroad-kindle-tools": {
       "name": "Royal Road Kindle Tools",
       "author": "E-Abenson",
-      "description": "Read-only LIPC service inventory and Kindle browser investigation utilities with persistent cleanup and KOReader maintenance tools.",
+      "description": "Privacy-scoped static inspection of the Kindle KPP browser interface, persistent cleanup, version reporting, and KOReader maintenance tools.",
       "artifacts": [
         {
           "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.88/royalroad-kindle-tools_0.1.88_kindlehf.kpkg",

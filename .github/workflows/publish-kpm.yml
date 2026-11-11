@@ -96,8 +96,11 @@ jobs:
           tar -tzf "$PACKAGE" | grep -qx 'manifest.json'
           tar -tzf "$PACKAGE" | grep -q 'kindle_batch_prepare_main.lua.gz' || { echo "KPM package is missing the bundled Kindle Batch Preparation source"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'RoyalRoadTools-Cleanup-Queue.txt' || { echo "KPM package is missing the cleanup queue template"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'RR-LIPC-READONLY-PROBE.sh' || { echo "KPM package is missing the read-only LIPC probe"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'RR-LIPC-READONLY-UPLOAD.sh' || { echo "KPM package is missing the LIPC diagnostic uploader"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Interface-Inspector.sh' || { echo "KPM package is missing the read-only KPP interface inspector"; exit 1; }
+          if tar -tzf "$PACKAGE" | grep -Eq 'RR-LIPC-READONLY-(PROBE|UPLOAD)[.]sh'; then
+            echo "Retired full LIPC probe/uploader must not be included in the package"
+            exit 1
+          fi
           sha256sum "$PACKAGE" | tee dist/SHA256SUMS
           echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
 
@@ -107,7 +110,7 @@ jobs:
         run: |
           gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
-            --notes "KPM package with a read-only LIPC service probe, persistent verified cleanup queue, version report, KPM updater, and KOReader plugin repair utility."
+            --notes "KPM package with a privacy-scoped read-only KPP interface inspector, verified retired-artifact cleanup, version report, KPM updater, and KOReader plugin repair utility."
 
       - name: Update KPM repository manifest
         env:
@@ -133,7 +136,7 @@ jobs:
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "Read-only LIPC service inventory and Kindle browser investigation utilities with persistent cleanup and KOReader maintenance tools.",
+                      "description": "Privacy-scoped static inspection of the Kindle KPP browser interface, persistent cleanup, version reporting, and KOReader maintenance tools.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,

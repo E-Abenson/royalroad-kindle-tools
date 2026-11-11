@@ -10,6 +10,9 @@
 # The installer merges these entries into the Kindle's pending queue.
 # The cleaner removes an entry from that queue only after deletion is verified.
 # Completed entries are recorded locally so later updates do not re-add them.
+#
+# The active KPP interface inspector is RR-KPP-Interface-Inspector.sh.
+# The older full LIPC dump and its uploader are retired and removed below.
 
 DOC|RR-JS-Smoke-Test.sh
 DOC|RR-JS-Smoke-Test.log
@@ -44,6 +47,13 @@ DOCGLOB|.RR-JS-Smoke-Test-headers-*.txt
 DOCGLOB|.RR-KPP-Bundle-Scan-upload-*.txt
 DOCGLOB|.RR-KPP-Bundle-Scan-response-*.txt
 DOCGLOB|.RR-KPP-Bundle-Scan-headers-*.txt
+DOC|RR-LIPC-READONLY-PROBE.sh
+DOC|RR-LIPC-READONLY-PROBE.log
+DOC|RR-LIPC-READONLY-UPLOAD.sh
+DOC|RR-LIPC-READONLY-UPLOAD-URL.txt
+REMOTE_DELETE|RR-LIPC-READONLY-UPLOAD-DELETE-URL.txt
+PKG|scriptlets/RR-LIPC-READONLY-PROBE.sh
+PKG|scriptlets/RR-LIPC-READONLY-UPLOAD.sh
 PKG|scriptlets/RR-KPP-Bundle-Scan.sh
 PKG|scriptlets/RR-Upload-Bundle-Scan.sh
 PKG|bookmarklets/chapter-session-test.jsurl

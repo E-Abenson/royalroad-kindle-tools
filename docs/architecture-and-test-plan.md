@@ -18,32 +18,21 @@ Use the Kindle's own built-in browser session to retrieve Royal Road pages that 
 
 ## Current tools
 
-The KPM package installs **RR-LIPC-READONLY-PROBE**, its optional manually confirmed uploader, KPM update, KOReader plugin repair, version-report and persistent cleanup utilities.
+The KPM package installs **RR-KPP-Interface-Inspector**, KPM update, KOReader plugin repair, version-report and persistent cleanup utilities.
 
-**RR-LIPC-READONLY-PROBE** runs lipc-probe -a -v to inventory registered LIPC services and takes a read-only snapshot of KPP-related processes. It does not set properties, send events, or interact with the browser.
+**RR-KPP-Interface-Inspector** performs a narrow static scan of selected system application directories. It checks candidate KPP/browser/WebKit/Chromium/Juno files for fixed interface markers such as `invokeAction`, JavaScript evaluation method names, navigation method names and debugging symbols. It prints only candidate file paths and marker names, never raw string contents. It does not run any LIPC command, read browser settings or URLs, inspect browser databases, set properties, send events, navigate, refresh, execute JavaScript, or use the network.
 
-**RR-LIPC-READONLY-UPLOAD** is a separate, optional script. It creates and uploads a sanitized copy of the saved probe log to pasters.io after an explicit typed confirmation when interactive input is available; when the Kindle launcher has no keyboard input, opening this dedicated uploader starts the transfer. Credential-bearing service sections and identity fields are omitted or redacted, and the current browser URL is hidden. The original remains unchanged. It requests one-week expiry and stores the paste URL and remote-delete URL privately on the Kindle. The paste is accessible to anyone with its link.
+**Important:** The previous full `lipc-probe -a -v` inventory is retired. Broad LIPC dumps may expose authentication and account values from unrelated services. Do not run or share a full-system dump. Its old launcher, local log, uploader and saved paste links are queued for cleanup.
 
 **KindleBatchPrepareFix remains on purpose.** It repairs/reinstalls the separate KOReader Kindle Batch Preparation plugin from the bundled local Lua source. It is a manual utility, not a background service; it does not belong to the retired browser-test group.
 
-## LIPC service discovery
+## KPP interface inspection
 
-Review /mnt/us/documents/RR-LIPC-READONLY-PROBE.log for the com.lab126.kppbrowser service and its exposed properties, plus the KPP process snapshot. If the service is not listed, do not infer that an unlisted method exists.
+The previous read-only investigation found the browser service `com.lab126.kppbrowser`, with a write-only string property named `invokeAction`. Its accepted action format is not known.
 
-Do not write to invokeAction, change LIPC properties, or send events until a specific action schema is established from reliable evidence.
+Open **RR-KPP-Interface-Inspector** and review `/mnt/us/documents/RR-KPP-Interface-Inspector.log`. Static markers are leads only: a string embedded in an application file does not prove the corresponding method is callable or that it accepts a particular payload.
 
-## Cleanup queue design
-
-Cleanup targets are maintained in kpm/package/scriptlets/RoyalRoadTools-Cleanup-Queue.txt. Each line is a typed, narrowly scoped task:
-
-- DOC|filename — exact file under /mnt/us/documents
-- DOCGLOB|pattern — matching files directly under /mnt/us/documents, with no subdirectory traversal
-- PKG|relative/path — exact file under the installed package cache
-- PKGDIR|relative/path — remove a directory only if empty
-- REMOTE_DELETE|filename — use a saved pasters.io deletion URL stored in the documents directory
-- BOOKMARK|Royal Road Session Test — remove only the exact project-installed JavaScript bookmark
-
-During package installation or upgrade, the installer merges any new template entries into the device queue. It does not overwrite pending items and skips entries in the completed-item ledger. The cleaner removes each queue entry only after its action is confirmed successful; failures and unverifiable results remain queued for retry. The cleaner itself remains installed. This makes future cleanup additions a one-line change to the repository template.
+Do not write to `invokeAction`, change LIPC properties, or send events until a specific action schema is established from reliable implementation evidence. Do not try guessed JavaScript-injection payloads.
 
 ## Future stages — only after ordinary access is demonstrated
 
@@ -55,6 +44,6 @@ Do not attempt CAPTCHA/proof-of-work bypasses. Keep the existing Apps Script rec
 
 ## Cleanup and versions
 
-The cleanup queue removes the retired smoke-test scripts, old KPP bundle scan/uploader, their logs and temporary links, package-cache copies, and the exact old browser bookmark after backup and verification. It preserves the new LIPC probe, the KOReader plugin and its repair utility.
+The cleanup queue removes retired smoke-test scripts and logs, old KPP bundle-scan scripts/logs/paste links, the previous broad LIPC probe and uploader, their logs and saved delete links, and the exact old browser bookmark after backup and verification. It preserves the new KPP interface inspector, the KOReader plugin and its repair utility.
 
 **RoyalRoadTools-Version-Info** writes a version inventory document on the Kindle, including device firmware, KPM and package versions, KOReader revision when available, and fingerprints of installed plugin code. Reopen it after updates.
