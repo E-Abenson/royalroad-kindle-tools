@@ -97,7 +97,8 @@ jobs:
           tar -tzf "$PACKAGE" | grep -q 'kindle_batch_prepare_main.lua.gz' || { echo "KPM package is missing the bundled Kindle Batch Preparation source"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'RoyalRoadTools-Cleanup-Queue.txt' || { echo "KPM package is missing the cleanup queue template"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Interface-Inspector.sh' || { echo "KPM package is missing the read-only KPP interface inspector"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Interface-Inspector-Upload.sh' || { echo "KPM package is missing the separate Pasters.io upload launcher"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Interface-Inspector-Upload.sh' || { echo "KPM package is missing the automatic Pasters.io report uploader"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Bytecode-Export.sh' || { echo "KPM package is missing the automatic private KPP bytecode export"; exit 1; }
           if tar -tzf "$PACKAGE" | grep -Eq 'RR-LIPC-READONLY-(PROBE|UPLOAD)[.]sh'; then
             echo "Retired full LIPC probe/uploader must not be included in the package"
             exit 1
