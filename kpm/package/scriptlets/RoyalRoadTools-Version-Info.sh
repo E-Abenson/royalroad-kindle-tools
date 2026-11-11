@@ -1,6 +1,6 @@
 #!/bin/sh
 # Name: RoyalRoadTools-Version-Info
-# Report build: 1.3
+# Report build: 1.4
 # Refreshes a readable software inventory on the Kindle.
 
 DOCS="/mnt/us/documents"
@@ -112,6 +112,13 @@ if [ -n "$PLUGIN_DIR" ]; then
     say "Plugin metadata: _meta.lua missing"
   fi
   say "Installed main.lua fingerprint: $(fingerprint "$MAIN")"
+  if grep -Fq 'text = _("Prepare Kindle books for KOReader")' "$MAIN"; then
+    say "Batch button label: updated (Prepare Kindle books for KOReader)"
+  elif grep -Fq 'text = _("Prepare all Kindle books for KOReader")' "$MAIN"; then
+    say "Batch button label: OLD — repair did not install the updated label"
+  else
+    say "Batch button label: unknown — expected text not found"
+  fi
   if [ -r "$MAIN" ] && grep -Fq 'KOREADER_BATCH_PREPARE_MENU_FIX_V6' "$MAIN"; then
     say "Plugin source revision: V6 (selectable batch limit, responsive controls, staged EPUB output)"
   elif [ -r "$MAIN" ]; then
