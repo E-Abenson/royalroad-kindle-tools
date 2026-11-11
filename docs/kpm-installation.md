@@ -40,7 +40,7 @@ Open **RR-KPP-Interface-Inspector**. It scans selected installed application fil
 
 The inspector does not run LIPC commands, read browser URLs/settings/cookies/history/database rows, send LIPC writes/events, navigate, refresh, execute JavaScript, or use the network. It prints only file paths and fixed marker names, not raw strings. Do not share a full-system `lipc-probe -a -v` dump; unrelated LIPC services can expose private account and authentication values.
 
-To share the report, separately open **RR-KPP-Interface-Inspector-Upload**. This deliberately uploads only the inspector report to `pasters.io`, requests that the paste expire after one week, and writes the returned link at the top of the local inspector log. Anyone who obtains that link can read the report; it is not password protected. The private remote-delete URL is stored separately with restrictive local permissions, not in the report.
+To share the report, separately open **RR-KPP-Interface-Inspector-Upload**. This deliberately uploads only the inspector report to `pasters.io`, requests that the paste expire after one day, and writes the returned link at the top of the local inspector log. Anyone who obtains that link can read the report; it is not password protected. The private remote-delete URL is stored separately with restrictive local permissions, not in the report.
 
 The previous broad LIPC probe, its old uploader, logs and saved paste links are queued for removal by the next package update. The new inspector upload action is separate and optional.
 
