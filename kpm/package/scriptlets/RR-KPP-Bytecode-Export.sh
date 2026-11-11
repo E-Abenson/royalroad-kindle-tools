@@ -35,6 +35,7 @@ write_report() {
     echo "Private copy: $DEST"
     echo "Original application was not changed."
     echo "No network upload was performed."
+  echo "Disassembly status: waiting for a private authenticated analysis receiver."
   } > "$TMP_REPORT"
   chmod 600 "$TMP_REPORT" 2>/dev/null || true
   mv -f "$TMP_REPORT" "$REPORT" || return 1
@@ -68,7 +69,7 @@ if ! command -v sha256sum >/dev/null 2>&1; then
   exit 0
 fi
 
-MAGIC="$(od -An -tx1 -N 8 "$SOURCE" 2>/dev/null | tr -d ' \n')"
+MAGIC="$(od -An -tx1 -N 8 "$SOURCE" 2>/dev/null | tr -d '[:space:]')"
 if [ "$MAGIC" != "c61fbc03c103191f" ]; then
   write_report "SOURCE DOES NOT HAVE THE EXPECTED HERMES MAGIC — no copy made."
   echo "KPP bundle export: source did not match the Hermes HBC magic."
@@ -131,6 +132,7 @@ FINAL_SHA="$(sha256sum "$DEST" 2>/dev/null | awk '{print $1}')"
   echo "SHA256: $FINAL_SHA"
   echo "Original application was not changed."
   echo "No bytecode was executed, disassembled, patched, or uploaded."
+  echo "Disassembly status: waiting for a private authenticated analysis receiver."
 } > "$TMP_REPORT"
 chmod 600 "$TMP_REPORT" 2>/dev/null || true
 if ! mv -f "$TMP_REPORT" "$REPORT"; then
