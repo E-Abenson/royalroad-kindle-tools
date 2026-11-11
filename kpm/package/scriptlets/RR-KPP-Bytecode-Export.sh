@@ -7,6 +7,7 @@
 # - Reads only /app/KPPMainApp/js/KPPMainApp.js.hbc.
 # - Does not modify the original application or remount the root filesystem.
 # - Does not execute or disassemble the bundle.
+# - Validates the Hermes magic and reads the version field at byte offset 8.
 # - Does not upload the file or send it to a public paste service.
 # - Stores the copy in a private directory under Kindle Documents.
 
@@ -67,6 +68,13 @@ if ! command -v sha256sum >/dev/null 2>&1; then
   exit 0
 fi
 
+MAGIC="$(od -An -tx1 -N 8 "$SOURCE" 2>/dev/null | tr -d ' \n')"
+if [ "$MAGIC" != "c61fbc03c103191f" ]; then
+  write_report "SOURCE DOES NOT HAVE THE EXPECTED HERMES MAGIC — no copy made."
+  echo "KPP bundle export: source did not match the Hermes HBC magic."
+  exit 0
+fi
+
 SOURCE_SHA="$(sha256sum "$SOURCE" 2>/dev/null | awk '{print $1}')"
 if [ -z "$SOURCE_SHA" ]; then
   write_report "COULD NOT HASH SOURCE — no copy made."
@@ -106,7 +114,7 @@ fi
 
 HBC_VERSION="unavailable"
 if command -v od >/dev/null 2>&1; then
-  HBC_VERSION="$(od -An -tu4 -j 4 -N 4 "$DEST" 2>/dev/null | tr -d ' ')"
+  HBC_VERSION="$(od -An -tu4 -j 8 -N 4 "$DEST" 2>/dev/null | tr -d ' ')"
   [ -n "$HBC_VERSION" ] || HBC_VERSION="unavailable"
 fi
 FINAL_SIZE="$(wc -c < "$DEST" 2>/dev/null | tr -d ' ')"
