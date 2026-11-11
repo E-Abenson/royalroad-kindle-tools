@@ -196,7 +196,7 @@ for marker in \
   '_("Resume")' \
   '_("Abort batch")' \
   'sorting_hint = "more_tools"'; do
-  if ! grep -Fq "$marker" "$TMP"; then
+  if ! grep -Fq -- "$marker" "$TMP"; then
     fail 3 "Downloaded main.lua failed validation: missing marker: $marker"
   fi
 done
