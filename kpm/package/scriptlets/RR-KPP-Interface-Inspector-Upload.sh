@@ -116,7 +116,7 @@ case "$DELETE_URL" in
   https://pasters.io/d/*)
     DELETE_PATH="${DELETE_URL#https://pasters.io/d/}"
     case "$DELETE_PATH" in
-      ""|*/*|*[!A-Za-z0-9_?=&%-]*)
+      ""|*[!A-Za-z0-9._~/?=&%+-]*)
         rm -f "$DELETE_FILE"
         ;;
       *)
