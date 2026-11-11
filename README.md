@@ -16,7 +16,7 @@ An experimental KPM toolkit for investigating the jailbroken Kindle's built-in K
 ## Current Kindle tools
 
 - **RR-KPP-Interface-Inspector** — performs read-only static inspection of selected KPP/browser application files for interface markers. It reports only file paths and fixed marker names; it does not query LIPC values, touch the browser session, or use the network.
-- **Automatic KPP research** — during every KPM package install/upgrade, the inspector runs, a private copy of the Hermes bytecode bundle is saved locally, and the sanitised inspector report is uploaded to pasters.io with a one-day expiry. The returned share link is placed at the top of the inspector log. The binary bundle is never sent to pasters.io.
+- **Automatic KPP research** — during every KPM package install/upgrade, the inspector runs, a private copy of the Hermes bytecode bundle is saved locally, and the sanitised inspector report is uploaded to pasters.io with a one-day expiry. The returned share link is placed at the top of the inspector log. The binary bundle is never sent to pasters.io. This stage makes a private local export only; disassembly still requires a private authenticated receiver, which is not part of the current package yet.
 - **RoyalRoadTools-Cleanup** — persistent cleanup for retired tests, scripts, logs, temporary files, package-cache files, saved paste links, and the exact old bookmark. Successful items are removed from the queue; failed items remain for retry.
 - **Kindle-Version-Report.txt** — automatically regenerated during package installation/upgrade and after a successful Kindle Batch Preparation repair. There is no separate manual report launcher.
 - **KPM-Update-All** — updates installed KPM packages.
@@ -28,7 +28,7 @@ Open **KPM-Update-All** from the Kindle library. During package update, the inst
 
 To add future cleanup targets, add one line to `kpm/package/scriptlets/RoyalRoadTools-Cleanup-Queue.txt`. The next package update removes the retired broad LIPC dump and uploader, their local logs and saved links, along with the older smoke-test and KPP-bundle-scan artifacts already queued. It preserves the new KPP interface inspector, KPM updater, version report, and KOReader plugin repair tool.
 
-After a KPM installation/upgrade, the inspector runs automatically and its sanitised report is uploaded to pasters.io. The returned one-day share link is saved at the top of `/mnt/us/documents/RR-KPP-Interface-Inspector.log`. The bundle itself is copied privately to `/mnt/us/documents/.rr-kpp-research/KPPMainApp.js.hbc` and is never sent to pasters.io. `Kindle-Version-Report.txt` is also regenerated automatically; there is no manual report launcher. Keep **KindleBatchPrepareFix** installed; it refreshes the version report automatically after a successful plugin repair.
+After a KPM installation/upgrade, the inspector runs automatically and its sanitised report is uploaded to pasters.io. The returned one-day share link is saved at the top of `/mnt/us/documents/RR-KPP-Interface-Inspector.log`. The bundle itself is copied privately to `/mnt/us/documents/.rr-kpp-research/KPPMainApp.js.hbc` and is never sent to pasters.io. This release does not yet disassemble it; the final automated stage needs a private authenticated receiver. `Kindle-Version-Report.txt` is also regenerated automatically; there is no manual report launcher. Keep **KindleBatchPrepareFix** installed; it refreshes the version report automatically after a successful plugin repair.
 
 ## Remaining browser investigation
 
