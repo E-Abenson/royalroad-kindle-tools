@@ -39,7 +39,7 @@ During every KPM package installation/upgrade, the installer automatically runs 
 
 The same installation automatically copies `/app/KPPMainApp/js/KPPMainApp.js.hbc` to the private directory `/mnt/us/documents/.rr-kpp-research/`. The original application file is never changed. The copied bytecode file is **not** uploaded to pasters.io or any public repository.
 
-The installer automatically uploads only the sanitised inspector text report to `pasters.io`, requests one-day expiry, and places the returned share link at the very top of the inspector log. Anyone who obtains that link can read the report; it is not password protected. The actual compiled application bundle is kept private on the Kindle.
+The installer automatically uploads only the sanitised inspector text report to `pasters.io`, requests one-day expiry, and places the returned share link at the very top of the inspector log. Anyone who obtains that link can read the report; it is not password protected. The actual compiled application bundle is kept private on the Kindle. This release exports it locally but does not yet disassemble it; that final automated step requires a private authenticated receiver.
 
 The existing manual LIPC dump and old smoke-test artifacts remain queued for cleanup. Do not share a full-system `lipc-probe -a -v` dump; unrelated services can expose private account and authentication values.
 
