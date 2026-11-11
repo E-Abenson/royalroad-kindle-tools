@@ -1,11 +1,11 @@
 #!/bin/sh
 # Name: RoyalRoadTools-Version-Info
-# Report build: 1.4
+# Report build: 1.5
 # Refreshes a readable software inventory on the Kindle.
 
 DOCS="/mnt/us/documents"
 OUT_FINAL="$DOCS/Kindle-Version-Report.txt"
-OUT_TMP="$DOCS/.Kindle-Version-Report.txt.tmp.$"
+OUT_TMP="$DOCS/.Kindle-Version-Report.txt.tmp.$$"
 OUT="$OUT_TMP"
 KPM="/var/local/kmc/bin/kpm"
 KPM_DB="/mnt/us/kmc/kpm/kpm.db"
@@ -195,11 +195,10 @@ else
 fi
 say ""
 say "============================================================"
-say "This report is regenerated whenever you open RoyalRoadTools-Version-Info."
-say "After a KPM or KOReader update, open it again to refresh the inventory."
+say "This report is automatically regenerated after KPM updates and successful batch-plugin repairs."
 say "Saved to: $OUT_FINAL"
 if ! mv -f "$OUT_TMP" "$OUT_FINAL"; then
-  printf 'Could not replace version report: %s\\n' "$OUT_FINAL" >&2
+  printf 'Could not replace version report: %s\n' "$OUT_FINAL" >&2
   exit 1
 fi
 trap - 0
