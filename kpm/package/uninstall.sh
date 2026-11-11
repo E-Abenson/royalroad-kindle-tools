@@ -10,7 +10,13 @@ done
 for ITEM in Kindle-Version-Report.txt .RoyalRoadTools-installed-version.txt \
   RoyalRoadTools-Cleanup.log RR-KPP-Interface-Inspector.log \
   RR-LIPC-READONLY-PROBE.log RR-LIPC-READONLY-UPLOAD-URL.txt \
+  KPP-Bytecode-Export.txt \
   .RR-KPP-Interface-Inspector-delete-url.txt \
   KPM-Update-All.log KindleBatchPrepareFix.log KindleBatchPrepare-main.lua.gz; do
   rm -f "$DOCS/$ITEM"
 done
+rm -f "$DOCS/.royalroadtools/version-info.sh" \
+  "$DOCS/.royalroadtools/bytecode-export.sh" \
+  "$DOCS/.royalroadtools/inspector-upload.sh" \
+  "$DOCS/.rr-kpp-research/KPPMainApp.js.hbc"
+rmdir "$DOCS/.royalroadtools" "$DOCS/.rr-kpp-research" 2>/dev/null || true
