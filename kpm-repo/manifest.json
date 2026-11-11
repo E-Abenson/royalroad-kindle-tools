@@ -10,11 +10,11 @@
       "description": "Privacy-scoped static inspection of the Kindle KPP browser interface, persistent cleanup, version reporting, and KOReader maintenance tools.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.88/royalroad-kindle-tools_0.1.88_kindlehf.kpkg",
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.89/royalroad-kindle-tools_0.1.89_kindlehf.kpkg",
           "version": [
             0,
             1,
-            88
+            89
           ],
           "dependencies": [],
           "supported_platforms": [
