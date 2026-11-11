@@ -1,6 +1,6 @@
 #!/bin/sh
 # Name: RoyalRoadTools-Version-Info
-# Report build: 1.6
+# Report build: 1.7
 # Refreshes a readable software inventory on the Kindle.
 
 DOCS="/mnt/us/documents"
@@ -82,7 +82,7 @@ else
   say "Installed package version: unavailable from KPM database"
 fi
 say "KPP interface inspector launcher: $( [ -x "$DOCS/RR-KPP-Interface-Inspector.sh" ] && echo present || echo missing )"
-say "KPP interface upload launcher: $( [ -x "$DOCS/RR-KPP-Interface-Inspector-Upload.sh" ] && echo present || echo missing )"
+say "KPP interface upload helper: $( [ -x "$DOCS/.royalroadtools/inspector-upload.sh" ] && echo present || echo missing )"
 say "KPP interface inspector log: $( [ -s "$DOCS/RR-KPP-Interface-Inspector.log" ] && echo present || echo not yet generated )"
 say "Pasters.io delete token: $( [ -s "$DOCS/.RR-KPP-Interface-Inspector-delete-url.txt" ] && echo saved privately || echo not present )"
 say "KPM updater launcher: $( [ -x "$DOCS/KPM-Update-All.sh" ] && echo present || echo missing )"
@@ -188,6 +188,30 @@ else
 fi
 say ""
 
+say "KPP HERMES BYTECODE RESEARCH EXPORT"
+BUNDLE_COPY="$DOCS/.rr-kpp-research/KPPMainApp.js.hbc"
+BUNDLE_REPORT="$DOCS/KPP-Bytecode-Export.txt"
+say "Automatic export helper: $( [ -x "$DOCS/.royalroadtools/bytecode-export.sh" ] && echo present || echo missing )"
+if [ -s "$BUNDLE_COPY" ]; then
+  say "Private KPP bundle copy: present"
+  say "Bundle size: $(wc -c < "$BUNDLE_COPY" | tr -d ' ') bytes"
+  say "Bundle SHA256: $(fingerprint "$BUNDLE_COPY")"
+  if command -v od >/dev/null 2>&1; then
+    HBC_VERSION="$(od -An -tu4 -j 4 -N 4 "$BUNDLE_COPY" 2>/dev/null | tr -d ' ')"
+    say "Hermes bytecode version (header field): ${HBC_VERSION:-unavailable}"
+  fi
+else
+  say "Private KPP bundle copy: not yet available"
+fi
+if [ -r "$BUNDLE_REPORT" ]; then
+  say "Export report: present"
+else
+  say "Export report: not yet generated"
+fi
+say "Private export directory permissions: $( [ -d "$DOCS/.rr-kpp-research" ] && ls -ld "$DOCS/.rr-kpp-research" 2>/dev/null | awk '{print $1}' || echo missing )"
+say "The original /app KPP application file is never modified."
+say ""
+
 say "MOST RECENT MAINTENANCE RUNS"
 if [ -r "$DOCS/KPM-Update-All.log" ]; then
   LAST_UPDATE="$(grep -E 'SUCCESS — KPM upgrade completed|ERROR — KPM' "$DOCS/KPM-Update-All.log" | tail -n 1)"
@@ -197,7 +221,7 @@ else
 fi
 say ""
 say "============================================================"
-say "This report is automatically regenerated after KPM updates and successful batch-plugin repairs."
+say "This report is automatically regenerated after KPM package installation/upgrade and successful batch-plugin repairs."
 say "Saved to: $OUT_FINAL"
 if ! mv -f "$OUT_TMP" "$OUT_FINAL"; then
   printf 'Could not replace version report: %s\n' "$OUT_FINAL" >&2
