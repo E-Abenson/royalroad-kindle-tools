@@ -1,6 +1,6 @@
 #!/bin/sh
 # Name: RoyalRoadTools-Version-Info
-# Report build: 1.5
+# Report build: 1.6
 # Refreshes a readable software inventory on the Kindle.
 
 DOCS="/mnt/us/documents"
@@ -82,7 +82,9 @@ else
   say "Installed package version: unavailable from KPM database"
 fi
 say "KPP interface inspector launcher: $( [ -x "$DOCS/RR-KPP-Interface-Inspector.sh" ] && echo present || echo missing )"
+say "KPP interface upload launcher: $( [ -x "$DOCS/RR-KPP-Interface-Inspector-Upload.sh" ] && echo present || echo missing )"
 say "KPP interface inspector log: $( [ -s "$DOCS/RR-KPP-Interface-Inspector.log" ] && echo present || echo not yet generated )"
+say "Pasters.io delete token: $( [ -s "$DOCS/.RR-KPP-Interface-Inspector-delete-url.txt" ] && echo saved privately || echo not present )"
 say "KPM updater launcher: $( [ -x "$DOCS/KPM-Update-All.sh" ] && echo present || echo missing )"
 say ""
 
