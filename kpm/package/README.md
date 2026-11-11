@@ -16,7 +16,7 @@ This package contains a **read-only static KPP browser interface inspector** and
 1. KPM installs the current cleanup runner and merges the repository queue template into `/mnt/us/documents/RoyalRoadTools-Cleanup-Queue.txt`.
 2. The package installer runs the cleaner automatically during installation or upgrade. You can also open **RoyalRoadTools-Cleanup** manually to retry failed items.
 3. Successful items disappear from the pending queue and are written to `RoyalRoadTools-Cleanup-Completed.txt`. The installer checks that ledger before adding a template item, so completed tasks are not resurrected by later updates.
-4. Failed or unverifiable items remain in the queue. This includes remote-paste deletion when the service cannot confirm deletion, or bookmark cleanup when the browser database cannot be safely checked.
+4. Failed or unverifiable items remain in the queue. This includes remote-paste deletion when the service cannot confirm deletion, or bookmark cleanup when the browser database cannot be safely checked. A related public paste URL is retained while remote deletion is pending; a missing or unrecognized delete link is not treated as successful deletion.
 5. The cleanup runner itself and its queue/ledger remain installed so future releases can add more work.
 
 To add a future cleanup target, add one line to the repository template:
