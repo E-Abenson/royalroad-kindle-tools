@@ -6,7 +6,7 @@
 # - This is a separate launcher; the inspector itself remains offline.
 # - The report contains fixed marker names and installed file paths, not raw strings.
 # - The paste is readable by anyone who obtains its link; it is not password protected.
-# - Pastes are requested with a one-week expiry.
+# - Pastes are requested with a one-day expiry.
 # - The private deletion URL is stored separately with mode 600 and never printed.
 
 DOCS="/mnt/us/documents"
@@ -14,7 +14,7 @@ LOG="$DOCS/RR-KPP-Interface-Inspector.log"
 DELETE_FILE="$DOCS/.RR-KPP-Interface-Inspector-delete-url.txt"
 TMP="/tmp/rr_kpp_inspector_upload_$$"
 NEW_LOG="$DOCS/.RR-KPP-Interface-Inspector.log.new.$$"
-ENDPOINT="https://pasters.io/?expires=1w"
+ENDPOINT="https://pasters.io/?expires=1d"
 
 umask 077
 mkdir -p "$DOCS" 2>/dev/null
@@ -33,7 +33,7 @@ echo "============================================================"
 echo "KPP INTERFACE INSPECTOR — OPTIONAL PASters.IO UPLOAD"
 echo "This sends only the static inspector report."
 echo "Anyone who obtains the returned link can read it."
-echo "The paste is requested to expire after one week."
+echo "The paste is requested to expire after one day."
 echo "============================================================"
 
 if [ ! -s "$LOG" ]; then
@@ -108,7 +108,7 @@ case "$PASTE_ID" in
 esac
 
 EXPIRES="$(awk 'tolower($1) == "x-paste-expires-in:" { sub(/\r$/, "", $2); print $2; exit }' "$HEADERS" 2>/dev/null)"
-[ -n "$EXPIRES" ] || EXPIRES="Not reported; one-week expiry was requested"
+[ -n "$EXPIRES" ] || EXPIRES="Not reported; one-day expiry was requested"
 
 DELETE_URL="$(awk 'tolower($1) == "x-delete-url:" { sub(/\r$/, "", $2); print $2; exit }' "$HEADERS" 2>/dev/null)"
 DELETE_NOTE="No delete URL was returned; the paste will expire automatically."
@@ -141,7 +141,7 @@ esac
   echo "--- PASTERS.IO SHARE LINK ---"
   echo "PASTERS.IO SHARE LINK: $PASTE_URL"
   echo "Upload result: HTTP 201 (complete)"
-  echo "Requested expiry: 1 week"
+  echo "Requested expiry: 1 day"
   echo "Server-reported remaining lifetime: $EXPIRES"
   echo "Access: anyone with this link can read the report; it is not password protected."
   echo "$DELETE_NOTE"
@@ -153,7 +153,7 @@ esac
 if ! chmod 600 "$NEW_LOG" 2>/dev/null || ! mv -f "$NEW_LOG" "$LOG"; then
   echo "ERROR: The paste was created, but the local log could not be updated."
   echo "The share link is: $PASTE_URL"
-  echo "The paste will expire after the requested one-week period."
+  echo "The paste will expire after the requested one-day period."
   exit 1
 fi
 chmod 600 "$LOG" 2>/dev/null || true
