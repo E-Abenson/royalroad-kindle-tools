@@ -8,7 +8,7 @@ This package contains a read-only LIPC service inventory and the maintenance too
 - **RR-LIPC-READONLY-UPLOAD** — optionally uploads a sanitized copy of the probe log to pasters.io. Credential-bearing service sections and identity fields are omitted or redacted, and the current browser URL is hidden. The original log is not changed. It asks for typed confirmation when interactive input is available; otherwise opening this dedicated launcher starts the transfer. The paste is requested to expire after one week, and the paste and remote-delete links are saved locally with owner-only permissions.
 - **RoyalRoadTools-Cleanup** — a persistent cleanup runner. It processes a queue of retired test scripts, logs, temporary files, package-cache files and the exact old Royal Road Session Test bookmark. Each item is removed from the pending queue only after deletion is verified. Failed items stay queued for the next run.
 - **RoyalRoadTools-Cleanup-Queue.txt** — the queue template in the repository. Add future cleanup targets here as one TYPE|VALUE line. The installer merges new lines into the Kindle's queue without overwriting pending work or re-adding completed work.
-- **RoyalRoadTools-Version-Info** — regenerates Kindle-Version-Report.txt with device firmware, KPM versions and installed package versions, KOReader revision, and the installed Kindle Batch Preparation plugin code fingerprint.
+- **Automatic version report** — replaces `/mnt/us/documents/Kindle-Version-Report.txt` after every KPM update, package installation, and successful Kindle Batch Preparation repair. The generator is kept as a hidden internal script; there is no longer a manual RoyalRoadTools-Version-Info launcher.
 - **KPM-Update-All** — refreshes package repositories and upgrades installed packages. Its log is cleared at the start of each run.
 - **KindleBatchPrepareFix** — an on-demand repair/reinstall utility for the separate Kindle Batch Preparation KOReader plugin. It is not a background service. Keep it; use it only if that plugin needs repair or reinstalling. Its log is cleared at the start of each run.
 
@@ -39,8 +39,9 @@ Use exact paths and narrow patterns. Never add broad wildcards for user document
 - /mnt/us/documents/RoyalRoadTools-Cleanup.log — latest cleanup run and per-item results.
 - /mnt/us/documents/KPM-Update-All.log — latest package update result.
 - /mnt/us/documents/KindleBatchPrepareFix.log — latest KOReader plugin repair result.
+- /mnt/us/documents/Kindle-Version-Report.txt — automatically regenerated software and component inventory.
 
-The diagnostic and maintenance logs are cleared at the start of their respective runs. Retired test logs are removed by the cleanup queue.
+The diagnostic and maintenance logs are cleared at the start of their respective runs. The version report is written to a temporary file and atomically replaces the previous report only after generation succeeds. Retired test logs are removed by the cleanup queue.
 
 ## Safety and limits
 
