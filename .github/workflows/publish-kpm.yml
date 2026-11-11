@@ -112,7 +112,7 @@ jobs:
         run: |
           gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
-            --notes "KPM package with a privacy-scoped read-only KPP interface inspector, a separate optional one-day Pasters.io report uploader, verified retired-artifact cleanup, version report, KPM updater, and KOReader plugin repair utility."
+            --notes "KPM package with automatic read-only KPP inspection, private local Hermes-bundle export, one-day Pasters.io upload of the sanitised text report, automatic version reporting, verified cleanup, KPM updater, and KOReader plugin repair utility."
 
       - name: Update KPM repository manifest
         env:
@@ -138,7 +138,7 @@ jobs:
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "Privacy-scoped KPP browser inspection, deliberate one-day pasters.io report upload, persistent cleanup, version reporting, and KOReader maintenance tools.",
+                      "description": "Automatic KPP browser inspection, private local Hermes-bundle export, one-day pasters.io text-report upload, automatic version reporting, persistent cleanup, and KOReader maintenance tools.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
