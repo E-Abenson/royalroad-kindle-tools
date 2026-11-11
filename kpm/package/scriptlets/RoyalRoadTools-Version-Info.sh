@@ -4,7 +4,9 @@
 # Refreshes a readable software inventory on the Kindle.
 
 DOCS="/mnt/us/documents"
-OUT="$DOCS/Kindle-Version-Report.txt"
+OUT_FINAL="$DOCS/Kindle-Version-Report.txt"
+OUT_TMP="$DOCS/.Kindle-Version-Report.txt.tmp.$"
+OUT="$OUT_TMP"
 KPM="/var/local/kmc/bin/kpm"
 KPM_DB="/mnt/us/kmc/kpm/kpm.db"
 KO_ROOT="/mnt/us/koreader"
@@ -14,6 +16,7 @@ STAMP="$DOCS/.RoyalRoadTools-installed-version.txt"
 
 mkdir -p "$DOCS"
 : > "$OUT"
+trap 'rm -f "$OUT_TMP"' 0
 say() { printf '%s\n' "$*" | tee -a "$OUT"; }
 read_first_line() {
   FILE="$1"
@@ -194,4 +197,9 @@ say ""
 say "============================================================"
 say "This report is regenerated whenever you open RoyalRoadTools-Version-Info."
 say "After a KPM or KOReader update, open it again to refresh the inventory."
-say "Saved to: $OUT"
+say "Saved to: $OUT_FINAL"
+if ! mv -f "$OUT_TMP" "$OUT_FINAL"; then
+  printf 'Could not replace version report: %s\\n' "$OUT_FINAL" >&2
+  exit 1
+fi
+trap - 0
