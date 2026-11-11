@@ -3,7 +3,7 @@
   "id": "royalroad-kindle-tools",
   "name": "Royal Road Kindle Tools",
   "author": "E-Abenson",
-  "description": "Read-only KPP browser interface inspection, deliberate one-day pasters.io report upload, persistent cleanup, version reporting, and KOReader maintenance tools.",
+  "description": "Automatic KPP browser inspection, private local Hermes-bundle export, one-day pasters.io text-report upload, automatic version reporting, persistent cleanup, and KOReader maintenance tools.",
   "version": [
     0,
     1,
