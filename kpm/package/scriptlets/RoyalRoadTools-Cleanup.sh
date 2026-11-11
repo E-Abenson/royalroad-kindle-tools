@@ -56,6 +56,9 @@ remove_doc_file() {
     RR-LIPC-READONLY-UPLOAD-URL.txt)
       DELETE_LINK_NAME="RR-LIPC-READONLY-UPLOAD-DELETE-URL.txt"
       ;;
+    RR-KPP-Interface-Inspector.log)
+      DELETE_LINK_NAME=".RR-KPP-Interface-Inspector-delete-url.txt"
+      ;;
   esac
   if [ -n "$DELETE_LINK_NAME" ] &&
      grep -Fqx "REMOTE_DELETE|$DELETE_LINK_NAME" "$QUEUE" 2>/dev/null; then
