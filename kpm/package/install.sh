@@ -43,7 +43,7 @@ merge_cleanup_queue() {
 
 say "Royal Road Kindle Tools — installing current toolset."
 install_scriptlet "scriptlets/RR-KPP-Interface-Inspector.sh" "$DOCS/RR-KPP-Interface-Inspector.sh"
-install_scriptlet "scriptlets/RR-KPP-Interface-Inspector-Upload.sh" "$DOCS/RR-KPP-Interface-Inspector-Upload.sh"
+install_scriptlet "scriptlets/RR-KPP-Interface-Inspector-Upload.sh" "$INTERNAL_DIR/inspector-upload.sh"
 install_scriptlet "scriptlets/RoyalRoadTools-Cleanup.sh" "$DOCS/RoyalRoadTools-Cleanup.sh"
 install_scriptlet "scriptlets/KPM-Update-All.sh" "$DOCS/KPM-Update-All.sh"
 install_scriptlet "scriptlets/KindleBatchPrepareFix.sh" "$DOCS/KindleBatchPrepareFix.sh"
@@ -96,7 +96,7 @@ else
 fi
 
 say "Publishing the sanitised inspector report to pasters.io (one-day expiry)..."
-if sh "$DOCS/RR-KPP-Interface-Inspector-Upload.sh"; then
+if sh "$INTERNAL_DIR/inspector-upload.sh"; then
   say "Inspector report upload completed."
 else
   say "WARNING: Inspector report upload failed; the local report remains available."
