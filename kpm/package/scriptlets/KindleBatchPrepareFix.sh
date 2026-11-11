@@ -173,6 +173,7 @@ mv -f "$STAGED" "$TMP"
 # Confirm the translation-function shadowing crash is fixed in the actual payload.
 for marker in \
   "KOREADER_BATCH_PREPARE_MENU_FIX_V6" \
+  'text = _("Prepare Kindle books for KOReader")' \
   "function PLUGIN:createBatchLimitMenuItem()" \
   "local choices = { 1, 2, 3, 5, 6, 10, 0 }" \
   "self.settings.max_books = 1" \
@@ -199,6 +200,12 @@ for marker in \
     fail 3 "Downloaded main.lua failed validation: missing marker: $marker"
   fi
 done
+if grep -Fq 'text = _("Prepare all Kindle books for KOReader")' "$TMP"; then
+  fail 3 "The obsolete Prepare all button label is still present in the bundled plugin source."
+fi
+if ! grep -Fq 'text = _("Prepare Kindle books for KOReader")' "$TMP"; then
+  fail 3 "The updated Prepare button label is missing from the bundled plugin source."
+fi
 if grep -Fq 'for _, mb in ipairs(choices) do' "$TMP"; then
   fail 3 "The faulty loop that caused the KOReader crash is still present."
 fi
