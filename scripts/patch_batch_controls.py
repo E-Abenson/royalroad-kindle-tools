@@ -382,6 +382,7 @@ required = [
     '_("Resume")',
     '_("Abort batch")',
     "function PLUGIN:createBatchLimitMenuItem()",
+    'text = _("Prepare Kindle books for KOReader")',
     "local choices = { 1, 2, 3, 5, 6, 10, 0 }",
     "Batch limit: all remaining books",
     "self.settings.max_books = 1",
@@ -393,5 +394,8 @@ required = [
 for marker in required:
     if marker not in data:
         raise SystemExit("Batch controls validation failed; missing: " + marker)
+
+if 'text = _("Prepare all Kindle books for KOReader")' in data:
+    raise SystemExit("Batch controls validation failed: obsolete Prepare all button label remains")
 
 print("Validated helper migration, pause/resume/abort, staged output protection, and selectable batch-size limits.")
