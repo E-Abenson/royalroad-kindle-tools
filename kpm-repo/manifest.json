@@ -7,14 +7,14 @@
     "royalroad-kindle-tools": {
       "name": "Royal Road Kindle Tools",
       "author": "E-Abenson",
-      "description": "Privacy-scoped static inspection of the Kindle KPP browser interface, persistent cleanup, version reporting, and KOReader maintenance tools.",
+      "description": "Privacy-scoped KPP browser inspection, deliberate one-week pasters.io report upload, persistent cleanup, version reporting, and KOReader maintenance tools.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.89/royalroad-kindle-tools_0.1.89_kindlehf.kpkg",
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.90/royalroad-kindle-tools_0.1.90_kindlehf.kpkg",
           "version": [
             0,
             1,
-            89
+            90
           ],
           "dependencies": [],
           "supported_platforms": [
