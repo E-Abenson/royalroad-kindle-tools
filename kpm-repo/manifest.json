@@ -7,14 +7,14 @@
     "royalroad-kindle-tools": {
       "name": "Royal Road Kindle Tools",
       "author": "E-Abenson",
-      "description": "Automatic KPP browser inspection, private local Hermes-bundle export, one-day pasters.io text-report upload, automatic version reporting, persistent cleanup, and KOReader maintenance tools.",
+      "description": "Manual KPP inspection, optional report upload, private local Hermes-bundle export, manual version reporting and KOReader maintenance tools; automatic cleanup runs with KPM-Update-All.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.92/royalroad-kindle-tools_0.1.92_kindlehf.kpkg",
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.93/royalroad-kindle-tools_0.1.93_kindlehf.kpkg",
           "version": [
             0,
             1,
-            92
+            93
           ],
           "dependencies": [],
           "supported_platforms": [
