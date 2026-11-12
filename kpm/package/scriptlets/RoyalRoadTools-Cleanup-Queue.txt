@@ -63,3 +63,5 @@ PKG|tools/remove-browser-bookmark.sh
 PKGDIR|bookmarklets
 PKGDIR|tools
 BOOKMARK|Royal Road Session Test
+
+DOC|Kindle-Version-Report.sh
