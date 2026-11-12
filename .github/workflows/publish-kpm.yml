@@ -38,15 +38,19 @@ jobs:
       - name: Patch Kindle Batch Preparation controls (validated source)
         run: python scripts/patch_batch_controls.py
 
-      - name: Validate all POSIX shell scripts
+      - name: Validate scripts
         run: |
           set -eu
-          echo "Checking shell scripts for syntax errors..."
+          echo "Checking POSIX shell syntax..."
           find install kpm/package -type f -name '*.sh' -print | while IFS= read -r file; do
             echo "Checking $file"
             sh -n "$file" || exit 1
           done
-          echo "All shell scripts passed sh -n."
+          echo "Checking the one-time Windows Python disassembler..."
+          python -m py_compile pc-tools/kpp-disassembler/kpp_disassemble.py
+          test -s pc-tools/kpp-disassembler/Run-KPP-Disassembly.bat
+          test -s pc-tools/kpp-disassembler/README-FIRST.txt
+          echo "All source checks passed."
 
       - name: Download official KPM packager
         run: |
@@ -98,21 +102,25 @@ jobs:
           tar -tzf "$PACKAGE" | grep -q 'RoyalRoadTools-Cleanup-Queue.txt' || { echo "KPM package is missing the cleanup queue template"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Interface-Inspector.sh' || { echo "KPM package is missing the read-only KPP interface inspector"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Interface-Inspector-Upload.sh' || { echo "KPM package is missing the automatic Pasters.io report uploader"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Bytecode-Export.sh' || { echo "KPM package is missing the automatic private KPP bytecode export"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Bytecode-Export.sh' || { echo "KPM package is missing the USB-visible KPP bytecode exporter"; exit 1; }
           if tar -tzf "$PACKAGE" | grep -Eq 'RR-LIPC-READONLY-(PROBE|UPLOAD)[.]sh'; then
             echo "Retired full LIPC probe/uploader must not be included in the package"
             exit 1
           fi
-          sha256sum "$PACKAGE" | tee dist/SHA256SUMS
+          mkdir -p dist/KPP-One-Time-Disassembler
+          cp -R pc-tools/kpp-disassembler/. dist/KPP-One-Time-Disassembler/
+          (cd dist && zip -qr KPP-One-Time-Disassembler-Windows.zip KPP-One-Time-Disassembler)
+          sha256sum "$PACKAGE" dist/KPP-One-Time-Disassembler-Windows.zip | tee dist/SHA256SUMS
           echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
 
       - name: Publish immutable versioned release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" "dist/SHA256SUMS" \
+          gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" \
+            "dist/KPP-One-Time-Disassembler-Windows.zip" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
-            --notes "KPM package with automatic read-only KPP inspection, private local Hermes-bundle export, one-day Pasters.io upload of the sanitised text report, automatic version reporting, verified cleanup, KPM updater, and KOReader plugin repair utility."
+            --notes "KPM package with automatic read-only KPP inspection, USB-visible copy of the Hermes v84 bundle for one-time local investigation, one-day Pasters.io upload of the sanitised text report, automatic version reporting, verified cleanup, KPM updater, and KOReader plugin repair utility. Also includes a one-time Windows/Python disassembler ZIP; no Python packages need to be installed."
 
       - name: Update KPM repository manifest
         env:
@@ -138,7 +146,7 @@ jobs:
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "Automatic KPP browser inspection, private local Hermes-bundle export, one-day pasters.io text-report upload, automatic version reporting, persistent cleanup, and KOReader maintenance tools.",
+                      "description": "Automatic KPP inspection, one-time USB bytecode export and local Windows disassembly, one-day Pasters.io text-report upload, automatic version reporting, persistent cleanup, and KOReader maintenance tools.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
