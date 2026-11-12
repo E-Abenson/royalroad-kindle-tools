@@ -10,11 +10,11 @@
       "description": "Manual KPP inspection, optional report upload, private local Hermes-bundle export, manual version reporting and KOReader maintenance tools; automatic cleanup runs with KPM-Update-All.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.93/royalroad-kindle-tools_0.1.93_kindlehf.kpkg",
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.94/royalroad-kindle-tools_0.1.94_kindlehf.kpkg",
           "version": [
             0,
             1,
-            93
+            94
           ],
           "dependencies": [],
           "supported_platforms": [
