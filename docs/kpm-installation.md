@@ -14,11 +14,11 @@ All other utilities are manual launchers:
 
 - **RR-KPP-Interface-Inspector** — run the read-only static inspection when you choose.
 - **RR-KPP-Interface-Inspector-Upload** — optional; run only after the inspector, when you explicitly want to upload its sanitised text report to pasters.io.
-- **RR-KPP-Bytecode-Export** — manually refresh the private local copy of the Hermes bundle.
-- **Kindle-Version-Report** — manually refresh `Kindle-Version-Report.txt`.
+- **RR-KPP-Bytecode-Export** — one-time manual export of a read-only Hermes bundle copy to the USB-visible Kindle Documents folder.
+- **Kindle-Version-Report.txt** — generated automatically after Update All and successful plugin repair; there is no manual report launcher.
 - **KindleBatchPrepareFix** — manually repair/reinstall the KOReader Kindle Batch Preparation plugin.
 
-None of those tools runs automatically during package installation or KPM-Update-All.
+The inspector, uploader, bytecode exporter, and plugin repair remain manual launchers. The version report is generated automatically after Update All and successful plugin repair.
 
 ## Cleanup queue
 
@@ -35,21 +35,23 @@ To add future cleanup targets, edit `kpm/package/scriptlets/RoyalRoadTools-Clean
 
 Use exact paths and narrow patterns. Never add broad wildcards for user documents, story files, EPUBs, KOReader books, the active inspector, KPM updater, version report, or plugin repair tool. The installer merges new items on the next package update and does not re-add items listed in the completed ledger.
 
-## Manual version report
+## Automatic version report
 
-Run **Kindle-Version-Report** from the Kindle library whenever you want to refresh `/mnt/us/documents/Kindle-Version-Report.txt`. It includes Kindle model/firmware, KPM CLI/library and installed package versions, KOReader revision when available, the Kindle Batch Preparation plugin metadata version and main.lua checksum, the bundled repair-source checksum, the KPP executable fingerprint, and the private Hermes-bundle export status/checksum. It replaces the previous report. It is not run automatically during updates or plugin repairs.
+`/mnt/us/documents/Kindle-Version-Report.txt` is regenerated after a successful **KPM-Update-All** run and after a successful Kindle Batch Preparation repair. The generator is stored privately at `/mnt/us/documents/.royalroadtools/version-info.sh`; there is no separate manual launcher. It replaces the previous report and includes device, KPM, package, KOReader, plugin, KPP executable, and exported bundle version/checksum information.
 
 ## Kindle Batch Preparation repair
 
-Keep **KindleBatchPrepareFix** installed. It is an on-demand repair/reinstall utility, not a background service. Use it only if the separate KOReader plugin disappears, fails to load, or needs the validated menu fix reapplied. It uses the locally bundled source so no manual file copying or network download is needed. Restart KOReader after a successful repair. Run the manual version-report launcher separately when you want to refresh the inventory.
+Keep **KindleBatchPrepareFix** installed. It is an on-demand repair/reinstall utility, not a background service. Use it only if the separate KOReader plugin disappears, fails to load, or needs the validated menu fix reapplied. It uses the locally bundled source so no manual file copying or network download is needed. Restart KOReader after a successful repair. The successful repair automatically refreshes the version report.
 
-## Manual KPP research tools
+## One-time KPP browser investigation — USB workflow
 
 The inspector writes `/mnt/us/documents/RR-KPP-Interface-Inspector.log`. It does not run LIPC commands, read browser URLs/settings/cookies/history/database rows, send LIPC writes/events, navigate, refresh, or execute JavaScript. It prints only file paths and fixed marker names, not raw strings.
 
-The bytecode exporter copies `/app/KPPMainApp/js/KPPMainApp.js.hbc` to the private directory `/mnt/us/documents/.rr-kpp-research/`. The original application file is never changed. The copied bytecode file is not uploaded to pasters.io or any public repository.
+The bytecode exporter copies `/app/KPPMainApp/js/KPPMainApp.js.hbc` to `/mnt/us/documents/KPPMainApp.js.hbc`, verifies the SHA256, and writes the Hermes version, size, and checksum to `KPP-Bytecode-Export.txt`. The original application is never changed and the binary is never uploaded. After the visible copy is verified, the exporter removes the obsolete hidden duplicate from `.rr-kpp-research`.
 
-The optional uploader sends only the sanitised inspector text report to `pasters.io`, requests one-day expiry, and places the returned share link at the top of the inspector log. Anyone who obtains that link can read the report; it is not password protected. The actual compiled application bundle remains private on the Kindle. The exporter does not disassemble it.
+For Windows disassembly, download `KPP-One-Time-Disassembler-Windows.zip` from the project release, copy the HBC file into the extracted folder, and double-click `Run-KPP-Disassembly.bat`. This uses Python 3.8+ already installed, downloads a pinned pure-Python hbctool source snapshot on first run, and needs no pip packages, compiler, administrator rights, or system-wide installation. The bundle and disassembly remain on your PC. See `pc-tools/kpp-disassembler/README-FIRST.txt`.
+
+The optional uploader sends only the sanitised inspector text report to `pasters.io`, requests one-day expiry, and places the returned share link at the top of the inspector log. Anyone who obtains that link can read the report; it is not password protected. The compiled application bundle is copied only to your own computer by USB for local analysis; it is never uploaded. The exporter itself does not disassemble it.
 
 The older full LIPC dump and old smoke-test artifacts remain queued for cleanup. Do not share a full-system `lipc-probe -a -v` dump; unrelated services can expose private account and authentication values.
 

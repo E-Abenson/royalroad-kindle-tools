@@ -7,6 +7,12 @@ on:
       - "kpm/package/**"
       - "install/Install-RoyalRoadTools.sh"
       - ".github/workflows/publish-kpm.yml"
+  pull_request:
+    paths:
+      - "kpm/package/**"
+      - "pc-tools/kpp-disassembler/**"
+      - "install/Install-RoyalRoadTools.sh"
+      - ".github/workflows/publish-kpm.yml"
   workflow_dispatch:
 
 permissions:
@@ -26,6 +32,7 @@ jobs:
           fetch-depth: 0
 
       - name: Refresh checkout to latest main before packaging
+        if: github.event_name != 'pull_request'
         run: |
           git fetch origin main
           git reset --hard origin/main
@@ -38,15 +45,19 @@ jobs:
       - name: Patch Kindle Batch Preparation controls (validated source)
         run: python scripts/patch_batch_controls.py
 
-      - name: Validate all POSIX shell scripts
+      - name: Validate shell and Windows helper scripts
         run: |
           set -eu
-          echo "Checking shell scripts for syntax errors..."
+          echo "Checking POSIX shell scripts..."
           find install kpm/package -type f -name '*.sh' -print | while IFS= read -r file; do
             echo "Checking $file"
             sh -n "$file" || exit 1
           done
-          echo "All shell scripts passed sh -n."
+          echo "Checking the one-time Windows Python disassembler..."
+          python -m py_compile pc-tools/kpp-disassembler/kpp_disassemble.py
+          test -s pc-tools/kpp-disassembler/Run-KPP-Disassembly.bat
+          test -s pc-tools/kpp-disassembler/README-FIRST.txt
+          echo "All source checks passed."
 
       - name: Download official KPM packager
         run: |
@@ -98,23 +109,29 @@ jobs:
           tar -tzf "$PACKAGE" | grep -q 'RoyalRoadTools-Cleanup-Queue.txt' || { echo "KPM package is missing the cleanup queue template"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Interface-Inspector.sh' || { echo "KPM package is missing the read-only KPP interface inspector"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Interface-Inspector-Upload.sh' || { echo "KPM package is missing the manual Pasters.io report uploader"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Bytecode-Export.sh' || { echo "KPM package is missing the manual private KPP bytecode exporter"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Bytecode-Export.sh' || { echo "KPM package is missing the USB-visible KPP bytecode exporter"; exit 1; }
           if tar -tzf "$PACKAGE" | grep -Eq 'RR-LIPC-READONLY-(PROBE|UPLOAD)[.]sh'; then
             echo "Retired full LIPC probe/uploader must not be included in the package"
             exit 1
           fi
-          sha256sum "$PACKAGE" | tee dist/SHA256SUMS
+          mkdir -p dist/KPP-One-Time-Disassembler
+          cp -R pc-tools/kpp-disassembler/. dist/KPP-One-Time-Disassembler/
+          (cd dist && zip -qr KPP-One-Time-Disassembler-Windows.zip KPP-One-Time-Disassembler)
+          sha256sum "$PACKAGE" dist/KPP-One-Time-Disassembler-Windows.zip | tee dist/SHA256SUMS
           echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
 
       - name: Publish immutable versioned release
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" "dist/SHA256SUMS" \
+          gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" \
+            "dist/KPP-One-Time-Disassembler-Windows.zip" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
-            --notes "KPM package with manual KPP inspection, optional manual one-day Pasters.io report upload, manual private Hermes-bundle export, manual version report, automatic cleanup through KPM-Update-All, and KOReader plugin repair utility."
+            --notes "KPM package with manual read-only KPP inspection, one-time USB-visible Hermes bundle export, optional one-day Pasters.io text-report upload, automatic version reporting after Update All, verified cleanup, and KOReader plugin repair utility. Includes a Windows helper using Python already installed; no pip packages or compiler are required."
 
       - name: Update KPM repository manifest
+        if: github.event_name != 'pull_request'
         env:
           VERSION: ${{ steps.version.outputs.version }}
           TAG: ${{ steps.version.outputs.tag }}
@@ -138,7 +155,7 @@ jobs:
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "Manual KPP inspection, optional report upload, private local Hermes-bundle export, manual version reporting and KOReader maintenance tools; automatic cleanup runs with KPM-Update-All.",
+                      "description": "Manual KPP inspection, one-time USB bytecode export and local Windows disassembly, optional report upload, automatic version reporting and cleanup, plus KOReader maintenance tools.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,

@@ -6,6 +6,7 @@ KPM="/var/local/kmc/bin/kpm"
 DOCS="/mnt/us/documents"
 LOG="$DOCS/KPM-Update-All.log"
 CLEANUP="$DOCS/.royalroadtools/cleanup.sh"
+VERSION_REPORT="$DOCS/.royalroadtools/version-info.sh"
 
 mkdir -p "$DOCS"
 : > "$LOG"
@@ -80,6 +81,19 @@ if run_and_show "$KPM" -y upgrade; then
   else
     say "WARNING — private cleanup runner is missing: $CLEANUP"
     say "Run KPM-Update-All again after reinstalling the Royal Road Kindle Tools package."
+  fi
+
+  say ""
+  say "STEP 4 — Regenerating the Kindle software version report..."
+  if [ -x "$VERSION_REPORT" ]; then
+    if run_and_show sh "$VERSION_REPORT"; then
+      say "SUCCESS — Kindle-Version-Report.txt was regenerated and replaced."
+    else
+      REPORT_RESULT=$?
+      say "WARNING — package upgrade and cleanup completed, but version report refresh failed (exit code $REPORT_RESULT)."
+    fi
+  else
+    say "WARNING — internal version-report helper is missing: $VERSION_REPORT"
   fi
 
   say "Finished: $(date)"

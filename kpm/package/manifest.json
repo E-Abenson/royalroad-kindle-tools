@@ -3,7 +3,7 @@
   "id": "royalroad-kindle-tools",
   "name": "Royal Road Kindle Tools",
   "author": "E-Abenson",
-  "description": "Manual KPP inspection, optional report upload, private local Hermes-bundle export, manual version reporting and KOReader maintenance tools; automatic cleanup runs with KPM-Update-All.",
+  "description": "KPP inspection, one-time USB bytecode export and local Windows disassembly, optional one-day report upload, automatic version reporting and cleanup, and KOReader maintenance tools.",
   "version": [
     0,
     1,
