@@ -96,8 +96,14 @@ chmod 600 "$DOCS/.RoyalRoadTools-installed-version.txt" 2>/dev/null || true
 
 say "Cleanup runner installed privately at $INTERNAL_DIR/cleanup.sh."
 say "It will run automatically only when KPM-Update-All completes successfully."
-say "Manual launchers installed: KPP inspector, optional report upload, bytecode export, KPM updater, and plugin repair.
-The version-report helper is private and is called automatically by KPM-Update-All and after a successful plugin repair."
-say "No diagnostic or maintenance script was executed by this package installation."
+say "Manual launchers installed: KPP inspector, optional report upload, bytecode export, KPM updater, and plugin repair."
+say "The version-report helper is private; no version-report launcher is installed."
+say "Refreshing the version report after package installation..."
+if sh "$INTERNAL_DIR/version-info.sh"; then
+  say "SUCCESS — Kindle-Version-Report.txt was regenerated."
+else
+  say "WARNING — package installation succeeded, but the version report could not be regenerated."
+fi
+say "No browser diagnostic, bundle export, or report upload was executed by this package installation."
 say "Package version: $PACKAGE_VERSION"
 say "Installation complete."
