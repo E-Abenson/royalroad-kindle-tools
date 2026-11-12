@@ -51,7 +51,7 @@ The bytecode exporter copies `/app/KPPMainApp/js/KPPMainApp.js.hbc` to `/mnt/us/
 
 For Windows disassembly, download `KPP-One-Time-Disassembler-Windows.zip` from the project release, copy the HBC file into the extracted folder, and double-click `Run-KPP-Disassembly.bat`. This uses Python 3.8+ already installed, downloads a pinned pure-Python hbctool source snapshot on first run, and needs no pip packages, compiler, administrator rights, or system-wide installation. The bundle and disassembly remain on your PC. See `pc-tools/kpp-disassembler/README-FIRST.txt`.
 
-The optional uploader sends only the sanitised inspector text report to `pasters.io`, requests one-day expiry, and places the returned share link at the top of the inspector log. Anyone who obtains that link can read the report; it is not password protected. The actual compiled application bundle remains private on the Kindle. The exporter does not disassemble it.
+The optional uploader sends only the sanitised inspector text report to `pasters.io`, requests one-day expiry, and places the returned share link at the top of the inspector log. Anyone who obtains that link can read the report; it is not password protected. The compiled application bundle is copied only to your own computer by USB for local analysis; it is never uploaded. The exporter itself does not disassemble it.
 
 The older full LIPC dump and old smoke-test artifacts remain queued for cleanup. Do not share a full-system `lipc-probe -a -v` dump; unrelated services can expose private account and authentication values.
 
