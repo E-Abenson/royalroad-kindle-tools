@@ -191,7 +191,7 @@ say ""
 say "KPP HERMES BYTECODE RESEARCH EXPORT"
 BUNDLE_COPY="$DOCS/.rr-kpp-research/KPPMainApp.js.hbc"
 BUNDLE_REPORT="$DOCS/KPP-Bytecode-Export.txt"
-say "Automatic export helper: $( [ -x "$DOCS/.royalroadtools/bytecode-export.sh" ] && echo present || echo missing )"
+say "Manual bytecode-export launcher: $( [ -x "$DOCS/RR-KPP-Bytecode-Export.sh" ] && echo present || echo missing )"
 if [ -s "$BUNDLE_COPY" ]; then
   say "Private KPP bundle copy: present"
   say "Bundle size: $(wc -c < "$BUNDLE_COPY" | tr -d ' ') bytes"
@@ -221,7 +221,7 @@ else
 fi
 say ""
 say "============================================================"
-say "This report is automatically regenerated after KPM package installation/upgrade and successful batch-plugin repairs."
+say "Run Kindle-Version-Report.sh manually whenever you want to refresh this report."
 say "Saved to: $OUT_FINAL"
 if ! mv -f "$OUT_TMP" "$OUT_FINAL"; then
   printf 'Could not replace version report: %s\n' "$OUT_FINAL" >&2
