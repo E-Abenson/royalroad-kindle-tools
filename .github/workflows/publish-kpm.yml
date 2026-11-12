@@ -32,6 +32,7 @@ jobs:
           fetch-depth: 0
 
       - name: Refresh checkout to latest main before packaging
+        if: github.event_name != 'pull_request'
         run: |
           git fetch origin main
           git reset --hard origin/main
