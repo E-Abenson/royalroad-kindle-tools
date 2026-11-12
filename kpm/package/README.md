@@ -6,12 +6,16 @@ This package provides a small set of **manual Kindle launchers** plus one privat
 
 - **RR-KPP-Interface-Inspector** — manually scans selected KPP/browser/WebKit/Chromium/Juno files for fixed interface markers. It reports only file paths and marker names; raw strings are never printed. The inspector remains offline.
 - **RR-KPP-Interface-Inspector-Upload** — optional manual upload of the sanitised inspector report to `pasters.io` with a one-day expiry. Run the inspector first. Anyone with the share link can read the report.
-- **RR-KPP-Bytecode-Export** — manually saves a private, read-only copy of the Hermes bundle. It never uploads the binary bundle and does not execute or disassemble it.
-- **Kindle-Version-Report** — manually refreshes `Kindle-Version-Report.txt` with device firmware, KPM and installed package versions, KOReader revision, plugin fingerprints, and local KPP export status/checksum.
+- **RR-KPP-Bytecode-Export** — one-time manual export of a read-only Hermes bundle copy to the USB-visible Kindle Documents folder. It never uploads the binary bundle.
+- **Kindle-Version-Report.txt** — automatically refreshed after Update All and after successful plugin repair. There is no manual report launcher.
 - **KPM-Update-All** — manually refreshes package repositories and upgrades installed packages. After a successful upgrade, it automatically runs the private cleanup helper.
 - **KindleBatchPrepareFix** — manually repairs/reinstalls the separate Kindle Batch Preparation KOReader plugin. It is not a background service.
 
-The inspector, uploader, bytecode export, version report, and plugin repair do **not** run automatically during installation or update. Open each launcher only when you choose to use it.
+The inspector, uploader, bytecode export, and plugin repair remain manual launchers. The version report is generated automatically after Update All and successful plugin repair.
+
+## One-time Windows disassembly
+
+Run **RR-KPP-Bytecode-Export** once to create `/mnt/us/documents/KPPMainApp.js.hbc`. Copy that file over USB to Windows. Download and extract `KPP-One-Time-Disassembler-Windows.zip` from the project release, put the file beside `Run-KPP-Disassembly.bat`, then double-click it. The helper uses Python 3.8+ already installed, downloads a pinned pure-Python hbctool source snapshot on first run, and needs no pip packages, compiler, or administrator rights. It creates a focused findings report and a full local disassembly; nothing is uploaded.
 
 ## Automatic cleanup
 
@@ -39,7 +43,7 @@ Use exact paths and narrow patterns. Never add broad wildcards for user document
 - `/mnt/us/documents/RoyalRoadTools-Cleanup.log` — latest automatic cleanup run.
 - `/mnt/us/documents/KPM-Update-All.log` — latest package update and cleanup result.
 - `/mnt/us/documents/KindleBatchPrepareFix.log` — latest manual plugin repair result.
-- `/mnt/us/documents/Kindle-Version-Report.txt` — refreshed by running the manual version-report launcher.
+- `/mnt/us/documents/Kindle-Version-Report.txt` — regenerated automatically after Update All and successful plugin repair.
 
 Each active script clears its own log or report at the start of a run, replacing the prior result.
 
