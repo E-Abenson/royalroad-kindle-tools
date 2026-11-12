@@ -280,5 +280,15 @@ say "Output safety: incomplete conversions use a staging EPUB until completion i
 say "Stale cache entries are cleared before retrying an unfinished book."
 say "Restart KOReader to load the plugin."
 say "Full log saved to: $LOG"
-say "Run Kindle-Version-Report.sh separately when you want to refresh the software inventory."
+VERSION_REPORT="$DOCS/.royalroadtools/version-info.sh"
+if [ -x "$VERSION_REPORT" ]; then
+  say "Refreshing the Kindle software version report..."
+  if sh "$VERSION_REPORT" >> "$LOG" 2>&1; then
+    say "SUCCESS: Kindle-Version-Report.txt was regenerated automatically."
+  else
+    say "WARNING: Plugin repair succeeded, but the automatic version report refresh failed."
+  fi
+else
+  say "WARNING: Internal version-report helper is missing: $VERSION_REPORT"
+fi
 exit 0
