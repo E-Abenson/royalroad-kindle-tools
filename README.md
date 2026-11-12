@@ -20,11 +20,11 @@ All tools below are **manual launchers**, except the cleanup runner, which is pr
 - **RR-KPP-Interface-Inspector** — manually performs read-only static inspection of selected KPP/browser application files for interface markers. It reports only file paths and fixed marker names; it does not query LIPC values, touch the browser session, or use the network.
 - **RR-KPP-Interface-Inspector-Upload** — optional manual upload of the sanitised inspector report to pasters.io with a one-day expiry. Run it only after the inspector and only when you choose to share the report.
 - **RR-KPP-Bytecode-Export** — manually copies the Hermes bytecode bundle to a private local folder. The binary bundle is never sent to pasters.io.
-- **Kindle-Version-Report** — manually regenerates `Kindle-Version-Report.txt` with device, KPM, package, KOReader, and plugin version/fingerprint information.
+- **Kindle-Version-Report.txt** — regenerated automatically after a successful KPM-Update-All run and after a successful Kindle Batch Preparation repair. There is no separate version-report launcher.
 - **KPM-Update-All** — manually updates installed KPM packages, then automatically runs the cleanup queue after a successful upgrade.
 - **KindleBatchPrepareFix** — manual repair/reinstall tool for the separate KOReader Kindle Batch Preparation plugin.
 
-The inspector, uploader, exporter, version report, and plugin repair tool are not run automatically during package installation or updates.
+The inspector, uploader, exporter, and plugin repair tool remain manual launchers. The version report is generated automatically after Update All and after a successful plugin repair.
 
 ## Update and cleanup
 
@@ -34,9 +34,13 @@ The cleaner retains a pending queue and completed-item ledger at `/mnt/us/docume
 
 To add future cleanup targets, add one line to `kpm/package/scriptlets/RoyalRoadTools-Cleanup-Queue.txt`. The next package update adds new entries without resurrecting completed work. Use exact paths and narrow patterns; never add broad wildcards for user documents, story files, EPUBs, KOReader books, the active inspector, updater, version report, or plugin repair tool.
 
-## Manual KPP research
+## One-time KPP browser investigation — USB workflow
 
-Run the inspector to create `/mnt/us/documents/RR-KPP-Interface-Inspector.log`. The private Hermes bundle copy is refreshed only when you run the manual bytecode exporter. The optional manual uploader sends only the sanitised inspector text report to pasters.io. Anyone with the returned one-day share link can read the report; the actual compiled application bundle is never uploaded. This release does not disassemble the bundle.
+Run **RR-KPP-Bytecode-Export** once. It copies the unmodified `/app/KPPMainApp/js/KPPMainApp.js.hbc` to `/mnt/us/documents/KPPMainApp.js.hbc`, verifies its SHA256, and records the Hermes version in `KPP-Bytecode-Export.txt`. The previous hidden duplicate is removed only after the visible Documents copy is verified.
+
+Connect the Kindle to Windows over USB and copy `KPPMainApp.js.hbc` from Documents. Download and extract `KPP-One-Time-Disassembler-Windows.zip` from the same GitHub release, put the bundle beside `Run-KPP-Disassembly.bat`, and double-click it.
+
+The helper uses your existing Python 3.8+ installation. It downloads a pinned pure-Python Hermes disassembler from GitHub on first run; no pip packages, compiler, administrator rights, or system-wide installation are needed. It creates a focused `KPP-Interface-Findings.txt` plus the full local disassembly. The bundle and disassembly are never uploaded. This is a one-time investigation, not a recurring task.
 
 ## Remaining browser investigation
 
