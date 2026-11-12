@@ -1,50 +1,36 @@
 # Royal Road Kindle Tools — KPM package
 
-This package contains a **read-only static KPP browser interface inspector** and the maintenance tools still in use. It is not a Royal Road story downloader or EPUB builder.
+This package contains a **read-only static KPP browser interface inspector**, the one-time USB export helper, and the maintenance tools still in use. It is not a Royal Road story downloader or EPUB builder.
 
 ## Kindle library items
 
-- **RR-KPP-Interface-Inspector** — inspects a small set of installed KPP/browser application files for fixed interface markers such as `invokeAction`, JavaScript evaluation method names, navigation methods, WebView/WebKit/Chromium markers, and debugging symbols. It reports only file paths and the names of markers found. Raw strings are never printed to the report. The inspector itself remains offline.
-- **Automatic KPP research** — the package installer runs the read-only inspector, exports the exact Hermes bundle to a private local folder, and then uploads only the sanitised inspector report to `pasters.io` with a one-day expiry. The returned share URL is written at the top of the inspector log. The compiled application bundle is never uploaded to the paste service. This release exports it locally only; automated disassembly still needs a private authenticated receiver.
-- **RoyalRoadTools-Cleanup** — a persistent cleanup runner. It processes a queue of retired test scripts, logs, temporary files, package-cache files, saved paste links, and the exact old Royal Road Session Test bookmark. Each item is removed from the pending queue only after deletion is verified. Failed items stay queued for retry.
-- **RoyalRoadTools-Cleanup-Queue.txt** — the repository queue template. Add future cleanup targets here as one TYPE|VALUE line. The installer merges new lines into the Kindle's queue without overwriting pending work or re-adding completed work.
-- **Internal version-report helper** — regenerates Kindle-Version-Report.txt with device firmware, KPM versions and installed package versions, KOReader revision, and the installed Kindle Batch Preparation plugin code fingerprint. It is installed under `.royalroadtools` and is not a Kindle library launcher.
-- **KPM-Update-All** — refreshes package repositories and upgrades installed packages. Its log is cleared at the start of each run.
-- **KindleBatchPrepareFix** — an on-demand repair/reinstall utility for the separate Kindle Batch Preparation KOReader plugin. It is not a background service. Keep it; use it only if that plugin needs repair or reinstalling. Its log is cleared at the start of each run.
+- **RR-KPP-Interface-Inspector** — scans a small set of installed KPP/browser application files for fixed interface markers and reports only file paths and marker names.
+- **Automatic KPP research export** — the package installer runs the inspector, uploads only the sanitised text report to pasters.io with one-day expiry, and places its share link at the top of the inspector log. Separately, it copies an unmodified KPP Hermes bundle into the visible Documents folder for the one-time USB investigation. The binary is never uploaded.
+- **RoyalRoadTools-Cleanup** — persistent cleanup for retired scripts, logs, temporary files, package-cache files, saved paste links, and the exact old bookmark. Completed items are removed from the queue; failed items stay queued.
+- **Automatic version report** — replaces Kindle-Version-Report.txt after every package install/upgrade and after a successful plugin repair. There is no manual report launcher.
+- **KPM-Update-All** — refreshes package repositories and upgrades installed packages.
+- **KindleBatchPrepareFix** — on-demand repair/reinstall utility for the separate Kindle Batch Preparation KOReader plugin. Keep it; use only when that plugin needs repair.
+
+## One-time Windows investigation
+
+The GitHub release also includes `KPP-One-Time-Disassembler-Windows.zip`. After a KPM update exports `KPPMainApp.js.hbc` into Kindle Documents, copy that file over USB into the extracted Windows helper folder and double-click `Run-KPP-Disassembly.bat`.
+
+The helper requires Python 3.8+ already installed and an internet connection for its first run. It downloads a pinned pure-Python hbctool source snapshot into its own folder. No pip packages, compiler, administrator rights, or system-wide installation are needed. The helper checks the file's HBC version is 84, disassembles locally and creates `KPP-Interface-Findings.txt` plus the full HASM output. Nothing from the Kindle is uploaded. Full steps are in `pc-tools/kpp-disassembler/README-FIRST.txt`.
 
 ## How cleanup works
 
-1. KPM installs the current cleanup runner and merges the repository queue template into `/mnt/us/documents/RoyalRoadTools-Cleanup-Queue.txt`.
-2. The package installer runs the cleaner automatically during installation or upgrade. You can also open **RoyalRoadTools-Cleanup** manually to retry failed items.
-3. Successful items disappear from the pending queue and are written to `RoyalRoadTools-Cleanup-Completed.txt`. The installer checks that ledger before adding a template item, so completed tasks are not resurrected by later updates.
-4. Failed or unverifiable items remain in the queue. This includes remote-paste deletion when the service cannot confirm deletion, or bookmark cleanup when the browser database cannot be safely checked. A related public paste URL is retained while remote deletion is pending; a missing or unrecognized delete link is not treated as successful deletion.
-5. The cleanup runner itself and its queue/ledger remain installed so future releases can add more work.
-
-To add a future cleanup target, add one line to the repository template:
-
-- `DOC|filename` — exact file in `/mnt/us/documents`
-- `DOCGLOB|pattern` — matching files directly inside `/mnt/us/documents`
-- `PKG|relative/path` — exact file under the installed KPM package cache
-- `PKGDIR|relative/path` — remove a directory only if empty
-- `REMOTE_DELETE|filename` — use a saved pasters.io deletion URL in `/mnt/us/documents`
-- `BOOKMARK|Royal Road Session Test` — remove only the exact project test JavaScript bookmark
-
-Use exact paths and narrow patterns. Never add broad wildcards for user documents, story files, EPUBs, KOReader books, the active inspector, KPM updater, or plugin repair tool.
+The installer merges repository cleanup entries into `/mnt/us/documents/RoyalRoadTools-Cleanup-Queue.txt` and runs the cleanup automatically. Successful items disappear from the pending queue and are recorded in `RoyalRoadTools-Cleanup-Completed.txt`. Failed or unverifiable items remain queued. The cleanup runner and queue remain installed to support future releases.
 
 ## Current Kindle logs
 
-- `/mnt/us/documents/RR-KPP-Interface-Inspector.log` — automatically refreshed static interface inspection report; after a successful upload, the one-day pasters.io share link is at the very top.
-- `/mnt/us/documents/KPP-Bytecode-Export.txt` — automatic export status and bundle checksum.
-- `/mnt/us/documents/RoyalRoadTools-Cleanup.log` — latest cleanup run and per-item results.
-- `/mnt/us/documents/KPM-Update-All.log` — latest package update result.
-- `/mnt/us/documents/KindleBatchPrepareFix.log` — latest KOReader plugin repair result.
-
-The maintenance logs are cleared at the start of their respective runs. Retired test logs are removed by the cleanup queue.
+- `/mnt/us/documents/RR-KPP-Interface-Inspector.log` — sanitised static interface inspection.
+- `/mnt/us/documents/KPP-Bytecode-Export.txt` — status, HBC version, size and SHA256 of the USB copy.
+- `/mnt/us/documents/RoyalRoadTools-Cleanup.log` — latest cleanup run.
+- `/mnt/us/documents/KPM-Update-All.log` — latest KPM update.
+- `/mnt/us/documents/Kindle-Version-Report.txt` — automatic version inventory.
 
 ## Safety and limits
 
-The inspector is intentionally narrower than the previous LIPC dump. It does **not** run `lipc-probe` or `lipc-get-prop`, read LIPC property values, read the browser URL/settings, inspect cookies/history/bookmarks/database rows, send LIPC writes/events, navigate, refresh, or execute JavaScript. It scans only filenames matching KPP/browser/WebKit/Chromium/Juno patterns under selected application directories, limits the scan to 80 files and skips files over approximately 50 MB. It extracts strings locally but writes only fixed marker names and file paths to its report; raw strings are held in a private temporary file and removed on exit. During package installation/upgrade the inspector and upload helper run automatically. Only the fixed-marker/file-path report goes to pasters.io, with a one-day expiry; anyone with the link can read it. The binary `KPPMainApp.js.hbc` copy stays in a local directory with restrictive permissions and is never sent to pasters.io. The current package does not disassemble it until a private authenticated receiver is configured.
+The inspector does not run LIPC commands, read LIPC property values, browser URLs/settings/cookies/history/bookmarks/database rows, set properties, send events, navigate, refresh, execute JS or use the network. It writes fixed marker names and file paths only. The pasters.io upload is the sanitised text report only; anyone obtaining its one-day link can read it.
 
-A marker only establishes that text is embedded in a file. It does not prove that a method is callable or reveal a supported `invokeAction` payload. Do not guess or send one. Do not share a full `lipc-probe -a -v` dump: broad LIPC output can include private account and authentication values.
-
-The cleanup uses narrow, validated filenames and package-relative paths; it never recursively deletes folders. Remote paste deletion is attempted only through a saved, specifically named delete-link file and only for the supported pasters.io delete URL format. It removes only the exact old bookmark with the project-installed title and JavaScript URL scheme, after backing up and verifying the browser database. It does not reset browser history, cookies, unrelated bookmarks, KOReader books, EPUBs, or the KOReader plugin folder.
+The binary bundle copy is read-only and local; it is not uploaded to a paste service or public repository. The Windows helper also keeps the disassembly local. A marker or disassembly call site does not prove that an external LIPC invocation is supported. Do not guess or send an `invokeAction` payload. Do not share broad full-system LIPC dumps, which may expose unrelated account or authentication data.
