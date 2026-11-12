@@ -1,45 +1,41 @@
 #!/bin/sh
 # Name: RR-KPP-Bytecode-Export
-# Automatically make a private, read-only copy of the exact KPP Hermes bundle.
-# This script is run by the package installer; it is not a Kindle library launcher.
+# One-time USB investigation export: put an unmodified KPP bundle copy in Documents.
+# This runs during KPM installation/update; it is not a launcher.
 #
-# PRIVACY / SAFETY:
-# - Reads only /app/KPPMainApp/js/KPPMainApp.js.hbc.
-# - Does not modify the original application or remount the root filesystem.
-# - Does not execute or disassemble the bundle.
-# - Validates the Hermes magic and reads the version field at byte offset 8.
-# - Does not upload the file or send it to a public paste service.
-# - Stores the copy in a private directory under Kindle Documents.
+# Reads only the installed Hermes bundle. Never modifies /app, never executes
+# bytecode, and never uploads the binary. The file in Documents is intended
+# for the owner's one-time USB transfer to a local Windows computer.
 
 DOCS="/mnt/us/documents"
 SOURCE="/app/KPPMainApp/js/KPPMainApp.js.hbc"
-OUTDIR="$DOCS/.rr-kpp-research"
-DEST="$OUTDIR/KPPMainApp.js.hbc"
+DEST="$DOCS/KPPMainApp.js.hbc"
 REPORT="$DOCS/KPP-Bytecode-Export.txt"
-TMP_DEST="$OUTDIR/.KPPMainApp.js.hbc.tmp.$$"
+TMP_DEST="$DOCS/.KPPMainApp.js.hbc.tmp.$$"
 TMP_REPORT="$DOCS/.KPP-Bytecode-Export.txt.tmp.$$"
+LEGACY_DIR="$DOCS/.rr-kpp-research"
+LEGACY_COPY="$LEGACY_DIR/KPPMainApp.js.hbc"
 MAX_BYTES=52428800
 
 umask 077
-mkdir -p "$DOCS" "$OUTDIR" 2>/dev/null
-chmod 700 "$OUTDIR" 2>/dev/null || true
+mkdir -p "$DOCS" 2>/dev/null
 trap 'rm -f "$TMP_DEST" "$TMP_REPORT"' 0 HUP INT TERM
 
 write_report() {
   STATUS="$1"
   {
-    echo "KPP HERMES BYTECODE EXPORT"
+    echo "KPP HERMES BYTECODE USB EXPORT"
     echo "Generated: $(date '+%Y-%m-%d %H:%M:%S')"
     echo "Status: $STATUS"
     echo "Source: $SOURCE"
-    echo "Private copy: $DEST"
-    echo "Original application was not changed."
-    echo "No network upload was performed."
-  echo "Disassembly status: waiting for a private authenticated analysis receiver."
+    echo "USB transfer copy: $DEST"
+    echo "The original /app application was not changed."
+    echo "The binary is not uploaded to pasters.io or any other service."
+    echo "Disassembly is a one-time local Windows step."
   } > "$TMP_REPORT"
-  chmod 600 "$TMP_REPORT" 2>/dev/null || true
+  chmod 644 "$TMP_REPORT" 2>/dev/null || true
   mv -f "$TMP_REPORT" "$REPORT" || return 1
-  chmod 600 "$REPORT" 2>/dev/null || true
+  chmod 644 "$REPORT" 2>/dev/null || true
 }
 
 if [ ! -r "$SOURCE" ]; then
@@ -72,7 +68,7 @@ fi
 MAGIC="$(od -An -tx1 -N 8 "$SOURCE" 2>/dev/null | tr -d '[:space:]')"
 if [ "$MAGIC" != "c61fbc03c103191f" ]; then
   write_report "SOURCE DOES NOT HAVE THE EXPECTED HERMES MAGIC — no copy made."
-  echo "KPP bundle export: source did not match the Hermes HBC magic."
+  echo "KPP bundle export: source did not match Hermes HBC magic."
   exit 0
 fi
 
@@ -91,24 +87,24 @@ fi
 
 if [ "$SOURCE_SHA" != "$DEST_SHA" ]; then
   if ! cp "$SOURCE" "$TMP_DEST"; then
-    write_report "COPY FAILED — previous private copy retained."
+    write_report "COPY FAILED — previous Documents copy retained."
     echo "KPP bundle export: copy failed."
     exit 0
   fi
-  chmod 600 "$TMP_DEST" 2>/dev/null || true
+  chmod 644 "$TMP_DEST" 2>/dev/null || true
   COPIED_SHA="$(sha256sum "$TMP_DEST" 2>/dev/null | awk '{print $1}')"
   if [ "$COPIED_SHA" != "$SOURCE_SHA" ]; then
-    write_report "COPY VERIFICATION FAILED — previous private copy retained."
+    write_report "COPY VERIFICATION FAILED — previous Documents copy retained."
     echo "KPP bundle export: copy verification failed."
     exit 0
   fi
   if ! mv -f "$TMP_DEST" "$DEST"; then
-    write_report "COULD NOT REPLACE PRIVATE COPY — previous copy retained."
+    write_report "COULD NOT REPLACE DOCUMENTS COPY — previous copy retained."
     echo "KPP bundle export: could not replace destination."
     exit 0
   fi
-  chmod 600 "$DEST" 2>/dev/null || true
-  RESULT="COPIED AND SHA256 VERIFIED"
+  chmod 644 "$DEST" 2>/dev/null || true
+  RESULT="COPIED TO DOCUMENTS AND SHA256 VERIFIED"
 else
   RESULT="ALREADY CURRENT — SHA256 MATCH"
 fi
@@ -122,24 +118,36 @@ FINAL_SIZE="$(wc -c < "$DEST" 2>/dev/null | tr -d ' ')"
 FINAL_SHA="$(sha256sum "$DEST" 2>/dev/null | awk '{print $1}')"
 
 {
-  echo "KPP HERMES BYTECODE EXPORT"
+  echo "KPP HERMES BYTECODE USB EXPORT"
   echo "Generated: $(date '+%Y-%m-%d %H:%M:%S')"
   echo "Status: $RESULT"
   echo "Source: $SOURCE"
-  echo "Private copy: $DEST"
+  echo "USB transfer copy: $DEST"
   echo "File size: $FINAL_SIZE bytes"
   echo "Hermes bytecode version (header field): $HBC_VERSION"
   echo "SHA256: $FINAL_SHA"
-  echo "Original application was not changed."
+  echo "Original /app application file was not changed."
   echo "No bytecode was executed, disassembled, patched, or uploaded."
-  echo "Disassembly status: waiting for a private authenticated analysis receiver."
+  echo "Next: connect Kindle by USB and copy KPPMainApp.js.hbc to the Windows tool folder."
 } > "$TMP_REPORT"
-chmod 600 "$TMP_REPORT" 2>/dev/null || true
+chmod 644 "$TMP_REPORT" 2>/dev/null || true
 if ! mv -f "$TMP_REPORT" "$REPORT"; then
   echo "KPP bundle copied, but export report could not be replaced."
   exit 0
 fi
-chmod 600 "$REPORT" "$DEST" 2>/dev/null || true
+chmod 644 "$REPORT" "$DEST" 2>/dev/null || true
+
+# Retire the previous hidden duplicate only after the visible transfer copy
+# has been checksum-verified. Never recursively remove the legacy directory.
+if [ -f "$LEGACY_COPY" ]; then
+  LEGACY_SHA="$(sha256sum "$LEGACY_COPY" 2>/dev/null | awk '{print $1}')"
+  if [ -n "$FINAL_SHA" ] && [ "$LEGACY_SHA" = "$FINAL_SHA" ]; then
+    rm -f "$LEGACY_COPY" 2>/dev/null || true
+    rmdir "$LEGACY_DIR" 2>/dev/null || true
+  fi
+fi
+
 sync 2>/dev/null
 echo "KPP bundle export: $RESULT; $FINAL_SIZE bytes; Hermes version $HBC_VERSION."
+echo "USB copy: $DEST"
 exit 0
