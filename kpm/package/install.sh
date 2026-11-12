@@ -58,12 +58,14 @@ install_scriptlet "scriptlets/RR-KPP-Interface-Inspector-Upload.sh" "$DOCS/RR-KP
 install_scriptlet "scriptlets/RR-KPP-Bytecode-Export.sh" "$DOCS/RR-KPP-Bytecode-Export.sh"
 install_scriptlet "scriptlets/KPM-Update-All.sh" "$DOCS/KPM-Update-All.sh"
 install_scriptlet "scriptlets/KindleBatchPrepareFix.sh" "$DOCS/KindleBatchPrepareFix.sh"
-install_scriptlet "scriptlets/RoyalRoadTools-Version-Info.sh" "$DOCS/Kindle-Version-Report.sh"
+install_scriptlet "scriptlets/RoyalRoadTools-Version-Info.sh" "$INTERNAL_DIR/version-info.sh"
 
 # The cleanup runner is deliberately hidden and is called by KPM-Update-All.
 install_scriptlet "scriptlets/RoyalRoadTools-Cleanup.sh" "$INTERNAL_DIR/cleanup.sh"
 rm -f "$DOCS/RoyalRoadTools-Cleanup.sh"
-rm -f "$INTERNAL_DIR/inspector-upload.sh" "$INTERNAL_DIR/bytecode-export.sh" "$INTERNAL_DIR/version-info.sh"
+rm -f "$INTERNAL_DIR/inspector-upload.sh" "$INTERNAL_DIR/bytecode-export.sh"
+# Retire the old public version-report launcher; the report is refreshed by Update All.
+rm -f "$DOCS/Kindle-Version-Report.sh" "$DOCS/RoyalRoadTools-Version-Info.sh"
 
 merge_cleanup_queue
 # An earlier release queued this now-manual launcher for deletion. Remove that
@@ -94,7 +96,8 @@ chmod 600 "$DOCS/.RoyalRoadTools-installed-version.txt" 2>/dev/null || true
 
 say "Cleanup runner installed privately at $INTERNAL_DIR/cleanup.sh."
 say "It will run automatically only when KPM-Update-All completes successfully."
-say "Manual launchers installed: KPP inspector, optional report upload, bytecode export, version report, KPM updater, and plugin repair."
+say "Manual launchers installed: KPP inspector, optional report upload, bytecode export, KPM updater, and plugin repair.
+The version-report helper is private and is called automatically by KPM-Update-All and after a successful plugin repair."
 say "No diagnostic or maintenance script was executed by this package installation."
 say "Package version: $PACKAGE_VERSION"
 say "Installation complete."
