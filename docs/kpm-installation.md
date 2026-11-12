@@ -2,52 +2,52 @@
 
 ## Update and automatic cleanup
 
-Open **KPM-Update-All** from the Kindle library. It refreshes the configured package repositories and upgrades installed KPM packages.
+Open **KPM-Update-All** from the Kindle library. It refreshes configured package repositories and upgrades installed KPM packages.
 
-As part of package installation or upgrade, the package installer:
-1. Installs the read-only KPP interface inspector, an internal upload helper, a private bytecode-export helper, and the maintenance tools.
+As part of package installation or upgrade, the installer:
+1. Installs the read-only KPP inspector, internal report uploader, internal bytecode exporter and maintenance tools.
 2. Merges new entries from the repository cleanup queue template into the existing Kindle queue.
 3. Runs **RoyalRoadTools-Cleanup** automatically.
-4. Runs the KPP inspector, saves a private local copy of the Hermes bundle, uploads only the sanitised text report to pasters.io with one-day expiry, and regenerates the software version report.
+4. Runs the KPP inspector and uploads only its sanitised text report to pasters.io with one-day expiry.
+5. Exports the installed KPP Hermes bundle to the USB-visible Documents folder and verifies its SHA256.
+6. Regenerates `Kindle-Version-Report.txt` automatically.
 
-The pending queue is /mnt/us/documents/RoyalRoadTools-Cleanup-Queue.txt. Successful actions are removed from that queue and recorded in /mnt/us/documents/RoyalRoadTools-Cleanup-Completed.txt. Failed or unverifiable actions remain queued. The cleanup runner remains installed and can be opened manually from the Kindle library to retry them.
-
-## Add future cleanup targets
-
-Edit kpm/package/scriptlets/RoyalRoadTools-Cleanup-Queue.txt in the GitHub repository and add one line for each retired item:
-
-- DOC|filename — exact file in /mnt/us/documents
-- DOCGLOB|pattern — matching files directly in /mnt/us/documents, without subdirectory traversal
-- PKG|relative/path — exact file in the installed KPM package cache
-- PKGDIR|relative/path — remove a directory only if empty
-- REMOTE_DELETE|filename — use a saved pasters.io deletion URL in /mnt/us/documents
-- BOOKMARK|Royal Road Session Test — remove only the exact project test JavaScript bookmark
-
-Use exact paths and narrow patterns. Never add broad wildcards for user documents, story files, EPUBs, KOReader books, the active interface inspector, KPM updater, or plugin repair tool. The installer will merge new items on the next package update. It will not re-add any item listed in the completed ledger.
+The queue is `/mnt/us/documents/RoyalRoadTools-Cleanup-Queue.txt`. Successful actions are removed from the queue and recorded in `RoyalRoadTools-Cleanup-Completed.txt`; failed actions remain queued.
 
 ## Version report
 
-`/mnt/us/documents/Kindle-Version-Report.txt` is regenerated automatically after every KPM package installation/upgrade and after a successful Kindle Batch Preparation repair. It includes Kindle model/firmware, KPM CLI/library and installed package versions, KOReader revision when available, the Kindle Batch Preparation plugin metadata version and main.lua checksum, the bundled repair-source checksum, the KPP executable fingerprint, and the private Hermes-bundle export status and checksum. There is no separate manual version-report launcher.
+`/mnt/us/documents/Kindle-Version-Report.txt` is regenerated automatically after every KPM package installation/upgrade and after a successful Kindle Batch Preparation repair. There is no separate manual version-report launcher.
 
 ## Kindle Batch Preparation repair
 
-Keep **KindleBatchPrepareFix** installed. It is an on-demand repair/reinstall utility, not a background service. Use it only if the separate KOReader plugin disappears, fails to load, or needs the validated menu fix reapplied. It uses the locally bundled source so no manual file copying or network download is needed. Restart KOReader after a successful repair.
+Keep **KindleBatchPrepareFix** installed. It is an on-demand repair/reinstall utility for the separate KOReader Kindle Batch Preparation plugin, not a background service. Use it only if the plugin disappears, fails to load, or needs the validated menu fix reapplied.
 
-## Automatic KPP research
+## One-time KPP browser investigation — USB option
 
-During every KPM package installation/upgrade, the installer automatically runs **RR-KPP-Interface-Inspector** and writes `/mnt/us/documents/RR-KPP-Interface-Inspector.log`. The inspector does not run LIPC commands, read browser URLs/settings/cookies/history/database rows, send LIPC writes/events, navigate, refresh, or execute JavaScript. It prints only file paths and fixed marker names, not raw strings.
+During package installation/upgrade, the internal exporter reads only `/app/KPPMainApp/js/KPPMainApp.js.hbc`, checks the Hermes magic/version and SHA256, then atomically writes a copy to:
 
-The same installation automatically copies `/app/KPPMainApp/js/KPPMainApp.js.hbc` to the private directory `/mnt/us/documents/.rr-kpp-research/`. The original application file is never changed. The copied bytecode file is **not** uploaded to pasters.io or any public repository.
+`/mnt/us/documents/KPPMainApp.js.hbc`
 
-The installer automatically uploads only the sanitised inspector text report to `pasters.io`, requests one-day expiry, and places the returned share link at the very top of the inspector log. Anyone who obtains that link can read the report; it is not password protected. The actual compiled application bundle is kept private on the Kindle. This release exports it locally but does not yet disassemble it; that final automated step requires a private authenticated receiver.
+The exported file is not hidden, is readable over USB, and has mode 644. The accompanying `KPP-Bytecode-Export.txt` records size, Hermes version, SHA256, and the exact transfer location. The previous hidden duplicate under `.rr-kpp-research` is removed only after the Documents copy is verified. The original application in `/app` is never changed.
 
-The existing manual LIPC dump and old smoke-test artifacts remain queued for cleanup. Do not share a full-system `lipc-probe -a -v` dump; unrelated services can expose private account and authentication values.
+### Windows disassembly
 
-## Active logs
+Download `KPP-One-Time-Disassembler-Windows.zip` from the latest project release and extract it. Copy `KPPMainApp.js.hbc` from Kindle Documents into that folder, beside `Run-KPP-Disassembly.bat`, then double-click the BAT file.
 
-- /mnt/us/documents/RR-KPP-Interface-Inspector.log
-- /mnt/us/documents/RoyalRoadTools-Cleanup.log
-- /mnt/us/documents/KPM-Update-All.log
-- /mnt/us/documents/KindleBatchPrepareFix.log
+Requirements: Python 3.8+ already installed and internet access for the first run. No pip packages, compiler, administrator rights or system-wide installation are needed. The helper downloads a pinned MIT-licensed pure-Python version of hbctool to its own working folder, verifies the HBC header is version 84, disassembles locally, and writes `KPP-Interface-Findings.txt` plus the full HASM output. The Kindle binary and disassembly are never uploaded. See `pc-tools/kpp-disassembler/README-FIRST.txt`.
 
-Each active script clears its own log at the start of a run. Retired test logs are removed by the cleanup queue.
+This is a one-time test. It does not test live JavaScript execution yet; it gives us the implementation details needed to design a safe, narrow live test. Repeat only after a material KPP application update.
+
+## Privacy and safety
+
+The inspector never runs LIPC commands, reads browser URLs/settings/cookies/history/database rows, sends LIPC writes/events, navigates, refreshes or executes JavaScript. The only pasters.io upload is the fixed-marker/file-path inspector text report, not the binary application file. A paste link can be read by anyone who obtains it.
+
+The old full-system LIPC dump remains retired; broad service inventories can expose account/authentication values. Do not guess an `invokeAction` payload or try one against the live browser. Stop on access-denial or Cloudflare challenge responses; do not attempt CAPTCHA/proof-of-work bypasses.
+
+## Active Kindle logs
+
+- `/mnt/us/documents/RR-KPP-Interface-Inspector.log`
+- `/mnt/us/documents/KPP-Bytecode-Export.txt`
+- `/mnt/us/documents/RoyalRoadTools-Cleanup.log`
+- `/mnt/us/documents/KPM-Update-All.log`
+- `/mnt/us/documents/Kindle-Version-Report.txt`
