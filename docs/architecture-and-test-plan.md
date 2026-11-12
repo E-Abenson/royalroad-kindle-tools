@@ -7,7 +7,7 @@ Use the Kindle's own built-in browser session to retrieve Royal Road pages that 
 ## Confirmed device facts
 
 - Kindle: 10th generation; exact model variant not yet identified.
-- Firmware last reported: 5.18.1.1.1; refresh with the on-device version report.
+- Firmware last reported: 5.18.1.1.1; the version report is refreshed automatically after Update All.
 - SpringBoard jailbreak completed; KPM works.
 - The built-in Kindle browser can open Royal Road chapters.
 - A separate Kindle curl request to Royal Road returned HTTP 403 with Cloudflare challenge markers.
