@@ -5,7 +5,7 @@ An experimental KPM toolkit for investigating the jailbroken Kindle's built-in K
 ## Device facts and confirmed browser findings
 
 - Kindle: 10th generation; exact Basic/Paperwhite variant not yet identified.
-- Firmware last reported: 5.18.1.1.1 (refresh with the manual version report).
+- Firmware last reported: 5.18.1.1.1 (the version report refreshes automatically after Update All).
 - SpringBoard jailbreak completed; KPM works.
 - The built-in Kindle browser can open Royal Road chapters.
 - A direct Kindle curl request received HTTP 403 with Cloudflare challenge markers.
@@ -19,7 +19,7 @@ All tools below are **manual launchers**, except the cleanup runner, which is pr
 
 - **RR-KPP-Interface-Inspector** — manually performs read-only static inspection of selected KPP/browser application files for interface markers. It reports only file paths and fixed marker names; it does not query LIPC values, touch the browser session, or use the network.
 - **RR-KPP-Interface-Inspector-Upload** — optional manual upload of the sanitised inspector report to pasters.io with a one-day expiry. Run it only after the inspector and only when you choose to share the report.
-- **RR-KPP-Bytecode-Export** — manually copies the Hermes bytecode bundle to a private local folder. The binary bundle is never sent to pasters.io.
+- **RR-KPP-Bytecode-Export** — one-time manual export of a verified bytecode copy to Kindle Documents for USB transfer. The binary bundle is never sent to pasters.io.
 - **Kindle-Version-Report.txt** — regenerated automatically after a successful KPM-Update-All run and after a successful Kindle Batch Preparation repair. There is no separate version-report launcher.
 - **KPM-Update-All** — manually updates installed KPM packages, then automatically runs the cleanup queue after a successful upgrade.
 - **KindleBatchPrepareFix** — manual repair/reinstall tool for the separate KOReader Kindle Batch Preparation plugin.
