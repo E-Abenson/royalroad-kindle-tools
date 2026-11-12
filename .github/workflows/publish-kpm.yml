@@ -7,6 +7,12 @@ on:
       - "kpm/package/**"
       - "install/Install-RoyalRoadTools.sh"
       - ".github/workflows/publish-kpm.yml"
+  pull_request:
+    paths:
+      - "kpm/package/**"
+      - "pc-tools/kpp-disassembler/**"
+      - "install/Install-RoyalRoadTools.sh"
+      - ".github/workflows/publish-kpm.yml"
   workflow_dispatch:
 
 permissions:
@@ -114,6 +120,7 @@ jobs:
           echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
 
       - name: Publish immutable versioned release
+        if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -123,6 +130,7 @@ jobs:
             --notes "KPM package with manual read-only KPP inspection, one-time USB-visible Hermes bundle export, optional one-day Pasters.io text-report upload, automatic version reporting after Update All, verified cleanup, and KOReader plugin repair utility. Includes a Windows helper using Python already installed; no pip packages or compiler are required."
 
       - name: Update KPM repository manifest
+        if: github.event_name != 'pull_request'
         env:
           VERSION: ${{ steps.version.outputs.version }}
           TAG: ${{ steps.version.outputs.tag }}
