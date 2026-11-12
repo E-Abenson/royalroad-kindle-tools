@@ -1,6 +1,6 @@
 #!/bin/sh
 # Name: Kindle-Version-Report
-# Report build: 1.7
+# Report build: 1.8
 # Manual launcher: refreshes a readable software inventory on the Kindle.
 
 DOCS="/mnt/us/documents"
@@ -220,7 +220,7 @@ else
 fi
 say ""
 say "============================================================"
-say "Run Kindle-Version-Report.sh manually whenever you want to refresh this report."
+say "This report is automatically regenerated after package installation, KPM-Update-All, and successful Kindle Batch Preparation repairs."
 say "Saved to: $OUT_FINAL"
 if ! mv -f "$OUT_TMP" "$OUT_FINAL"; then
   printf 'Could not replace version report: %s\n' "$OUT_FINAL" >&2
