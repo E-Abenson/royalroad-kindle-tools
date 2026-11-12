@@ -2,48 +2,62 @@
 
 ## Goal
 
-Use the Kindle's own built-in browser session to retrieve Royal Road pages that the user can open normally, validate completeness, and eventually build one offline EPUB. Avoid manual chapter-by-chapter copying.
+Determine whether the Kindle's built-in KPP browser exposes a legitimate callable interface for JavaScript execution in the currently displayed page. Only after that is understood should a harmless live-page execution test be designed. Later, if ordinary page retrieval works, the project may build an offline EPUB tool.
 
 ## Confirmed device facts
 
-- Kindle: 10th generation; exact model variant not yet identified.
-- Firmware last reported: 5.18.1.1.1; refresh with the on-device version report.
+- Kindle firmware last reported: 5.18.1.1.1.
 - SpringBoard jailbreak completed; KPM works.
-- The built-in Kindle browser can open Royal Road chapters.
+- Built-in browser can open Royal Road chapters.
 - A separate Kindle curl request to Royal Road returned HTTP 403 with Cloudflare challenge markers.
-- com.lab126.kppbrowser.getLastOpenPage is readable.
-- com.lab126.kppbrowser.invokeAction exists as a write-only string property.
-- The LIPC owner was identified as KPPMainApp, executable /app/bin/KPPMainAppV2.
-- The accepted invokeAction string format remains unknown. No action payload has been sent.
+- `com.lab126.kppbrowser.getLastOpenPage` is readable.
+- `com.lab126.kppbrowser.invokeAction` exists as a write-only string property.
+- The accepted `invokeAction` format remains unknown; no action payload has been sent.
 
-## Current tools
+## Current Kindle automation
 
-The KPM package installs **RR-KPP-Interface-Inspector**, an internal Hermes-bundle export helper, an internal pasters.io report uploader, KOReader plugin repair, automatic version reporting, KPM update and persistent cleanup utilities.
+At KPM installation/upgrade, the package automatically:
+1. Runs the static read-only KPP interface inspector.
+2. Uploads only the sanitised marker/path report to pasters.io with a one-day expiry; the paste URL is placed at the top of the local log.
+3. Copies the original Hermes bundle without modification to `/mnt/us/documents/KPPMainApp.js.hbc` and verifies its size, HBC header version and SHA256.
+4. Replaces the Kindle software version report automatically.
 
-**RR-KPP-Interface-Inspector** performs a narrow static scan of selected system application directories. It checks candidate KPP/browser/WebKit/Chromium/Juno files for fixed interface markers such as `invokeAction`, JavaScript evaluation method names, navigation method names and debugging symbols. It prints only candidate file paths and marker names, never raw string contents. It does not run any LIPC command, read browser settings or URLs, inspect browser databases, set properties, send events, navigate, refresh, execute JavaScript, or use the network. During each KPM package installation/upgrade, the installer runs the inspector automatically, saves a private local copy of `/app/KPPMainApp/js/KPPMainApp.js.hbc` under `/mnt/us/documents/.rr-kpp-research/`, and uploads only the sanitised text report to pasters.io with a one-day expiry. The returned link is placed at the top of the local inspector log. The Hermes bytecode bundle is never uploaded to pasters.io. This release exports it locally only; remote disassembly still requires a private authenticated receiver.
+The bundle is not uploaded. It is placed in Documents for the one-time USB workflow below. The old hidden duplicate is removed only after the new visible copy is verified.
 
-**Important:** The previous full `lipc-probe -a -v` inventory is retired. Broad LIPC dumps may expose authentication and account values from unrelated services. Do not run or share a full-system dump. Its old launcher, local log, uploader and saved paste links are queued for cleanup.
+## One-time bytecode investigation — Option C
 
-**KindleBatchPrepareFix remains on purpose.** It repairs/reinstalls the separate KOReader Kindle Batch Preparation plugin from the bundled local Lua source. It is a manual utility, not a background service; it does not belong to the retired browser-test group.
+The PC helper is in `pc-tools/kpp-disassembler` and is released as `KPP-One-Time-Disassembler-Windows.zip`.
+
+- Connect Kindle by USB and copy `KPPMainApp.js.hbc` from Documents into the extracted Windows helper folder.
+- Double-click `Run-KPP-Disassembly.bat`.
+- Requires Python 3.8+ already installed and internet for the first run. No pip modules or compiler are required.
+- The helper downloads a pinned MIT-licensed hbctool source archive and uses its pure-Python HBC v84 parser/disassembler.
+- It checks the 8-byte HBC magic and the 32-bit bytecode version before parsing.
+- It writes the full local disassembly (`metadata.json`, `string.json`, `instruction.hasm`) and a targeted `KPP-Interface-Findings.txt` report listing browser markers and functions referencing them.
+- It never executes the bundle, changes the original, patches the application, or uploads the file/output.
+
+This is a one-time investigation, not a recurring user task. Repeat only after a material KPP application update.
 
 ## KPP interface inspection
 
-The previous read-only investigation found the browser service `com.lab126.kppbrowser`, with a write-only string property named `invokeAction`. Its accepted action format is not known.
+The previous read-only investigation found service `com.lab126.kppbrowser`, with write-only string property `invokeAction`. Its accepted format remains unknown.
 
-The installer automatically runs **RR-KPP-Interface-Inspector** and writes `/mnt/us/documents/RR-KPP-Interface-Inspector.log`. The private Hermes bundle copy is refreshed at the same time. Static markers are leads only: a string embedded in an application file does not prove the corresponding method is callable or that it accepts a particular payload.
+Static markers only show that a text string occurs in a file. The bytecode disassembly should let us trace references and call sites for `invokeAction`, `runJavaScript`, `evaluateJavaScript`, `postMessage`, navigation functions and related bridge methods. It still does not prove an external LIPC call is supported.
 
-Do not write to `invokeAction`, change LIPC properties, or send events until a specific action schema is established from reliable implementation evidence. Do not try guessed JavaScript-injection payloads.
+Do not write to `invokeAction`, change LIPC properties or send events until a specific action schema is established from reliable implementation evidence. Do not try guessed JavaScript-injection payloads.
 
-## Future stages — only after ordinary access is demonstrated
+## Future live test
 
-1. Test retrieval of a small number of chapter pages that are already accessible to the user.
-2. Stop on a challenge, access denial, unexpected redirect, or incomplete page; do not retry around access controls.
-3. Only after reliable ordinary retrieval, design a local collector with chapter order, progress, storage checks and EPUB validation.
+After reviewing the disassembly:
+1. Identify one well-supported callable route and its exact argument contract.
+2. Design a minimal harmless test on a page the user is already entitled to view.
+3. Record success/failure without reading page contents, credentials or browser databases.
+4. Do not proceed with collection if the browser denies access, shows a Cloudflare challenge, or returns incomplete content. Do not attempt CAPTCHA/proof-of-work bypasses.
 
-Do not attempt CAPTCHA/proof-of-work bypasses. Keep the existing Apps Script receiver and EPUB builder separate and unchanged.
+Only after ordinary access and JavaScript integration are demonstrated should we design chapter collection, ordering, progress, storage checks and EPUB validation.
 
 ## Cleanup and versions
 
-The cleanup queue removes retired smoke-test scripts and logs, old KPP bundle-scan scripts/logs/paste links, the previous broad LIPC probe and uploader, their logs and saved delete links, and the exact old browser bookmark after backup and verification. It preserves the new KPP interface inspector, the KOReader plugin and its repair utility.
+The cleanup queue retires old smoke-test scripts/logs, old bundle-scan artifacts, the previous broad LIPC probe/uploader and saved links, and the exact old test bookmark. It preserves the current read-only inspector, KPM updater, automatic version reporting, KOReader and the Kindle Batch Preparation repair utility.
 
-`Kindle-Version-Report.txt` is automatically regenerated during package installation/upgrade and after a successful Kindle Batch Preparation repair. It includes device firmware, KPM and package versions, KOReader revision when available, plugin fingerprints, and the local KPP bytecode export status/checksum. There is no separate manual version-report launcher.
+`Kindle-Version-Report.txt` is regenerated automatically during package installation/upgrade and after a successful plugin repair. No separate manual version-report launcher is required.
