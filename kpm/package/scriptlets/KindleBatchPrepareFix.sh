@@ -9,7 +9,6 @@ PLUGIN_ROOT="$KO_ROOT/plugins"
 DEFAULT_PLUGIN_DIR="$PLUGIN_ROOT/kindle-batch-prepare-addon-fixed.koplugin"
 LOCAL_SOURCE="$DOCS/KindleBatchPrepare-main.lua.gz"
 LOG="$DOCS/KindleBatchPrepareFix.log"
-VERSION_REPORT="$DOCS/.royalroadtools/version-info.sh"
 
 mkdir -p "$DOCS"
 : > "$LOG"
@@ -281,13 +280,5 @@ say "Output safety: incomplete conversions use a staging EPUB until completion i
 say "Stale cache entries are cleared before retrying an unfinished book."
 say "Restart KOReader to load the plugin."
 say "Full log saved to: $LOG"
-if [ -x "$VERSION_REPORT" ]; then
-  if sh "$VERSION_REPORT" >> "$LOG" 2>&1; then
-    say "Version report refreshed: $DOCS/Kindle-Version-Report.txt"
-  else
-    say "WARNING: Plugin repair succeeded, but the version report could not be refreshed."
-  fi
-else
-  say "WARNING: Automatic version report generator not found at $VERSION_REPORT"
-fi
+say "Run Kindle-Version-Report.sh separately when you want to refresh the software inventory."
 exit 0

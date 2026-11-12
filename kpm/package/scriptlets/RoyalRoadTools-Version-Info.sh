@@ -1,7 +1,7 @@
 #!/bin/sh
-# Name: RoyalRoadTools-Version-Info
+# Name: Kindle-Version-Report
 # Report build: 1.7
-# Refreshes a readable software inventory on the Kindle.
+# Manual launcher: refreshes a readable software inventory on the Kindle.
 
 DOCS="/mnt/us/documents"
 OUT_FINAL="$DOCS/Kindle-Version-Report.txt"

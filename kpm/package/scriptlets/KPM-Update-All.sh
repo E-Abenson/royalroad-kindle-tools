@@ -1,12 +1,11 @@
 #!/bin/sh
-# One-tap KPM repository refresh and package upgrade.
-# sh_integration displays this script's stdout/stderr on the Kindle.
-# All output is also saved in the log; nothing is redirected away from the screen.
+# One-tap KPM repository refresh, package upgrade, and automatic cleanup.
+# Other tools remain manual launchers and are never started by this script.
 
 KPM="/var/local/kmc/bin/kpm"
 DOCS="/mnt/us/documents"
 LOG="$DOCS/KPM-Update-All.log"
-VERSION_REPORT="$DOCS/.royalroadtools/version-info.sh"
+CLEANUP="$DOCS/.royalroadtools/cleanup.sh"
 
 mkdir -p "$DOCS"
 : > "$LOG"
@@ -66,21 +65,29 @@ say "Automatic confirmation is enabled."
 if run_and_show "$KPM" -y upgrade; then
   say "SUCCESS — KPM upgrade completed."
   say "All available upgrades have been processed."
-  if [ -x "$VERSION_REPORT" ]; then
-    say "Refreshing Kindle-Version-Report.txt..."
-    if sh "$VERSION_REPORT" >> "$LOG" 2>&1; then
-      say "SUCCESS — version report regenerated; previous report replaced."
+
+  say ""
+  say "STEP 3 — Running the automatic cleanup queue..."
+  if [ -x "$CLEANUP" ]; then
+    if run_and_show sh "$CLEANUP"; then
+      say "SUCCESS — cleanup completed; no pending items remain."
     else
-      say "WARNING — KPM upgrade succeeded, but the version report could not be regenerated."
+      CLEANUP_RESULT=$?
+      say "WARNING — cleanup has pending or unverifiable items (exit code $CLEANUP_RESULT)."
+      say "They remain queued for the next KPM-Update-All run."
+      say "See $DOCS/RoyalRoadTools-Cleanup.log"
     fi
   else
-    say "WARNING — automatic version report generator is missing: $VERSION_REPORT"
+    say "WARNING — private cleanup runner is missing: $CLEANUP"
+    say "Run KPM-Update-All again after reinstalling the Royal Road Kindle Tools package."
   fi
+
   say "Finished: $(date)"
   exit 0
 else
   RESULT=$?
   say "ERROR — KPM upgrade failed (exit code $RESULT)."
+  say "Cleanup was not run because the package upgrade did not complete successfully."
   say "Finished: $(date)"
   exit "$RESULT"
 fi

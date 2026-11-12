@@ -1,7 +1,7 @@
 #!/bin/sh
 # Name: RR-KPP-Bytecode-Export
-# Automatically make a private, read-only copy of the exact KPP Hermes bundle.
-# This script is run by the package installer; it is not a Kindle library launcher.
+# Manually make a private, read-only copy of the exact KPP Hermes bundle.
+# Run this launcher only when you explicitly want to refresh the local research copy.
 #
 # PRIVACY / SAFETY:
 # - Reads only /app/KPPMainApp/js/KPPMainApp.js.hbc.

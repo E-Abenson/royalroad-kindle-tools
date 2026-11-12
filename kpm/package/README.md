@@ -1,26 +1,27 @@
 # Royal Road Kindle Tools — KPM package
 
-This package contains a **read-only static KPP browser interface inspector** and the maintenance tools still in use. It is not a Royal Road story downloader or EPUB builder.
+This package provides a small set of **manual Kindle launchers** plus one private cleanup helper. It is not a Royal Road story downloader or EPUB builder.
 
-## Kindle library items
+## Manual Kindle launchers
 
-- **RR-KPP-Interface-Inspector** — inspects a small set of installed KPP/browser application files for fixed interface markers such as `invokeAction`, JavaScript evaluation method names, navigation methods, WebView/WebKit/Chromium markers, and debugging symbols. It reports only file paths and the names of markers found. Raw strings are never printed to the report. The inspector itself remains offline.
-- **Automatic KPP research** — the package installer runs the read-only inspector, exports the exact Hermes bundle to a private local folder, and then uploads only the sanitised inspector report to `pasters.io` with a one-day expiry. The returned share URL is written at the top of the inspector log. The compiled application bundle is never uploaded to the paste service. This release exports it locally only; automated disassembly still needs a private authenticated receiver.
-- **RoyalRoadTools-Cleanup** — a persistent cleanup runner. It processes a queue of retired test scripts, logs, temporary files, package-cache files, saved paste links, and the exact old Royal Road Session Test bookmark. Each item is removed from the pending queue only after deletion is verified. Failed items stay queued for retry.
-- **RoyalRoadTools-Cleanup-Queue.txt** — the repository queue template. Add future cleanup targets here as one TYPE|VALUE line. The installer merges new lines into the Kindle's queue without overwriting pending work or re-adding completed work.
-- **Internal version-report helper** — regenerates Kindle-Version-Report.txt with device firmware, KPM versions and installed package versions, KOReader revision, and the installed Kindle Batch Preparation plugin code fingerprint. It is installed under `.royalroadtools` and is not a Kindle library launcher.
-- **KPM-Update-All** — refreshes package repositories and upgrades installed packages. Its log is cleared at the start of each run.
-- **KindleBatchPrepareFix** — an on-demand repair/reinstall utility for the separate Kindle Batch Preparation KOReader plugin. It is not a background service. Keep it; use it only if that plugin needs repair or reinstalling. Its log is cleared at the start of each run.
+- **RR-KPP-Interface-Inspector** — manually scans selected KPP/browser/WebKit/Chromium/Juno files for fixed interface markers. It reports only file paths and marker names; raw strings are never printed. The inspector remains offline.
+- **RR-KPP-Interface-Inspector-Upload** — optional manual upload of the sanitised inspector report to `pasters.io` with a one-day expiry. Run the inspector first. Anyone with the share link can read the report.
+- **RR-KPP-Bytecode-Export** — manually saves a private, read-only copy of the Hermes bundle. It never uploads the binary bundle and does not execute or disassemble it.
+- **Kindle-Version-Report** — manually refreshes `Kindle-Version-Report.txt` with device firmware, KPM and installed package versions, KOReader revision, plugin fingerprints, and local KPP export status/checksum.
+- **KPM-Update-All** — manually refreshes package repositories and upgrades installed packages. After a successful upgrade, it automatically runs the private cleanup helper.
+- **KindleBatchPrepareFix** — manually repairs/reinstalls the separate Kindle Batch Preparation KOReader plugin. It is not a background service.
 
-## How cleanup works
+The inspector, uploader, bytecode export, version report, and plugin repair do **not** run automatically during installation or update. Open each launcher only when you choose to use it.
 
-1. KPM installs the current cleanup runner and merges the repository queue template into `/mnt/us/documents/RoyalRoadTools-Cleanup-Queue.txt`.
-2. The package installer runs the cleaner automatically during installation or upgrade. You can also open **RoyalRoadTools-Cleanup** manually to retry failed items.
-3. Successful items disappear from the pending queue and are written to `RoyalRoadTools-Cleanup-Completed.txt`. The installer checks that ledger before adding a template item, so completed tasks are not resurrected by later updates.
-4. Failed or unverifiable items remain in the queue. This includes remote-paste deletion when the service cannot confirm deletion, or bookmark cleanup when the browser database cannot be safely checked. A related public paste URL is retained while remote deletion is pending; a missing or unrecognized delete link is not treated as successful deletion.
-5. The cleanup runner itself and its queue/ledger remain installed so future releases can add more work.
+## Automatic cleanup
 
-To add a future cleanup target, add one line to the repository template:
+There is no separate **RoyalRoadTools-Cleanup** Kindle launcher. The cleanup runner is stored privately at `/mnt/us/documents/.royalroadtools/cleanup.sh` and is run automatically by **KPM-Update-All** after a successful package upgrade.
+
+The package installer only installs the hidden runner and merges new entries from the repository queue template into `/mnt/us/documents/RoyalRoadTools-Cleanup-Queue.txt`; it does not execute the cleanup. Successful actions are removed from the pending queue and recorded in `RoyalRoadTools-Cleanup-Completed.txt`. Failed or unverifiable actions remain queued for the next Update All run.
+
+The cleaner processes only explicit queue entries for retired test scripts, logs, temporary files, package-cache files, saved paste links, and the exact old Royal Road Session Test bookmark. It does not recursively delete folders.
+
+To add a future cleanup target, add one line to `kpm/package/scriptlets/RoyalRoadTools-Cleanup-Queue.txt`:
 
 - `DOC|filename` — exact file in `/mnt/us/documents`
 - `DOCGLOB|pattern` — matching files directly inside `/mnt/us/documents`
@@ -29,21 +30,22 @@ To add a future cleanup target, add one line to the repository template:
 - `REMOTE_DELETE|filename` — use a saved pasters.io deletion URL in `/mnt/us/documents`
 - `BOOKMARK|Royal Road Session Test` — remove only the exact project test JavaScript bookmark
 
-Use exact paths and narrow patterns. Never add broad wildcards for user documents, story files, EPUBs, KOReader books, the active inspector, KPM updater, or plugin repair tool.
+Use exact paths and narrow patterns. Never add broad wildcards for user documents, story files, EPUBs, KOReader books, the active inspector, KPM updater, version report, or plugin repair tool.
 
-## Current Kindle logs
+## Current Kindle logs and reports
 
-- `/mnt/us/documents/RR-KPP-Interface-Inspector.log` — automatically refreshed static interface inspection report; after a successful upload, the one-day pasters.io share link is at the very top.
-- `/mnt/us/documents/KPP-Bytecode-Export.txt` — automatic export status and bundle checksum.
-- `/mnt/us/documents/RoyalRoadTools-Cleanup.log` — latest cleanup run and per-item results.
-- `/mnt/us/documents/KPM-Update-All.log` — latest package update result.
-- `/mnt/us/documents/KindleBatchPrepareFix.log` — latest KOReader plugin repair result.
+- `/mnt/us/documents/RR-KPP-Interface-Inspector.log` — created when the manual inspector is run; an optional upload adds a one-day share link at the top.
+- `/mnt/us/documents/KPP-Bytecode-Export.txt` — refreshed when the manual bytecode exporter is run.
+- `/mnt/us/documents/RoyalRoadTools-Cleanup.log` — latest automatic cleanup run.
+- `/mnt/us/documents/KPM-Update-All.log` — latest package update and cleanup result.
+- `/mnt/us/documents/KindleBatchPrepareFix.log` — latest manual plugin repair result.
+- `/mnt/us/documents/Kindle-Version-Report.txt` — refreshed by running the manual version-report launcher.
 
-The maintenance logs are cleared at the start of their respective runs. Retired test logs are removed by the cleanup queue.
+Each active script clears its own log or report at the start of a run, replacing the prior result.
 
 ## Safety and limits
 
-The inspector is intentionally narrower than the previous LIPC dump. It does **not** run `lipc-probe` or `lipc-get-prop`, read LIPC property values, read the browser URL/settings, inspect cookies/history/bookmarks/database rows, send LIPC writes/events, navigate, refresh, or execute JavaScript. It scans only filenames matching KPP/browser/WebKit/Chromium/Juno patterns under selected application directories, limits the scan to 80 files and skips files over approximately 50 MB. It extracts strings locally but writes only fixed marker names and file paths to its report; raw strings are held in a private temporary file and removed on exit. During package installation/upgrade the inspector and upload helper run automatically. Only the fixed-marker/file-path report goes to pasters.io, with a one-day expiry; anyone with the link can read it. The binary `KPPMainApp.js.hbc` copy stays in a local directory with restrictive permissions and is never sent to pasters.io. The current package does not disassemble it until a private authenticated receiver is configured.
+The inspector is intentionally narrower than the previous LIPC dump. It does not run `lipc-probe` or `lipc-get-prop`, read LIPC property values, read the browser URL/settings, inspect cookies/history/bookmarks/database rows, send LIPC writes/events, navigate, refresh, or execute JavaScript. It scans only filenames matching KPP/browser/WebKit/Chromium/Juno patterns under selected application directories, limits the scan to 80 files and skips files over approximately 50 MB. It extracts strings locally but writes only fixed marker names and file paths to its report; raw strings are held in a private temporary file and removed on exit.
 
 A marker only establishes that text is embedded in a file. It does not prove that a method is callable or reveal a supported `invokeAction` payload. Do not guess or send one. Do not share a full `lipc-probe -a -v` dump: broad LIPC output can include private account and authentication values.
 
