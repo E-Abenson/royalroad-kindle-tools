@@ -7,7 +7,7 @@
     "royalroad-kindle-tools": {
       "name": "Royal Road Kindle Tools",
       "author": "E-Abenson",
-      "description": "One-time USB bytecode export and local Windows disassembly, automatic version reporting and cleanup, plus KOReader maintenance tools.",
+      "description": "One-run read-only KPP/LIPC diagnostics with sanitized Pasters.io sharing, one-time USB bytecode export and local Windows disassembly, automatic version reporting and cleanup, plus KOReader maintenance tools.",
       "artifacts": [
         {
           "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.99/royalroad-kindle-tools_0.1.99_kindlehf.kpkg",
