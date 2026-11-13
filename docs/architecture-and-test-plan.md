@@ -20,11 +20,18 @@ Use the Kindle's own built-in browser session to retrieve pages the user can ope
 
 The KPM package keeps only the tools needed for the current investigation stage:
 
+- **KPP-Comprehensive-Diagnostic** — a one-run manual, read-only snapshot of relevant KPP/browser processes, filtered LIPC service/property names, D-Bus service-owner PIDs, the readable current-page hostname (without its path/query), and the KPP bundle fingerprint. It deliberately avoids property values, LIPC writes/events, JavaScript execution, D-Bus monitoring, and network activity.
 - **RR-KPP-Bytecode-Export** — a one-time manual launcher that copies an unmodified KPP Hermes bundle to the USB-visible Kindle Documents folder.
 - **KPM-Update-All** — manually refreshes and upgrades KPM packages, then automatically runs the private cleanup helper and refreshes the version report.
 - **KindleBatchPrepareFix** — manual repair/reinstall utility for the KOReader Kindle Batch Preparation plugin.
 
 The earlier Kindle-side KPP interface inspector and Pasters.io uploader are retired. They are not installed by current package releases, and the cleanup queue removes old launchers, reports and local upload metadata. The bytecode exporter is kept because the next stage needs its output.
+
+## One-run comprehensive device diagnostic
+
+Open the built-in KPP browser to an ordinary page the user can access, then launch **KPP-Comprehensive-Diagnostic** once from the Kindle library. It creates one USB-visible report at `/mnt/us/documents/KPP-Comprehensive-Diagnostic.txt`. The script runs `lipc-probe -a` without `-v`, filters service/property names locally, resolves matching service owners through the read-only D-Bus name-owner method, inventories relevant process names without command-line arguments, and fingerprints the known KPP executable/Hermes bundle. It requests `getLastOpenPage` only when the KPP browser service advertises it as readable; only the hostname is retained. It does not write LIPC properties, emit events, invoke browser actions, execute JavaScript, enable D-Bus eavesdropping, inspect cookies/storage, change configuration, or make network requests.
+
+This is one consolidated snapshot, not a set of separate probes. The report provides runtime evidence to compare with the existing local Hermes disassembly. It cannot prove that an external browser action is supported.
 
 ## One-time Windows disassembly
 
