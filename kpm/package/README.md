@@ -4,6 +4,7 @@ This package contains a small number of Kindle tools and a private cleanup helpe
 
 ## Kindle launchers
 
+- **KPP-Comprehensive-Diagnostic** — one-run manual, read-only snapshot of KPP/browser processes, filtered LIPC service/property names, service-owner PIDs, the readable current-page hostname (without path or query), and the installed KPP bundle fingerprint. It creates one report in Documents and never writes to LIPC or executes a browser action.
 - **RR-KPP-Bytecode-Export** — one-time manual export of a verified Hermes bundle copy to the USB-visible Kindle Documents folder. Keep it until the Windows disassembly test is complete.
 - **KPM-Update-All** — manually refreshes package repositories and upgrades installed packages. After a successful upgrade, it automatically runs the private cleanup helper and refreshes the version report.
 - **KindleBatchPrepareFix** — manually repairs/reinstalls the separate Kindle Batch Preparation KOReader plugin.
@@ -24,6 +25,7 @@ The cleanup queue explicitly removes retired test scripts, logs, reports, tempor
 
 ## Current Kindle logs and reports
 
+- `/mnt/us/documents/KPP-Comprehensive-Diagnostic.txt` — created by the one-run manual read-only KPP/browser diagnostic.
 - `/mnt/us/documents/KPP-Bytecode-Export.txt` — created by the one-time manual bytecode exporter.
 - `/mnt/us/documents/RoyalRoadTools-Cleanup.log` — latest automatic cleanup run.
 - `/mnt/us/documents/KPM-Update-All.log` — latest package update and cleanup result.
@@ -31,6 +33,8 @@ The cleanup queue explicitly removes retired test scripts, logs, reports, tempor
 - `/mnt/us/documents/Kindle-Version-Report.txt` — regenerated automatically after Update All and successful plugin repair.
 
 ## Safety and limits
+
+The comprehensive diagnostic runs `lipc-probe -a` without `-v`, so it collects property names/types but does not dump readable property values. It reads `getLastOpenPage` only when advertised as readable and reports the hostname only. It does not alter D-Bus policy, monitor messages, write LIPC properties, emit events, read cookies, or make network requests.
 
 The one-time exporter reads only `/app/KPPMainApp/js/KPPMainApp.js.hbc`. It does not modify the original application, execute or disassemble the bundle, or upload the binary. The bundle is copied to your own computer by USB for local analysis.
 

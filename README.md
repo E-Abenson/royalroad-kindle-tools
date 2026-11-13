@@ -16,11 +16,16 @@ An experimental KPM toolkit for investigating the jailbroken Kindle's built-in K
 
 The Kindle-side KPP interface-inspector stage is retired. Its launcher, uploader and report are being removed by the cleanup queue; they are no longer installed by package updates.
 
+- **KPP-Comprehensive-Diagnostic** — one manual, read-only diagnostic run. Open the KPP browser to a normal page, run the launcher once, and it creates one consolidated report covering browser/KPP processes, filtered LIPC interfaces, service owners and the KPP bundle fingerprint. It does not change settings or attempt browser actions.
 - **RR-KPP-Bytecode-Export** — one-time manual export of a verified copy of the Hermes bundle to Kindle Documents for USB transfer. Keep this until the one-time Windows disassembly step is complete.
 - **KPM-Update-All** — manual repository refresh and package upgrade. After a successful upgrade, it automatically runs the private cleanup helper and refreshes the version report.
 - **KindleBatchPrepareFix** — manual repair/reinstall tool for the KOReader Kindle Batch Preparation plugin.
 
 The cleanup runner is private at `/mnt/us/documents/.royalroadtools/cleanup.sh`. There is no separate cleanup launcher. Other tools are not automatically started by Update All; the version report is generated internally as part of the update.
+
+## One-run comprehensive diagnostic
+
+After installing the package, open the Kindle's built-in KPP browser to a page you can normally access, then launch **KPP-Comprehensive-Diagnostic** once from the Kindle library. It creates `/mnt/us/documents/KPP-Comprehensive-Diagnostic.txt`. Send that one text file. It inventories matching LIPC service/property names without reading all property values, maps matching service owners to PIDs, lists relevant process names without command-line arguments, fingerprints the KPP app bundle, and — when the LIPC service advertises it as readable — reports only the current page's hostname. It does not write LIPC properties, emit events, inject JavaScript, monitor D-Bus traffic, change configuration, inspect cookies, or make network requests.
 
 ## One-time KPP browser investigation — USB workflow
 
