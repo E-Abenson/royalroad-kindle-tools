@@ -246,10 +246,35 @@ if command -v dbus-send >/dev/null 2>&1 && [ -s "$TMP/services.txt" ]; then
     else
       INTRO_STATUS=$?
     fi
-    sed 's/\\"/"/g' "$TMP/introspection-output.txt" > "$TMP/introspection-unescaped.txt"
+    sed 's/\\\"/"/g' "$TMP/introspection-output.txt" > "$TMP/introspection-unescaped.txt"
     grep -o 'method name="[^"]*"' "$TMP/introspection-unescaped.txt" 2>/dev/null |
       sed 's/^method name="//;s/"$//' |
-      grep -E '^(get|set)[A-Za-z0-9_.-]*(Int|Str|Has)
+      grep -E '^(get|set)[A-Za-z0-9_.-]*(Int|Str|Has)$' |
+      sort -u > "$TMP/introspection-one.txt"
+    METHOD_COUNT="$(wc -l < "$TMP/introspection-one.txt" 2>/dev/null | tr -d ' ')"
+    say "$SERVICE: Introspect exit=$INTRO_STATUS; LIPC-shaped method names=$METHOD_COUNT; stderr=$(error_class "$TMP/introspection-error.txt")"
+    if [ -s "$TMP/introspection-one.txt" ]; then
+      while IFS= read -r METHOD; do
+        printf '%s|%s\n' "$SERVICE" "$METHOD" >> "$TMP/introspection-methods.txt"
+      done < "$TMP/introspection-one.txt"
+    fi
+    INTROSPECT_COUNT=$((INTROSPECT_COUNT + 1))
+  done < "$TMP/services.txt"
+else
+  say "D-Bus introspection skipped; dbus-send or service list unavailable."
+fi
+if [ -s "$TMP/introspection-methods.txt" ]; then
+  sort -u "$TMP/introspection-methods.txt" > "$TMP/introspection-sorted.txt"
+  say "LIPC-shaped D-Bus methods exposed by read-only introspection:"
+  while IFS='|' read -r SERVICE METHOD; do
+    say "$SERVICE | $METHOD"
+  done < "$TMP/introspection-sorted.txt"
+else
+  say "No LIPC-shaped methods were returned by D-Bus introspection."
+fi
+
+section "9. READ-ONLY SERVICE OWNER LOOKUP"
+if [ -s "$TMP/services.txt" ] && command -v dbus-send >/dev/null 2>&1; then
   while IFS= read -r SERVICE || [ -n "$SERVICE" ]; do
     [ -n "$SERVICE" ] || continue
     OWNER_REPLY="$(dbus-send --system --print-reply --dest=org.freedesktop.DBus / org.freedesktop.DBus.GetConnectionUnixProcessID "string:$SERVICE" 2>/dev/null)"
@@ -266,7 +291,6 @@ if command -v dbus-send >/dev/null 2>&1 && [ -s "$TMP/services.txt" ]; then
 else
   say "Service-owner lookup skipped."
 fi
-
 section "10. CURRENT-PAGE PRIVACY"
 say "The browser page was not read or included."
 say "No URL, hostname, path, query, fragment, page text, or history was collected."
