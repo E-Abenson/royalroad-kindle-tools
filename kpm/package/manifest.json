@@ -3,7 +3,7 @@
   "id": "royalroad-kindle-tools",
   "name": "Royal Road Kindle Tools",
   "author": "E-Abenson",
-  "description": "One-time USB Hermes-bundle export and local Windows disassembly, automatic version reporting and cleanup, plus KOReader maintenance tools.",
+  "description": "One-run read-only KPP/browser diagnostics, one-time USB Hermes-bundle export and local Windows disassembly, automatic version reporting and cleanup, plus KOReader maintenance tools.",
   "version": [
     0,
     1,
