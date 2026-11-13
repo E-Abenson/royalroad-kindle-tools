@@ -112,6 +112,7 @@ jobs:
             exit 1
           fi
           tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Bytecode-Export.sh' || { echo "KPM package is missing the USB-visible KPP bytecode exporter"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -q 'KPP-Comprehensive-Diagnostic.sh' || { echo "KPM package is missing the one-run KPP comprehensive diagnostic"; exit 1; }
           if tar -tzf "$PACKAGE" | grep -Eq 'RR-LIPC-READONLY-(PROBE|UPLOAD)[.]sh'; then
             echo "Retired full LIPC probe/uploader must not be included in the package"
             exit 1
@@ -130,7 +131,7 @@ jobs:
           gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" \
             "dist/KPP-One-Time-Disassembler-Windows.zip" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
-            --notes "KPM package with one-time USB-visible Hermes bundle export, local Windows disassembly helper, automatic cleanup and version reporting through Update All, and KOReader plugin repair utility. Retired Kindle-side interface-inspector tools are no longer installed. The Windows helper uses Python already installed; no pip packages or compiler are required."
+            --notes "KPM package with one-run read-only KPP/browser diagnostic, one-time USB-visible Hermes bundle export, local Windows disassembly helper, automatic cleanup and version reporting through Update All, and KOReader plugin repair utility. Retired Kindle-side interface-inspector tools are no longer installed. The Windows helper uses Python already installed; no pip packages or compiler are required."
 
       - name: Update KPM repository manifest
         if: github.event_name != 'pull_request'
