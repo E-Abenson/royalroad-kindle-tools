@@ -29,6 +29,40 @@ say "Privacy: technical metadata only; no page URL/host, account identifier, coo
 say "Sharing: sanitized report; link-only paste; one-week expiry requested."
 say "Changes: no LIPC writes, events, configuration changes, or app modifications."
 
+parse_property_rows() {
+  INPUT_FILE="$1"
+  SERVICE_NAME="$2"
+  OUTPUT_FILE="$3"
+  awk -v svc="$SERVICE_NAME" '
+    function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
+    function access_ok(s) { return s=="r" || s=="w" || s=="rw" }
+    function type_ok(s) { return s=="Int" || s=="Str" || s=="Has" }
+    function name_ok(s) { return s ~ /^[A-Za-z_][A-Za-z0-9_.-]*$/ }
+    {
+      line=trim($0); gsub(/\r/, "", line)
+      n=split(line, f, /[| \t]+/)
+      for (i=1; i<=n && i<=3; i++) f[i]=trim(f[i])
+      name=""; type=""; access=""
+      if (n>=3 && access_ok(f[1]) && type_ok(f[2]) && name_ok(f[3])) {
+        access=f[1]; type=f[2]; name=f[3]
+      } else if (n>=3 && name_ok(f[1]) && type_ok(f[2]) && access_ok(f[3])) {
+        name=f[1]; type=f[2]; access=f[3]
+      }
+      if (name!="" && !seen[name]++) print svc "|" name "|" type "|" access
+    }
+  ' "$INPUT_FILE" >> "$OUTPUT_FILE" 2>/dev/null
+}
+
+error_class() {
+  ERROR_FILE="$1"
+  if [ ! -s "$ERROR_FILE" ]; then echo "none-or-no-stderr"
+  elif grep -qi 'permission denied\|access denied\|not authorized' "$ERROR_FILE"; then echo "access-denied"
+  elif grep -qi 'unknown method\|unknown object\|unknown service\|not found' "$ERROR_FILE"; then echo "not-found-or-unsupported"
+  elif grep -qi 'connection\|timeout\|no reply\|disconnected' "$ERROR_FILE"; then echo "bus-connection-or-timeout"
+  else echo "other-error-text-suppressed"
+  fi
+}
+
 section "1. DEVICE AND PACKAGE"
 say "Kernel: $(uname -r 2>/dev/null || echo unavailable)"
 say "Architecture: $(uname -m 2>/dev/null || echo unavailable)"
@@ -126,11 +160,11 @@ else
   say "ERROR: lipc-probe unavailable."
 fi
 
-
-section "6. ALL-SERVICE METADATA SCAN — PARTIAL OUTPUT IS RETAINED"
+section "6. ALL-SERVICE METADATA SCAN — PARTIAL OUTPUT RETAINED"
 : > "$TMP/all-scan-metadata.txt"
 if command -v lipc-probe >/dev/null 2>&1; then
-  # No -v: do not request readable property values. Parse stdout even on exit 1.
+  # -a lists/probes metadata. Never use -v, which requests readable values.
+  # Parse stdout even when this command returns a nonzero exit code.
   if lipc-probe -a > "$TMP/lipc-all.txt" 2> "$TMP/lipc-all-error.txt"; then
     ALL_STATUS=0
   else
@@ -139,7 +173,7 @@ if command -v lipc-probe >/dev/null 2>&1; then
   ALL_BYTES="$(wc -c < "$TMP/lipc-all.txt" 2>/dev/null | tr -d ' ')"
   ALL_LINES="$(wc -l < "$TMP/lipc-all.txt" 2>/dev/null | tr -d ' ')"
   say "lipc-probe -a exit status: $ALL_STATUS"
-  say "Captured stdout size: $ALL_BYTES bytes; lines: $ALL_LINES"
+  say "Captured stdout: $ALL_BYTES bytes; $ALL_LINES lines"
   say "Stderr classification: $(error_class "$TMP/lipc-all-error.txt")"
   awk -v out="$TMP/all-scan-metadata.txt" '
     function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
@@ -150,37 +184,36 @@ if command -v lipc-probe >/dev/null 2>&1; then
       line=trim($0)
       if (line ~ /^(com|org)[.][A-Za-z0-9_.-]+$/) {
         current=line
-        lower=tolower(current)
-        keep=(lower ~ /(kpp|browser|webkit|webview|chrome|slate|appmgrd)/)
+        low=tolower(current)
+        keep=(low ~ /(kpp|browser|webkit|webview|chrome|slate|appmgrd)/)
         next
       }
       if (!keep) next
       n=split(line, f, /[| \t]+/)
       for (i=1; i<=n && i<=3; i++) f[i]=trim(f[i])
-      if (n>=3 && access_ok(f[1]) && type_ok(f[2]) && name_ok(f[3])) {
+      if (n>=3 && access_ok(f[1]) && type_ok(f[2]) && name_ok(f[3]))
         print current "|" f[3] "|" f[2] "|" f[1] >> out
-      } else if (n>=3 && name_ok(f[1]) && type_ok(f[2]) && access_ok(f[3])) {
+      else if (n>=3 && name_ok(f[1]) && type_ok(f[2]) && access_ok(f[3]))
         print current "|" f[1] "|" f[2] "|" f[3] >> out
-      }
     }
   ' "$TMP/lipc-all.txt" 2>/dev/null
   if [ -s "$TMP/all-scan-metadata.txt" ]; then
     sort -u "$TMP/all-scan-metadata.txt" > "$TMP/all-scan-sorted.txt"
     ALL_ROWS="$(wc -l < "$TMP/all-scan-sorted.txt" | tr -d ' ')"
-    say "Relevant property metadata rows recovered from all-scan stdout: $ALL_ROWS"
+    say "Relevant property metadata rows recovered: $ALL_ROWS"
     while IFS='|' read -r SERVICE PROPERTY PROP_TYPE ACCESS; do
       say "$SERVICE | $PROPERTY | Type: $PROP_TYPE | Access: $ACCESS"
     done < "$TMP/all-scan-sorted.txt"
   else
-    say "No relevant property rows could be safely parsed from all-scan stdout."
-    say "Partial raw output was discarded after local analysis."
+    say "No relevant property rows parsed from all-service stdout; raw output discarded."
   fi
 else
   say "lipc-probe unavailable; all-service scan skipped."
 fi
 
-section "7. INDIVIDUAL SERVICE PROBE STATUS AND PROPERTY METADATA"
+section "7. INDIVIDUAL SERVICE PROBE STATUS AND METADATA"
 : > "$TMP/metadata.txt"
+: > "$TMP/probe-summary.txt"
 if command -v lipc-probe >/dev/null 2>&1 && [ -s "$TMP/services.txt" ]; then
   while IFS= read -r SERVICE || [ -n "$SERVICE" ]; do
     [ -n "$SERVICE" ] || continue
@@ -193,40 +226,26 @@ if command -v lipc-probe >/dev/null 2>&1 && [ -s "$TMP/services.txt" ]; then
     OUT_BYTES="$(wc -c < "$TMP/service-output.txt" 2>/dev/null | tr -d ' ')"
     OUT_LINES="$(wc -l < "$TMP/service-output.txt" 2>/dev/null | tr -d ' ')"
     BEFORE="$(wc -l < "$TMP/metadata.txt" 2>/dev/null | tr -d ' ')"
-    # Parse any stdout even when the command exits nonzero.
-    awk -v svc="$SERVICE" '
-      function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
-      function access_ok(s) { return s=="r" || s=="w" || s=="rw" }
-      function type_ok(s) { return s=="Str" || s=="Int" || s=="Has" }
-      function name_ok(s) { return s ~ /^[A-Za-z_][A-Za-z0-9_.-]*$/ }
-      {
-        line=$0; gsub(/\r/, "", line); line=trim(line)
-        n=split(line, f, /[| \t]+/)
-        for (i=1; i<=n && i<=3; i++) f[i]=trim(f[i])
-        name=""; type=""; access=""
-        if (n>=3 && access_ok(f[1]) && type_ok(f[2]) && name_ok(f[3])) {
-          access=f[1]; type=f[2]; name=f[3]
-        } else if (n>=3 && name_ok(f[1]) && type_ok(f[2]) && access_ok(f[3])) {
-          name=f[1]; type=f[2]; access=f[3]
-        }
-        if (name!="" && !seen[name]++) print svc "|" name "|" type "|" access
-      }
-    ' "$TMP/service-output.txt" >> "$TMP/metadata.txt" 2>/dev/null
+    parse_property_rows "$TMP/service-output.txt" "$SERVICE" "$TMP/metadata.txt"
     AFTER="$(wc -l < "$TMP/metadata.txt" 2>/dev/null | tr -d ' ')"
     ROWS=$((AFTER - BEFORE))
-    say "$SERVICE: exit=$SERVICE_STATUS; stdout bytes=$OUT_BYTES; lines=$OUT_LINES; parsed rows=$ROWS; stderr=$(error_class "$TMP/service-error.txt")"
+    printf '%s|%s|%s|%s|%s\n' "$SERVICE" "$SERVICE_STATUS" "$OUT_BYTES" "$OUT_LINES" "$ROWS" >> "$TMP/probe-summary.txt"
   done < "$TMP/services.txt"
-
+  say "Service | exit | stdout bytes | stdout lines | parsed rows"
+  while IFS='|' read -r SERVICE STATUS BYTES LINES ROWS; do
+    say "$SERVICE | $STATUS | $BYTES | $LINES | $ROWS"
+  done < "$TMP/probe-summary.txt"
   if [ -s "$TMP/metadata.txt" ]; then
     sort -u "$TMP/metadata.txt" > "$TMP/metadata-sorted.txt"
+    say "Unique property metadata from individual probes:"
     while IFS='|' read -r SERVICE PROPERTY PROP_TYPE ACCESS; do
       say "$SERVICE | $PROPERTY | Type: $PROP_TYPE | Access: $ACCESS"
     done < "$TMP/metadata-sorted.txt"
   else
-    say "No property metadata rows could be parsed. Raw output and errors were suppressed."
+    say "No property metadata rows were recovered from individual probes."
   fi
 else
-  say "Individual service probes were skipped."
+  say "Individual service probes skipped."
 fi
 
 section "8. READ-ONLY D-BUS INTROSPECTION FALLBACK"
@@ -246,13 +265,17 @@ if command -v dbus-send >/dev/null 2>&1 && [ -s "$TMP/services.txt" ]; then
     else
       INTRO_STATUS=$?
     fi
-    sed 's/\\\"/"/g' "$TMP/introspection-output.txt" > "$TMP/introspection-unescaped.txt"
+    sed 's/\\\\"/"/g' "$TMP/introspection-output.txt" > "$TMP/introspection-unescaped.txt"
     grep -o 'method name="[^"]*"' "$TMP/introspection-unescaped.txt" 2>/dev/null |
       sed 's/^method name="//;s/"$//' |
-      grep -E '^(get|set)[A-Za-z0-9_.-]*(Int|Str|Has)$' |
+      awk '{
+        prefix=substr($0,1,3)
+        suffix=substr($0,length($0)-2)
+        if ((prefix=="get" || prefix=="set") && (suffix=="Int" || suffix=="Str" || suffix=="Has")) print $0
+      }' |
       sort -u > "$TMP/introspection-one.txt"
     METHOD_COUNT="$(wc -l < "$TMP/introspection-one.txt" 2>/dev/null | tr -d ' ')"
-    say "$SERVICE: Introspect exit=$INTRO_STATUS; LIPC-shaped method names=$METHOD_COUNT; stderr=$(error_class "$TMP/introspection-error.txt")"
+    say "$SERVICE: Introspect exit=$INTRO_STATUS; LIPC-shaped method names=$METHOD_COUNT"
     if [ -s "$TMP/introspection-one.txt" ]; then
       while IFS= read -r METHOD; do
         printf '%s|%s\n' "$SERVICE" "$METHOD" >> "$TMP/introspection-methods.txt"
@@ -261,264 +284,11 @@ if command -v dbus-send >/dev/null 2>&1 && [ -s "$TMP/services.txt" ]; then
     INTROSPECT_COUNT=$((INTROSPECT_COUNT + 1))
   done < "$TMP/services.txt"
 else
-  say "D-Bus introspection skipped; dbus-send or service list unavailable."
+  say "D-Bus introspection skipped."
 fi
 if [ -s "$TMP/introspection-methods.txt" ]; then
   sort -u "$TMP/introspection-methods.txt" > "$TMP/introspection-sorted.txt"
-  say "LIPC-shaped D-Bus methods exposed by read-only introspection:"
-  while IFS='|' read -r SERVICE METHOD; do
-    say "$SERVICE | $METHOD"
-  done < "$TMP/introspection-sorted.txt"
-else
-  say "No LIPC-shaped methods were returned by D-Bus introspection."
-fi
-
-section "9. READ-ONLY SERVICE OWNER LOOKUP"
-if [ -s "$TMP/services.txt" ] && command -v dbus-send >/dev/null 2>&1; then
-  while IFS= read -r SERVICE || [ -n "$SERVICE" ]; do
-    [ -n "$SERVICE" ] || continue
-    OWNER_REPLY="$(dbus-send --system --print-reply --dest=org.freedesktop.DBus / org.freedesktop.DBus.GetConnectionUnixProcessID "string:$SERVICE" 2>/dev/null)"
-    OWNER_PID="$(printf '%s\n' "$OWNER_REPLY" | awk '/uint32/ {print $2; exit}')"
-    case "$OWNER_PID" in
-      ''|*[!0-9]*) say "$SERVICE: owner unavailable or service inactive" ;;
-      *)
-        OWNER_COMM=""
-        [ -r "/proc/$OWNER_PID/comm" ] && OWNER_COMM="$(head -n 1 "/proc/$OWNER_PID/comm" 2>/dev/null | tr -cd '[:alnum:]_.-')"
-        say "$SERVICE: owner process=$OWNER_COMM"
-        ;;
-    esac
-  done < "$TMP/services.txt"
-else
-  say "Service-owner lookup skipped."
-fi
-section "10. CURRENT-PAGE PRIVACY"
-say "The browser page was not read or included."
-say "No URL, hostname, path, query, fragment, page text, or history was collected."
-
-section "11. EXPLICITLY NOT TESTED"
-say "- No LIPC property was written."
-say "- No invokeAction value or browser action was attempted."
-say "- No LIPC event was emitted."
-say "- No JavaScript was injected or executed."
-say "- No D-Bus monitoring or eavesdropping policy was enabled."
-say "- No cookies, browser history, page text, URL, or account data were read."
-say "- No application binary or configuration file was modified."
-
-section "12. RESULT"
-say "This report is a single read-only snapshot, not proof that an external browser action is supported."
-say "LIPC discovery uses lipc-probe -l and targeted individual service probes."
-say "The failed lipc-probe -a command is not repeated."
-say "The report contains filtered service/property metadata, D-Bus method names, process names, service-owner process names, and software fingerprints."
-
-chmod 600 "$REPORT_TMP" 2>/dev/null || true
-if ! mv -f "$REPORT_TMP" "$REPORT"; then
-  echo "Diagnostic completed, but the report could not be saved."
-  exit 1
-fi
-
-echo "Diagnostic collected. Uploading sanitized technical report to pasters.io..."
-if ! command -v curl >/dev/null 2>&1; then
-  echo "UPLOAD NOT DONE: curl unavailable. Local report saved at $REPORT"
-  exit 0
-fi
-
-HTTP_CODE="$(curl -sS --connect-timeout 10 --max-time 45 \
-  -D "$TMP/headers.txt" -o "$TMP/response.txt" -w '%{http_code}' \
-  --data-binary "@$REPORT" "https://pasters.io/?expires=1w" 2> "$TMP/curl-error.txt")"
-CURL_STATUS=$?
-if [ "$CURL_STATUS" -ne 0 ]; then
-  echo "UPLOAD FAILED. Local report retained at $REPORT"
-  echo "No USB export was attempted."
-  exit 0
-fi
-
-header_value() {
-  HEADER_NAME="$1"
-  tr -d '\r' < "$TMP/headers.txt" | awk -v wanted="$HEADER_NAME" '
-    BEGIN { wanted=tolower(wanted) }
-    {
-      name=$0; sub(/:.*/, "", name)
-      if (tolower(name)==wanted) { sub(/^[^:]*:[ \t]*/, ""); print; exit }
-    }'
-}
-PASTE_URL="$(header_value Location)"
-case "$PASTE_URL" in
-  https://pasters.io/*) ;;
-  *) PASTE_URL="$(sed -n 's@.*\(https://pasters\.io/[A-Za-z0-9_-][A-Za-z0-9_-]*\).*@\1@p' "$TMP/response.txt" | head -n 1)" ;;
-esac
-DELETE_URL="$(header_value X-Delete-Url)"
-
-case "$PASTE_URL" in
-  https://pasters.io/*)
-    printf '%s\n' "$PASTE_URL" > "$TMP/paste-url.txt"
-    chmod 600 "$TMP/paste-url.txt"
-    mv -f "$TMP/paste-url.txt" "$PASTE_URL_FILE"
-    case "$DELETE_URL" in
-      https://pasters.io/d/*)
-        printf '%s\n' "$DELETE_URL" > "$TMP/delete-url.txt"
-        chmod 600 "$TMP/delete-url.txt"
-        mv -f "$TMP/delete-url.txt" "$DELETE_URL_FILE"
-        ;;
-      *) rm -f "$DELETE_URL_FILE" ;;
-    esac
-    echo "UPLOAD COMPLETE (HTTP $HTTP_CODE)."
-    echo "Paste link:"
-    echo "$PASTE_URL"
-    echo "The paste link and any deletion link are saved privately in Documents."
-    echo "Only the sanitized diagnostic report was uploaded."
-    echo "One-week expiry was requested."
-    ;;
-  *)
-    echo "UPLOAD COULD NOT BE VERIFIED (HTTP $HTTP_CODE)."
-    echo "Local report retained at $REPORT"
-    ;;
-esac
-sync 2>/dev/null
-exit 0
- |
-      sort -u > "$TMP/introspection-one.txt"
-    METHOD_COUNT="$(wc -l < "$TMP/introspection-one.txt" 2>/dev/null | tr -d ' ')"
-    say "$SERVICE: Introspect exit=$INTRO_STATUS; LIPC-shaped method names=$METHOD_COUNT; stderr=$(error_class "$TMP/introspection-error.txt")"
-    if [ -s "$TMP/introspection-one.txt" ]; then
-      while IFS= read -r METHOD; do
-        printf '%s|%s\n' "$SERVICE" "$METHOD" >> "$TMP/introspection-methods.txt"
-      done < "$TMP/introspection-one.txt"
-    fi
-    INTROSPECT_COUNT=$((INTROSPECT_COUNT + 1))
-  done < "$TMP/services.txt"
-else
-  say "D-Bus introspection skipped; dbus-send or service list unavailable."
-fi
-if [ -s "$TMP/introspection-methods.txt" ]; then
-  sort -u "$TMP/introspection-methods.txt" > "$TMP/introspection-sorted.txt"
-  say "LIPC-shaped D-Bus methods exposed by read-only introspection:"
-  while IFS='|' read -r SERVICE METHOD; do
-    say "$SERVICE | $METHOD"
-  done < "$TMP/introspection-sorted.txt"
-else
-  say "No LIPC-shaped methods were returned by D-Bus introspection."
-fi
-
-section "9. READ-ONLY SERVICE OWNER LOOKUP"
-if [ -s "$TMP/services.txt" ] && command -v dbus-send >/dev/null 2>&1; then
-  while IFS= read -r SERVICE || [ -n "$SERVICE" ]; do
-    [ -n "$SERVICE" ] || continue
-    OWNER_REPLY="$(dbus-send --system --print-reply --dest=org.freedesktop.DBus / org.freedesktop.DBus.GetConnectionUnixProcessID "string:$SERVICE" 2>/dev/null)"
-    OWNER_PID="$(printf '%s\n' "$OWNER_REPLY" | awk '/uint32/ {print $2; exit}')"
-    case "$OWNER_PID" in
-      ''|*[!0-9]*) say "$SERVICE: owner unavailable or service inactive" ;;
-      *)
-        OWNER_COMM=""
-        [ -r "/proc/$OWNER_PID/comm" ] && OWNER_COMM="$(head -n 1 "/proc/$OWNER_PID/comm" 2>/dev/null | tr -cd '[:alnum:]_.-')"
-        say "$SERVICE: owner process=$OWNER_COMM"
-        ;;
-    esac
-  done < "$TMP/services.txt"
-else
-  say "Service-owner lookup skipped."
-fi
-
-section "8. CURRENT-PAGE PRIVACY"
-say "The browser page was not read or included."
-say "No URL, hostname, path, query, fragment, page text, or history was collected."
-
-section "9. EXPLICITLY NOT TESTED"
-say "- No LIPC property was written."
-say "- No invokeAction value or browser action was attempted."
-say "- No LIPC event was emitted."
-say "- No JavaScript was injected or executed."
-say "- No D-Bus monitoring or eavesdropping policy was enabled."
-say "- No cookies, browser history, page text, URL, or account data were read."
-say "- No application binary or configuration file was modified."
-
-section "10. RESULT"
-say "This report is a single read-only snapshot, not proof that an external browser action is supported."
-say "LIPC discovery uses lipc-probe -l and targeted individual service probes."
-say "The failed lipc-probe -a command is not repeated."
-say "The report contains filtered service/property metadata, process names, service-owner process names, and software fingerprints."
-
-chmod 600 "$REPORT_TMP" 2>/dev/null || true
-if ! mv -f "$REPORT_TMP" "$REPORT"; then
-  echo "Diagnostic completed, but the report could not be saved."
-  exit 1
-fi
-
-echo "Diagnostic collected. Uploading sanitized technical report to pasters.io..."
-if ! command -v curl >/dev/null 2>&1; then
-  echo "UPLOAD NOT DONE: curl unavailable. Local report saved at $REPORT"
-  exit 0
-fi
-
-HTTP_CODE="$(curl -sS --connect-timeout 10 --max-time 45 \
-  -D "$TMP/headers.txt" -o "$TMP/response.txt" -w '%{http_code}' \
-  --data-binary "@$REPORT" "https://pasters.io/?expires=1w" 2> "$TMP/curl-error.txt")"
-CURL_STATUS=$?
-if [ "$CURL_STATUS" -ne 0 ]; then
-  echo "UPLOAD FAILED. Local report retained at $REPORT"
-  echo "No USB export was attempted."
-  exit 0
-fi
-
-header_value() {
-  HEADER_NAME="$1"
-  tr -d '\r' < "$TMP/headers.txt" | awk -v wanted="$HEADER_NAME" '
-    BEGIN { wanted=tolower(wanted) }
-    {
-      name=$0; sub(/:.*/, "", name)
-      if (tolower(name)==wanted) { sub(/^[^:]*:[ \t]*/, ""); print; exit }
-    }'
-}
-PASTE_URL="$(header_value Location)"
-case "$PASTE_URL" in
-  https://pasters.io/*) ;;
-  *) PASTE_URL="$(sed -n 's@.*\(https://pasters\.io/[A-Za-z0-9_-][A-Za-z0-9_-]*\).*@\1@p' "$TMP/response.txt" | head -n 1)" ;;
-esac
-DELETE_URL="$(header_value X-Delete-Url)"
-
-case "$PASTE_URL" in
-  https://pasters.io/*)
-    printf '%s\n' "$PASTE_URL" > "$TMP/paste-url.txt"
-    chmod 600 "$TMP/paste-url.txt"
-    mv -f "$TMP/paste-url.txt" "$PASTE_URL_FILE"
-    case "$DELETE_URL" in
-      https://pasters.io/d/*)
-        printf '%s\n' "$DELETE_URL" > "$TMP/delete-url.txt"
-        chmod 600 "$TMP/delete-url.txt"
-        mv -f "$TMP/delete-url.txt" "$DELETE_URL_FILE"
-        ;;
-      *) rm -f "$DELETE_URL_FILE" ;;
-    esac
-    echo "UPLOAD COMPLETE (HTTP $HTTP_CODE)."
-    echo "Paste link:"
-    echo "$PASTE_URL"
-    echo "The paste link and any deletion link are saved privately in Documents."
-    echo "Only the sanitized diagnostic report was uploaded."
-    echo "One-week expiry was requested."
-    ;;
-  *)
-    echo "UPLOAD COULD NOT BE VERIFIED (HTTP $HTTP_CODE)."
-    echo "Local report retained at $REPORT"
-    ;;
-esac
-sync 2>/dev/null
-exit 0
- |
-      sort -u > "$TMP/introspection-one.txt"
-    METHOD_COUNT="$(wc -l < "$TMP/introspection-one.txt" 2>/dev/null | tr -d ' ')"
-    say "$SERVICE: Introspect exit=$INTRO_STATUS; LIPC-shaped method names=$METHOD_COUNT; stderr=$(error_class "$TMP/introspection-error.txt")"
-    if [ -s "$TMP/introspection-one.txt" ]; then
-      while IFS= read -r METHOD; do
-        printf '%s|%s\n' "$SERVICE" "$METHOD" >> "$TMP/introspection-methods.txt"
-      done < "$TMP/introspection-one.txt"
-    fi
-    INTROSPECT_COUNT=$((INTROSPECT_COUNT + 1))
-  done < "$TMP/services.txt"
-else
-  say "D-Bus introspection skipped; dbus-send or service list unavailable."
-fi
-if [ -s "$TMP/introspection-methods.txt" ]; then
-  sort -u "$TMP/introspection-methods.txt" > "$TMP/introspection-sorted.txt"
-  say "LIPC-shaped D-Bus methods exposed by read-only introspection:"
+  say "LIPC-shaped methods exposed by read-only introspection:"
   while IFS='|' read -r SERVICE METHOD; do
     say "$SERVICE | $METHOD"
   done < "$TMP/introspection-sorted.txt"
@@ -560,136 +330,9 @@ say "- No application binary or configuration file was modified."
 
 section "12. RESULT"
 say "This report is a single read-only snapshot, not proof that an external browser action is supported."
-say "LIPC discovery uses lipc-probe -l and targeted individual service probes."
-say "The failed lipc-probe -a command is not repeated."
-say "The report contains filtered service/property metadata, D-Bus method names, process names, service-owner process names, and software fingerprints."
-
-chmod 600 "$REPORT_TMP" 2>/dev/null || true
-if ! mv -f "$REPORT_TMP" "$REPORT"; then
-  echo "Diagnostic completed, but the report could not be saved."
-  exit 1
-fi
-
-echo "Diagnostic collected. Uploading sanitized technical report to pasters.io..."
-if ! command -v curl >/dev/null 2>&1; then
-  echo "UPLOAD NOT DONE: curl unavailable. Local report saved at $REPORT"
-  exit 0
-fi
-
-HTTP_CODE="$(curl -sS --connect-timeout 10 --max-time 45 \
-  -D "$TMP/headers.txt" -o "$TMP/response.txt" -w '%{http_code}' \
-  --data-binary "@$REPORT" "https://pasters.io/?expires=1w" 2> "$TMP/curl-error.txt")"
-CURL_STATUS=$?
-if [ "$CURL_STATUS" -ne 0 ]; then
-  echo "UPLOAD FAILED. Local report retained at $REPORT"
-  echo "No USB export was attempted."
-  exit 0
-fi
-
-header_value() {
-  HEADER_NAME="$1"
-  tr -d '\r' < "$TMP/headers.txt" | awk -v wanted="$HEADER_NAME" '
-    BEGIN { wanted=tolower(wanted) }
-    {
-      name=$0; sub(/:.*/, "", name)
-      if (tolower(name)==wanted) { sub(/^[^:]*:[ \t]*/, ""); print; exit }
-    }'
-}
-PASTE_URL="$(header_value Location)"
-case "$PASTE_URL" in
-  https://pasters.io/*) ;;
-  *) PASTE_URL="$(sed -n 's@.*\(https://pasters\.io/[A-Za-z0-9_-][A-Za-z0-9_-]*\).*@\1@p' "$TMP/response.txt" | head -n 1)" ;;
-esac
-DELETE_URL="$(header_value X-Delete-Url)"
-
-case "$PASTE_URL" in
-  https://pasters.io/*)
-    printf '%s\n' "$PASTE_URL" > "$TMP/paste-url.txt"
-    chmod 600 "$TMP/paste-url.txt"
-    mv -f "$TMP/paste-url.txt" "$PASTE_URL_FILE"
-    case "$DELETE_URL" in
-      https://pasters.io/d/*)
-        printf '%s\n' "$DELETE_URL" > "$TMP/delete-url.txt"
-        chmod 600 "$TMP/delete-url.txt"
-        mv -f "$TMP/delete-url.txt" "$DELETE_URL_FILE"
-        ;;
-      *) rm -f "$DELETE_URL_FILE" ;;
-    esac
-    echo "UPLOAD COMPLETE (HTTP $HTTP_CODE)."
-    echo "Paste link:"
-    echo "$PASTE_URL"
-    echo "The paste link and any deletion link are saved privately in Documents."
-    echo "Only the sanitized diagnostic report was uploaded."
-    echo "One-week expiry was requested."
-    ;;
-  *)
-    echo "UPLOAD COULD NOT BE VERIFIED (HTTP $HTTP_CODE)."
-    echo "Local report retained at $REPORT"
-    ;;
-esac
-sync 2>/dev/null
-exit 0
- |
-      sort -u > "$TMP/introspection-one.txt"
-    METHOD_COUNT="$(wc -l < "$TMP/introspection-one.txt" 2>/dev/null | tr -d ' ')"
-    say "$SERVICE: Introspect exit=$INTRO_STATUS; LIPC-shaped method names=$METHOD_COUNT; stderr=$(error_class "$TMP/introspection-error.txt")"
-    if [ -s "$TMP/introspection-one.txt" ]; then
-      while IFS= read -r METHOD; do
-        printf '%s|%s\n' "$SERVICE" "$METHOD" >> "$TMP/introspection-methods.txt"
-      done < "$TMP/introspection-one.txt"
-    fi
-    INTROSPECT_COUNT=$((INTROSPECT_COUNT + 1))
-  done < "$TMP/services.txt"
-else
-  say "D-Bus introspection skipped; dbus-send or service list unavailable."
-fi
-if [ -s "$TMP/introspection-methods.txt" ]; then
-  sort -u "$TMP/introspection-methods.txt" > "$TMP/introspection-sorted.txt"
-  say "LIPC-shaped D-Bus methods exposed by read-only introspection:"
-  while IFS='|' read -r SERVICE METHOD; do
-    say "$SERVICE | $METHOD"
-  done < "$TMP/introspection-sorted.txt"
-else
-  say "No LIPC-shaped methods were returned by D-Bus introspection."
-fi
-
-section "9. READ-ONLY SERVICE OWNER LOOKUP"
-if [ -s "$TMP/services.txt" ] && command -v dbus-send >/dev/null 2>&1; then
-  while IFS= read -r SERVICE || [ -n "$SERVICE" ]; do
-    [ -n "$SERVICE" ] || continue
-    OWNER_REPLY="$(dbus-send --system --print-reply --dest=org.freedesktop.DBus / org.freedesktop.DBus.GetConnectionUnixProcessID "string:$SERVICE" 2>/dev/null)"
-    OWNER_PID="$(printf '%s\n' "$OWNER_REPLY" | awk '/uint32/ {print $2; exit}')"
-    case "$OWNER_PID" in
-      ''|*[!0-9]*) say "$SERVICE: owner unavailable or service inactive" ;;
-      *)
-        OWNER_COMM=""
-        [ -r "/proc/$OWNER_PID/comm" ] && OWNER_COMM="$(head -n 1 "/proc/$OWNER_PID/comm" 2>/dev/null | tr -cd '[:alnum:]_.-')"
-        say "$SERVICE: owner process=$OWNER_COMM"
-        ;;
-    esac
-  done < "$TMP/services.txt"
-else
-  say "Service-owner lookup skipped."
-fi
-
-section "8. CURRENT-PAGE PRIVACY"
-say "The browser page was not read or included."
-say "No URL, hostname, path, query, fragment, page text, or history was collected."
-
-section "9. EXPLICITLY NOT TESTED"
-say "- No LIPC property was written."
-say "- No invokeAction value or browser action was attempted."
-say "- No LIPC event was emitted."
-say "- No JavaScript was injected or executed."
-say "- No D-Bus monitoring or eavesdropping policy was enabled."
-say "- No cookies, browser history, page text, URL, or account data were read."
-say "- No application binary or configuration file was modified."
-
-section "10. RESULT"
-say "This report is a single read-only snapshot, not proof that an external browser action is supported."
-say "LIPC discovery uses lipc-probe -l and targeted individual service probes."
-say "The failed lipc-probe -a command is not repeated."
-say "The report contains filtered service/property metadata, process names, service-owner process names, and software fingerprints."
+say "LIPC discovery uses lipc-probe -l, non-verbose all-service scan, individual probes and read-only D-Bus introspection."
+say "Partial stdout from lipc-probe -a is retained and parsed even when its exit status is nonzero."
+say "The report contains filtered service/property metadata, LIPC-shaped D-Bus method names, process names, service-owner process names, and software fingerprints."
 
 chmod 600 "$REPORT_TMP" 2>/dev/null || true
 if ! mv -f "$REPORT_TMP" "$REPORT"; then
