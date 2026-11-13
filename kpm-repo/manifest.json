@@ -10,11 +10,11 @@
       "description": "One-time USB bytecode export and local Windows disassembly, automatic version reporting and cleanup, plus KOReader maintenance tools.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.96/royalroad-kindle-tools_0.1.96_kindlehf.kpkg",
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.97/royalroad-kindle-tools_0.1.97_kindlehf.kpkg",
           "version": [
             0,
             1,
-            96
+            97
           ],
           "dependencies": [],
           "supported_platforms": [
