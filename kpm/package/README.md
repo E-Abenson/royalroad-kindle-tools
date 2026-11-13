@@ -13,9 +13,9 @@ This package contains a small number of Kindle tools and a private cleanup helpe
 
 Open an ordinary page in the Kindle's built-in browser, then open **KPP-Comprehensive-Diagnostic** once. It writes `/mnt/us/documents/KPP-Comprehensive-Diagnostic.txt` and uploads that sanitized report to pasters.io.
 
-The previous all-services `lipc-probe -a` command exited with status 1 on the device. This version uses `lipc-probe -l` for service-name discovery, then calls `lipc-probe SERVICE` individually for relevant KPP/browser services. It always includes `com.lab126.kppbrowser`, `com.lab126.browser` and `com.lab126.appmgrd`, even if listing fails.
+The previous all-services `lipc-probe -a` command exited with status 1. This version retains and parses partial stdout from `-a` even when it exits nonzero. It uses `lipc-probe -l` for service-name discovery, runs the non-verbose all-service scan (`-a`, never `-v`), summarizes individual service probes, and uses read-only D-Bus introspection for relevant KPP/browser services. It always includes `com.lab126.kppbrowser`, `com.lab126.browser` and `com.lab126.appmgrd`.
 
-The parser accepts the normal `access type property` format and the earlier project's pipe-delimited format. It emits only property names, type and access metadata. Raw output, values and command errors are suppressed. It performs read-only D-Bus service-owner lookups and records the owner process name, without PID or command-line data. It records relevant process names without PIDs or command-line arguments and fingerprints the KPP executable/Hermes bundle.
+The parser accepts standard `access type property` rows and the earlier project's pipe-delimited format. It recovers matching rows from partial all-service output regardless of exit status, records per-service command status/output sizes/parsed-row counts, and obtains LIPC-shaped method names through read-only D-Bus introspection when available. Raw stdout/stderr and property values are never included; `-v` is not used. Read-only D-Bus owner lookups retain the owner process name but not PID or executable path. Process command lines and PIDs are omitted; the KPP executable/Hermes bundle is fingerprinted.
 
 The paste excludes page URLs/hostnames, account identifiers, cookies, history, page text, process IDs, executable paths and command-line arguments. It includes device/software details, service/property metadata and bundle fingerprints. Anyone with the link can view the paste. The upload requests one-week expiry; this is a request to Pasters.io, not a guarantee. The paste URL and remote-delete URL are saved privately in Documents with restricted permissions. Only the sanitized report is sent; raw command output and temporary files are never uploaded. If curl or network access fails, the local report remains available for USB transfer.
 
@@ -24,8 +24,9 @@ Historical implementation references:
 - [Earlier project read-only LIPC service probe](https://github.com/E-Abenson/royalroad-kindle-tools/commit/336c4c1b36c27998f2f30983533572516c0bbc2)
 - [K3Libre examples of lipc-probe -l and individual service queries](https://github.com/dpavlin/k3libre)
 - [KindleModding LIPC reference](https://kindlemodding.org/kindle-apps-and-services/index.html)
+- [OpenLIPC `lipc-probe` source](https://github.com/arkq/openlipc/blob/master/src/lipc-probe.c)
 
-The script does not use `lipc-probe -v` or repeat the failed `lipc-probe -a` command. It does not write LIPC properties, emit events, inject JavaScript, monitor D-Bus traffic, alter configuration, inspect cookies or make other network requests.
+The script uses `lipc-probe -a` without `-v` and processes partial stdout even when that command exits nonzero. It also queries services individually and uses read-only D-Bus introspection as a fallback. It does not write LIPC properties, emit events, inject JavaScript, monitor D-Bus traffic, alter configuration or inspect cookies. The only network request is the upload of the sanitized report.
 
 ## One-time Windows disassembly
 
