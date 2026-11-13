@@ -65,3 +65,17 @@ PKGDIR|tools
 BOOKMARK|Royal Road Session Test
 
 DOC|Kindle-Version-Report.sh
+
+# Retired Kindle-side KPP interface-inspector stage. Keep the one-time USB bytecode export.
+DOC|RR-KPP-Interface-Inspector.sh
+DOC|RR-KPP-Interface-Inspector-Upload.sh
+DOC|RR-KPP-Interface-Inspector.log
+DOC|.RR-KPP-Interface-Inspector-delete-url.txt
+DOCGLOB|.RR-KPP-Interface-Inspector-*
+PKG|scriptlets/RR-KPP-Interface-Inspector.sh
+PKG|scriptlets/RR-KPP-Interface-Inspector-Upload.sh
+DOC|RoyalRoadTools-Cleanup.sh
+DOC|Install-RoyalRoadTools.sh
+DOCGLOB|.KPM-Update-All-status.*
+DOCGLOB|.RoyalRoadTools-installed-version.txt.tmp.*
+DOCGLOB|.Kindle-Version-Report.txt.tmp.*

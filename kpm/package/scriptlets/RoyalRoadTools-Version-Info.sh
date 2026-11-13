@@ -81,10 +81,6 @@ if [ -r "$KPM_DB" ] && command -v sqlite3 >/dev/null 2>&1; then
 else
   say "Installed package version: unavailable from KPM database"
 fi
-say "KPP interface inspector launcher: $( [ -x "$DOCS/RR-KPP-Interface-Inspector.sh" ] && echo present || echo missing )"
-say "KPP interface upload helper: $( [ -x "$DOCS/.royalroadtools/inspector-upload.sh" ] && echo present || echo missing )"
-say "KPP interface inspector log: $( [ -s "$DOCS/RR-KPP-Interface-Inspector.log" ] && echo present || echo not yet generated )"
-say "Pasters.io delete token: $( [ -s "$DOCS/.RR-KPP-Interface-Inspector-delete-url.txt" ] && echo saved privately || echo not present )"
 say "KPM updater launcher: $( [ -x "$DOCS/KPM-Update-All.sh" ] && echo present || echo missing )"
 say ""
 

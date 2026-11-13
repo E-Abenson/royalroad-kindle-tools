@@ -107,8 +107,10 @@ jobs:
           tar -tzf "$PACKAGE" | grep -qx 'manifest.json'
           tar -tzf "$PACKAGE" | grep -q 'kindle_batch_prepare_main.lua.gz' || { echo "KPM package is missing the bundled Kindle Batch Preparation source"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'RoyalRoadTools-Cleanup-Queue.txt' || { echo "KPM package is missing the cleanup queue template"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Interface-Inspector.sh' || { echo "KPM package is missing the read-only KPP interface inspector"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Interface-Inspector-Upload.sh' || { echo "KPM package is missing the manual Pasters.io report uploader"; exit 1; }
+          if tar -tzf "$PACKAGE" | grep -Eq 'RR-KPP-Interface-Inspector(-Upload)?[.]sh'; then
+            echo "Retired Kindle-side interface-inspector tools must not be included in the KPM package"
+            exit 1
+          fi
           tar -tzf "$PACKAGE" | grep -q 'RR-KPP-Bytecode-Export.sh' || { echo "KPM package is missing the USB-visible KPP bytecode exporter"; exit 1; }
           if tar -tzf "$PACKAGE" | grep -Eq 'RR-LIPC-READONLY-(PROBE|UPLOAD)[.]sh'; then
             echo "Retired full LIPC probe/uploader must not be included in the package"
@@ -128,7 +130,7 @@ jobs:
           gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" \
             "dist/KPP-One-Time-Disassembler-Windows.zip" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
-            --notes "KPM package with manual read-only KPP inspection, one-time USB-visible Hermes bundle export, optional one-day Pasters.io text-report upload, automatic version reporting after Update All, verified cleanup, and KOReader plugin repair utility. Includes a Windows helper using Python already installed; no pip packages or compiler are required."
+            --notes "KPM package with one-time USB-visible Hermes bundle export, local Windows disassembly helper, automatic cleanup and version reporting through Update All, and KOReader plugin repair utility. Retired Kindle-side interface-inspector tools are no longer installed. The Windows helper uses Python already installed; no pip packages or compiler are required."
 
       - name: Update KPM repository manifest
         if: github.event_name != 'pull_request'
@@ -155,7 +157,7 @@ jobs:
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "Manual KPP inspection, one-time USB bytecode export and local Windows disassembly, optional report upload, automatic version reporting and cleanup, plus KOReader maintenance tools.",
+                      "description": "One-time USB bytecode export and local Windows disassembly, automatic version reporting and cleanup, plus KOReader maintenance tools.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
