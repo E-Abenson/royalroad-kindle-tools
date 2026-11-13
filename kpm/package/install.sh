@@ -99,6 +99,7 @@ say "Royal Road Kindle Tools — installing current toolset."
 # The Kindle-side interface inspector and report uploader are retired.
 # Do not reinstall these launchers; the queue removes previous copies.
 install_scriptlet "scriptlets/RR-KPP-Bytecode-Export.sh" "$DOCS/RR-KPP-Bytecode-Export.sh"
+install_scriptlet "scriptlets/KPP-Comprehensive-Diagnostic.sh" "$DOCS/KPP-Comprehensive-Diagnostic.sh"
 install_scriptlet "scriptlets/KPM-Update-All.sh" "$DOCS/KPM-Update-All.sh"
 install_scriptlet "scriptlets/KindleBatchPrepareFix.sh" "$DOCS/KindleBatchPrepareFix.sh"
 install_scriptlet "scriptlets/RoyalRoadTools-Version-Info.sh" "$INTERNAL_DIR/version-info.sh"
@@ -139,7 +140,7 @@ chmod 600 "$DOCS/.RoyalRoadTools-installed-version.txt" 2>/dev/null || true
 
 say "Cleanup runner installed privately at $INTERNAL_DIR/cleanup.sh."
 say "It will run automatically only when KPM-Update-All completes successfully."
-say "Manual launchers installed: one-time bytecode export, KPM updater, and plugin repair."
+say "Manual launchers installed: one-run KPP diagnostic, one-time bytecode export, KPM updater, and plugin repair."
 say "The version-report helper is private; no version-report launcher is installed."
 say "Refreshing the version report after package installation..."
 if sh "$INTERNAL_DIR/version-info.sh"; then
@@ -147,6 +148,6 @@ if sh "$INTERNAL_DIR/version-info.sh"; then
 else
   say "WARNING — package installation succeeded, but the version report could not be regenerated."
 fi
-say "No browser diagnostic, bundle export, or report upload was executed by this package installation."
+say "No diagnostic, bundle export, or report upload was executed by this package installation."
 say "Package version: $PACKAGE_VERSION"
 say "Installation complete."
