@@ -1,6 +1,6 @@
 #!/bin/sh
 # Name: Kindle-Version-Report
-# Report build: 1.8
+# Report build: 1.9
 # Manual launcher: refreshes a readable software inventory on the Kindle.
 
 DOCS="/mnt/us/documents"
@@ -82,6 +82,9 @@ else
   say "Installed package version: unavailable from KPM database"
 fi
 say "KPM updater launcher: $( [ -x "$DOCS/KPM-Update-All.sh" ] && echo present || echo missing )"
+say "KPP comprehensive diagnostic launcher: $( [ -x "$DOCS/KPP-Comprehensive-Diagnostic.sh" ] && echo present || echo missing )"
+say "KPP last-open-page check launcher: $( [ -x "$DOCS/KPP-Last-Open-Page-Check.sh" ] && echo present || echo missing ) (read-only; page value stays private)"
+say "One-time KPP bytecode export launcher: $( [ -x "$DOCS/RR-KPP-Bytecode-Export.sh" ] && echo present || echo missing )"
 say ""
 
 say "KOREADER"
@@ -213,6 +216,16 @@ if [ -r "$DOCS/KPM-Update-All.log" ]; then
   say "KPM update result: ${LAST_UPDATE:-no completion marker found}"
 else
   say "KPM update log: not found"
+fi
+if [ -r "$DOCS/RoyalRoadTools-Cleanup.log" ]; then
+  LAST_CLEANUP="$(grep -E 'CLEANUP COMPLETE|CLEANUP PARTIAL' "$DOCS/RoyalRoadTools-Cleanup.log" | tail -n 1)"
+  say "Automatic cleanup result: ${LAST_CLEANUP:-no completion marker found}"
+else
+  say "Automatic cleanup result: log not found"
+fi
+if [ -r "$DOCS/RoyalRoadTools-Cleanup-Queue.txt" ]; then
+  PENDING_COUNT="$(awk 'NF && $0 !~ /^[[:space:]]*#/ {n++} END {print n+0}' "$DOCS/RoyalRoadTools-Cleanup-Queue.txt")"
+  say "Pending cleanup actions: ${PENDING_COUNT:-unknown}"
 fi
 say ""
 say "============================================================"
