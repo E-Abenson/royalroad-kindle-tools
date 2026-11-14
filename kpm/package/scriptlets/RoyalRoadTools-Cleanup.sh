@@ -69,10 +69,13 @@ remove_doc_glob() {
   for TARGET in "$DOCS"/$VALUE; do
     if [ -e "$TARGET" ] || [ -L "$TARGET" ]; then
       FOUND=1
-      if rm -f "$TARGET" 2>/dev/null && [ ! -e "$TARGET" ] && [ ! -L "$TARGET" ]; then
-        say "  Removed generated file: $(basename "$TARGET")"
+      TARGET_NAME="$(basename "$TARGET")"
+      if grep -Fqx "REMOTE_DELETE|$TARGET_NAME" "$QUEUE" 2>/dev/null; then
+        say "  Preserved private remote-delete token for retry: $TARGET_NAME"
+      elif rm -f "$TARGET" 2>/dev/null && [ ! -e "$TARGET" ] && [ ! -L "$TARGET" ]; then
+        say "  Removed generated file: $TARGET_NAME"
       else
-        say "  FAILED to remove generated file: $(basename "$TARGET")"
+        say "  FAILED to remove generated file: $TARGET_NAME"
         FAILED_GLOB=1
       fi
     fi
@@ -134,8 +137,8 @@ delete_remote_paste() {
   LINK_FILE="$DOCS/$VALUE"
   if [ ! -s "$LINK_FILE" ]; then
     say "  No saved remote deletion link is available: $VALUE"
-    say "  Local retired files are removed independently; this remote paste cannot be deleted automatically."
-    say "  It remains subject to the paste service's own expiry policy."
+    say "  Local retired files are removed independently; no remote deletion request was possible."
+    say "  The remote paste remains subject to the paste service's own expiry policy."
     return 0
   fi
   if ! command -v curl >/dev/null 2>&1; then

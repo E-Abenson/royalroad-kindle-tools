@@ -39,7 +39,7 @@ There is no separate **RoyalRoadTools-Cleanup** Kindle launcher. The cleanup run
 
 The package installer merges the queue template into `/mnt/us/documents/RoyalRoadTools-Cleanup-Queue.txt`; it does not run cleanup itself. Before each cleanup run, still-existing retired targets from the template are re-queued even if an older completion ledger says they were removed. Successful actions are removed from the pending queue and recorded in `RoyalRoadTools-Cleanup-Completed.txt`. Failed or unverifiable actions remain queued for the next Update All run.
 
-The active KPP-Comprehensive-Diagnostic and KPP-Last-Open-Page-Check launchers and their current results are preserved. Older launchers, diagnostic logs, temporary upload/response/header files, URL files, and cached copies of retired package scriptlets are queued for removal. The Pasters.io URL and deletion URL are also retained until remote deletion is verified.
+The active KPP-Comprehensive-Diagnostic and KPP-Last-Open-Page-Check launchers and their current results are preserved. Older launchers, diagnostic logs, temporary upload/response/header files, public paste-link files and cached copies of retired package scriptlets are queued for removal. Local public paste-link files are removed immediately. A private remote-delete token is retained only when a remote deletion is still pending; if no token exists, no remote request is possible and the paste remains subject to the service's own expiry policy. DOCGLOB cleanup explicitly preserves any private delete token that is still queued for retry.
 
 ## Current Kindle logs and reports
 

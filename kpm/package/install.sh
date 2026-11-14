@@ -79,13 +79,17 @@ requeue_existing_targets() {
         if [ -s "$DOCS/$ITEM_VALUE" ]; then FOUND=1; fi
         ;;
       BOOKMARK)
-        if [ "$ITEM_VALUE" = "Royal Road Session Test" ] && [ -f "/var/local/KPPBrowser.db" ] && command -v sqlite3 >/dev/null 2>&1; then
-          BOOKMARK_COUNT="$(sqlite3 -cmd '.timeout 5000' "/var/local/KPPBrowser.db" "SELECT COUNT(*) FROM bookmark WHERE title='Royal Road Session Test' AND url LIKE 'javascript:%';" 2>/dev/null)"
-          case "$BOOKMARK_COUNT" in
-            0) FOUND=0 ;;
-            ''|*[!0-9]*) FOUND=1 ;;
-            *) [ "$BOOKMARK_COUNT" -gt 0 ] && FOUND=1 ;;
-          esac
+        if [ "$ITEM_VALUE" = "Royal Road Session Test" ]; then
+          if [ -f "/var/local/KPPBrowser.db" ] && command -v sqlite3 >/dev/null 2>&1; then
+            BOOKMARK_COUNT="$(sqlite3 -cmd '.timeout 5000' "/var/local/KPPBrowser.db" "SELECT COUNT(*) FROM bookmark WHERE title='Royal Road Session Test' AND url LIKE 'javascript:%';" 2>/dev/null)"
+            case "$BOOKMARK_COUNT" in
+              0) FOUND=0 ;;
+              ''|*[!0-9]*) FOUND=1 ;;
+              *) [ "$BOOKMARK_COUNT" -gt 0 ] && FOUND=1 ;;
+            esac
+          else
+            FOUND=1
+          fi
         fi
         ;;
     esac
