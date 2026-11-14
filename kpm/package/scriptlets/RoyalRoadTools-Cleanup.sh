@@ -42,30 +42,6 @@ remove_doc_file() {
     return 1
   }
 
-  # Keep a public paste URL available while its matching remote deletion
-  # remains pending. The queue is read from its original on-disk copy here,
-  # so this also works when the DOC item appears before REMOTE_DELETE.
-  DELETE_LINK_NAME=""
-  case "$VALUE" in
-    RR-JS-Smoke-Test-upload-url.txt)
-      DELETE_LINK_NAME="RR-JS-Smoke-Test-delete-url.txt"
-      ;;
-    RR-KPP-Bundle-Scan-upload-url.txt)
-      DELETE_LINK_NAME="RR-KPP-Bundle-Scan-delete-url.txt"
-      ;;
-    RR-LIPC-READONLY-UPLOAD-URL.txt)
-      DELETE_LINK_NAME="RR-LIPC-READONLY-UPLOAD-DELETE-URL.txt"
-      ;;
-    RR-KPP-Interface-Inspector.log)
-      DELETE_LINK_NAME=".RR-KPP-Interface-Inspector-delete-url.txt"
-      ;;
-  esac
-  if [ -n "$DELETE_LINK_NAME" ] &&
-     grep -Fqx "REMOTE_DELETE|$DELETE_LINK_NAME" "$QUEUE" 2>/dev/null; then
-    say "  Retained paste URL while remote deletion is pending: $VALUE"
-    return 1
-  fi
-
   TARGET="$DOCS/$VALUE"
   if [ ! -e "$TARGET" ] && [ ! -L "$TARGET" ]; then
     say "  Already absent: $VALUE"
@@ -93,10 +69,13 @@ remove_doc_glob() {
   for TARGET in "$DOCS"/$VALUE; do
     if [ -e "$TARGET" ] || [ -L "$TARGET" ]; then
       FOUND=1
-      if rm -f "$TARGET" 2>/dev/null && [ ! -e "$TARGET" ] && [ ! -L "$TARGET" ]; then
-        say "  Removed generated file: $(basename "$TARGET")"
+      TARGET_NAME="$(basename "$TARGET")"
+      if grep -Fqx "REMOTE_DELETE|$TARGET_NAME" "$QUEUE" 2>/dev/null; then
+        say "  Preserved private remote-delete token for retry: $TARGET_NAME"
+      elif rm -f "$TARGET" 2>/dev/null && [ ! -e "$TARGET" ] && [ ! -L "$TARGET" ]; then
+        say "  Removed generated file: $TARGET_NAME"
       else
-        say "  FAILED to remove generated file: $(basename "$TARGET")"
+        say "  FAILED to remove generated file: $TARGET_NAME"
         FAILED_GLOB=1
       fi
     fi
@@ -157,9 +136,10 @@ delete_remote_paste() {
   }
   LINK_FILE="$DOCS/$VALUE"
   if [ ! -s "$LINK_FILE" ]; then
-    say "  No saved remote deletion link is available; paste deletion cannot be confirmed: $VALUE"
-    say "  Kept the task queued and retained its public paste URL for manual recovery."
-    return 1
+    say "  No saved remote deletion link is available: $VALUE"
+    say "  Local retired files are removed independently; no remote deletion request was possible."
+    say "  The remote paste remains subject to the paste service's own expiry policy."
+    return 0
   fi
   if ! command -v curl >/dev/null 2>&1; then
     say "  curl unavailable; remote deletion remains queued: $VALUE"

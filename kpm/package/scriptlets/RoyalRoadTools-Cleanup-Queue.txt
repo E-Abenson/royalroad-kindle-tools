@@ -11,8 +11,8 @@
 # The cleaner removes an entry from that queue only after deletion is verified.
 # Completed entries are recorded locally so later updates do not re-add them.
 #
-# The active KPP interface inspector is RR-KPP-Interface-Inspector.sh.
-# The older full LIPC dump and its uploader are retired and removed below.
+# Only the current KPP comprehensive diagnostic and one-time bytecode exporter remain active.
+# Legacy launchers, reports, temporary upload files and package-cache copies are removed below.
 
 DOC|RR-JS-Smoke-Test.sh
 DOC|RR-JS-Smoke-Test.log
@@ -79,3 +79,28 @@ DOC|Install-RoyalRoadTools.sh
 DOCGLOB|.KPM-Update-All-status.*
 DOCGLOB|.RoyalRoadTools-installed-version.txt.tmp.*
 DOCGLOB|.Kindle-Version-Report.txt.tmp.*
+
+# Catch all generated files from retired browser and KPP smoke-test tools.
+# These patterns deliberately exclude the current KPP-Comprehensive-Diagnostic
+# and RR-KPP-Bytecode-Export launchers.
+DOCGLOB|RR-JS-Smoke-Test*
+DOCGLOB|RR-KPP-Bundle-Scan*
+DOCGLOB|RR-LIPC-*
+DOCGLOB|RR-Upload-Diagnostic*
+DOCGLOB|RR-Upload-Bundle-Scan*
+DOCGLOB|RR-KPP-Interface-Inspector*
+DOCGLOB|KindleBatchPrepareDiagnostics*
+DOCGLOB|.RR-JS-Smoke-Test-*
+DOCGLOB|.RR-KPP-Bundle-Scan-*
+DOCGLOB|.RR-LIPC-*
+DOCGLOB|.RR-Upload-Diagnostic-*
+DOCGLOB|.RR-Upload-Bundle-Scan-*
+DOCGLOB|.KindleBatchPrepareDiagnostics-*
+
+# Legacy launchers that existed in earlier published KPM packages.
+PKG|scriptlets/RR-JS-Smoke-Test.sh
+PKG|scriptlets/RR-LIPC-Metadata-Check.sh
+PKG|scriptlets/RR-Upload-Diagnostic.sh
+PKG|scriptlets/KindleBatchPrepareDiagnostics.sh
+PKG|scriptlets/RoyalRoadTools.sh
+PKG|scriptlets/Kindle-Version-Report.sh

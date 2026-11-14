@@ -5,6 +5,7 @@ This package contains a small number of Kindle tools and a private cleanup helpe
 ## Kindle launchers
 
 - **KPP-Comprehensive-Diagnostic** — one-run manual read-only snapshot of KPP/browser processes, LIPC service names, individually probed property names/type/access metadata, owner process names, and KPP binary fingerprints. It then uploads only the sanitized technical report to pasters.io with one-week expiry requested. The paste URL and any delete URL are saved privately in Documents.
+- **KPP-Last-Open-Page-Check** — one-run manual read-only query of `com.lab126.kppbrowser.getLastOpenPage`. The exact returned value is stored in the private `.royalroadtools` folder and is never uploaded or printed. A one-line success/failure is shown directly without a paste; only a multiline diagnostic report is sanitized and uploaded to pasters.io.
 - **RR-KPP-Bytecode-Export** — one-time manual export of a verified Hermes bundle copy to the USB-visible Kindle Documents folder. Keep it until the Windows disassembly test is complete.
 - **KPM-Update-All** — manually refreshes package repositories and upgrades installed packages. After a successful upgrade, it automatically runs the private cleanup helper and refreshes the version report.
 - **KindleBatchPrepareFix** — manually repairs/reinstalls the separate Kindle Batch Preparation KOReader plugin.
@@ -38,13 +39,15 @@ There is no separate **RoyalRoadTools-Cleanup** Kindle launcher. The cleanup run
 
 The package installer merges the queue template into `/mnt/us/documents/RoyalRoadTools-Cleanup-Queue.txt`; it does not run cleanup itself. Before each cleanup run, still-existing retired targets from the template are re-queued even if an older completion ledger says they were removed. Successful actions are removed from the pending queue and recorded in `RoyalRoadTools-Cleanup-Completed.txt`. Failed or unverifiable actions remain queued for the next Update All run.
 
-The active KPP-Comprehensive-Diagnostic launcher and report are intentionally not cleanup targets until this test has been run and reviewed. Older diagnostic launchers and logs remain queued. The Pasters.io URL and deletion URL are also retained until remote deletion is verified.
+The active KPP-Comprehensive-Diagnostic and KPP-Last-Open-Page-Check launchers and their current results are preserved. Older launchers, diagnostic logs, temporary upload/response/header files, public paste-link files and cached copies of retired package scriptlets are queued for removal. Local public paste-link files are removed immediately. A private remote-delete token is retained only when a remote deletion is still pending; if no token exists, no remote request is possible and the paste remains subject to the service's own expiry policy. DOCGLOB cleanup explicitly preserves any private delete token that is still queued for retry.
 
 ## Current Kindle logs and reports
 
 - `/mnt/us/documents/KPP-Comprehensive-Diagnostic.txt` — one-run read-only diagnostic report.
 - `/mnt/us/documents/KPP-Comprehensive-Diagnostic-upload-url.txt` — private paste link.
 - `/mnt/us/documents/KPP-Comprehensive-Diagnostic-delete-url.txt` — private remote-delete link, when returned.
+- `/mnt/us/documents/KPP-Last-Open-Page-Check.txt` — sanitized multiline property-check report, only when needed.
+- `/mnt/us/documents/.royalroadtools/last-open-page-private.txt` — exact property result, stored locally with private permissions and never uploaded.
 - `/mnt/us/documents/KPP-Bytecode-Export.txt` — one-time bytecode export metadata.
 - `/mnt/us/documents/RoyalRoadTools-Cleanup.log` — latest automatic cleanup run.
 - `/mnt/us/documents/KPM-Update-All.log` — latest package update and cleanup result.
