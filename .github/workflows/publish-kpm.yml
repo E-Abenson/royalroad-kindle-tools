@@ -123,7 +123,7 @@ jobs:
       - name: Calculate next package version
         id: version
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           LATEST_TAG="$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""' 2>/dev/null || true)"
           VERSION="$(python - "$LATEST_TAG" <<'PY'
@@ -145,7 +145,7 @@ jobs:
 
       - name: Set package version and build
         env:
-          VERSION: \${{ steps.version.outputs.version }}
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
           python - <<'PY'
           import json, os
@@ -206,20 +206,20 @@ jobs:
       - name: Publish immutable versioned release
         if: github.event_name != 'pull_request'
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "\${{ steps.version.outputs.tag }}" "$PACKAGE" \
+          gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" \
             "dist/KPP-Native-Bridge-Inspector-Windows.zip" "dist/SHA256SUMS" \
-            --title "Royal Road Kindle Tools \${{ steps.version.outputs.version }}" \
+            --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
             --notes "KPM package with one manual read-only native KPP executable/shared-library export and a comprehensive offline Windows ELF inspector. The inspector uses bundled, SHA256-verified Capstone 5.0.9 to disassemble named browser/bridge functions and locate static references to relevant strings across every ELF in the supplied archive. It makes no network connections on the user's PC and saves one local findings report. Automatic cleanup/version reporting and KOReader maintenance tools are also included."
 
       - name: Update KPM repository manifest
         if: github.event_name != 'pull_request'
         env:
-          VERSION: \${{ steps.version.outputs.version }}
-          TAG: \${{ steps.version.outputs.tag }}
-          PACKAGE: \${{ env.PACKAGE }}
-          GH_TOKEN: \${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TAG: ${{ steps.version.outputs.tag }}
+          PACKAGE: ${{ env.PACKAGE }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           git fetch origin main
           git reset --hard origin/main
@@ -256,6 +256,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add kpm-repo/manifest.json
           if ! git diff --cached --quiet; then
-            git commit -m "Publish KPM repository index for \${{ steps.version.outputs.tag }}"
+            git commit -m "Publish KPM repository index for ${{ steps.version.outputs.tag }}"
             git push origin HEAD:main
           fi
