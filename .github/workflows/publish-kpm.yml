@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "kpm/package/**"
+      - "pc-tools/native-bridge-inspector/**"
       - "install/Install-RoyalRoadTools.sh"
       - ".github/workflows/publish-kpm.yml"
   pull_request:
@@ -24,7 +25,61 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-native-inspector:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install pinned Capstone for Linux-side validation
+        run: python -m pip install --disable-pip-version-check capstone==5.0.9
+
+      - name: Compile and exercise the ELF disassembly pipeline
+        run: |
+          set -eu
+          python -m py_compile pc-tools/native-bridge-inspector/kpp_native_inspect.py
+          python - <<'PY'
+          import tarfile
+          with tarfile.open("native-inspector-test.tar.gz", "w:gz") as archive:
+              archive.add("/bin/ls", arcname="native-export/files/001_ls.elf")
+          PY
+          python pc-tools/native-bridge-inspector/kpp_native_inspect.py native-inspector-test.tar.gz
+          grep -q "Disassembly backend: Capstone 5.0.9" KPP-Native-Bridge-Findings.txt
+          grep -Eq "Instructions decoded during reference scan: [1-9][0-9]*" KPP-Native-Bridge-Findings.txt
+          grep -q "ELF files fully inspected: 1" KPP-Native-Bridge-Findings.txt
+          echo "Native ELF parsing and instruction disassembly passed."
+
+  validate-windows-wheel:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify and test the bundled Windows Capstone wheel
+        shell: pwsh
+        run: |
+          $wheel = Join-Path $env:RUNNER_TEMP "capstone-5.0.9-py3-none-win_amd64.whl"
+          $url = "https://files.pythonhosted.org/packages/50/e6/6f06fdb6a9ed32c9c37b5bdbeff0b50e66fdb6a9ed32b2f7cd9c036b92d5324112c3ef7080f2c71ecf367d40dd/capstone-5.0.9-py3-none-win_amd64.whl"
+          Invoke-WebRequest -Uri $url -OutFile $wheel
+          $actual = (Get-FileHash -Algorithm SHA256 $wheel).Hash.ToLowerInvariant()
+          $expected = "732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0"
+          if ($actual -ne $expected) { throw "Capstone wheel SHA256 mismatch: $actual" }
+          $env:KPP_CAPSTONE_WHEEL = $wheel
+          python -c "import os,sys,zipfile,tempfile,pathlib; p=pathlib.Path(os.environ['KPP_CAPSTONE_WHEEL']); d=pathlib.Path(tempfile.mkdtemp()); zipfile.ZipFile(p).extractall(d); sys.path.insert(0,str(d)); import capstone; assert capstone.__version__=='5.0.9'; cs=capstone.Cs(capstone.CS_ARCH_ARM64,capstone.CS_MODE_ARM); ins=list(cs.disasm(bytes.fromhex('1f2003d5'),0x1000)); assert ins and ins[0].mnemonic=='nop'; print('Windows Capstone wheel verified; AArch64 NOP decoded.')"
+          python -m py_compile pc-tools/native-bridge-inspector/kpp_native_inspect.py
+
   publish:
+    needs: [validate-native-inspector, validate-windows-wheel]
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -68,7 +123,7 @@ jobs:
       - name: Calculate next package version
         id: version
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: \${{ github.token }}
         run: |
           LATEST_TAG="$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""' 2>/dev/null || true)"
           VERSION="$(python - "$LATEST_TAG" <<'PY'
@@ -90,7 +145,7 @@ jobs:
 
       - name: Set package version and build
         env:
-          VERSION: ${{ steps.version.outputs.version }}
+          VERSION: \${{ steps.version.outputs.version }}
         run: |
           python - <<'PY'
           import json, os
@@ -128,6 +183,22 @@ jobs:
           fi
           mkdir -p dist/KPP-Native-Bridge-Inspector
           cp -R pc-tools/native-bridge-inspector/. dist/KPP-Native-Bridge-Inspector/
+          WHEEL="dist/KPP-Native-Bridge-Inspector/capstone-5.0.9-py3-none-win_amd64.whl"
+          curl -fsSL "https://files.pythonhosted.org/packages/50/e6/6f06fdb6a9ed32c9c37b5bdbeff0b50e66fdb6a9ed32b2f7cd9c036b92d5324112c3ef7080f2c71ecf367d40dd/capstone-5.0.9-py3-none-win_amd64.whl" -o "$WHEEL"
+          echo "732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0  $WHEEL" | sha256sum -c -
+          python - "$WHEEL" "dist/KPP-Native-Bridge-Inspector/CAPSTONE-LICENSE.txt" <<'PY'
+          import sys, zipfile
+          wheel, destination = sys.argv[1:]
+          with zipfile.ZipFile(wheel) as archive:
+              candidates = [
+                  name for name in archive.namelist()
+                  if "license" in name.lower() and not name.endswith("/")
+              ]
+              if not candidates:
+                  raise SystemExit("Capstone wheel did not contain its license file.")
+              with open(destination, "wb") as output:
+                  output.write(archive.read(candidates[0]))
+          PY
           (cd dist && zip -qr KPP-Native-Bridge-Inspector-Windows.zip KPP-Native-Bridge-Inspector)
           sha256sum "$PACKAGE" dist/KPP-Native-Bridge-Inspector-Windows.zip | tee dist/SHA256SUMS
           echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
@@ -135,20 +206,20 @@ jobs:
       - name: Publish immutable versioned release
         if: github.event_name != 'pull_request'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: \${{ github.token }}
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" \
+          gh release create "\${{ steps.version.outputs.tag }}" "$PACKAGE" \
             "dist/KPP-Native-Bridge-Inspector-Windows.zip" "dist/SHA256SUMS" \
-            --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
-            --notes "KPM package with one manual read-only native KPP executable/shared-library export, an offline Windows ELF symbol/string inspector that saves findings locally without network access, automatic cleanup and version reporting through Update All, and KOReader plugin repair. The completed comprehensive diagnostic, last-open-page check and Hermes bytecode exporter are retired and removed. The Windows helper uses Python already installed; no pip packages or compiler are required."
+            --title "Royal Road Kindle Tools \${{ steps.version.outputs.version }}" \
+            --notes "KPM package with one manual read-only native KPP executable/shared-library export and a comprehensive offline Windows ELF inspector. The inspector uses bundled, SHA256-verified Capstone 5.0.9 to disassemble named browser/bridge functions and locate static references to relevant strings across every ELF in the supplied archive. It makes no network connections on the user's PC and saves one local findings report. Automatic cleanup/version reporting and KOReader maintenance tools are also included."
 
       - name: Update KPM repository manifest
         if: github.event_name != 'pull_request'
         env:
-          VERSION: ${{ steps.version.outputs.version }}
-          TAG: ${{ steps.version.outputs.tag }}
-          PACKAGE: ${{ env.PACKAGE }}
-          GH_TOKEN: ${{ github.token }}
+          VERSION: \${{ steps.version.outputs.version }}
+          TAG: \${{ steps.version.outputs.tag }}
+          PACKAGE: \${{ env.PACKAGE }}
+          GH_TOKEN: \${{ github.token }}
         run: |
           git fetch origin main
           git reset --hard origin/main
@@ -167,7 +238,7 @@ jobs:
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "One-run read-only native KPP executable/shared-library export, offline Windows ELF interface inspection with findings saved locally and no network upload, automatic cleanup/version reporting, plus KOReader maintenance tools.",
+                      "description": "One-run read-only native KPP executable/shared-library export, comprehensive offline Windows ELF disassembly and cross-reference analysis with locally saved findings and no PC network upload, automatic cleanup/version reporting, plus KOReader maintenance tools.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
@@ -185,6 +256,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add kpm-repo/manifest.json
           if ! git diff --cached --quiet; then
-            git commit -m "Publish KPM repository index for ${{ steps.version.outputs.tag }}"
+            git commit -m "Publish KPM repository index for \${{ steps.version.outputs.tag }}"
             git push origin HEAD:main
           fi
