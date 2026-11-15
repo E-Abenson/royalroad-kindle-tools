@@ -543,8 +543,6 @@ def disassemble_relevant_functions(data: bytes, layout, symbols, capstone):
         section = symbol["section"]
         start = section["offset"] + symbol["value"] - section["addr"]
         size = symbol["size"]
-        if layout["machine"] == 40 and symbol["value"] != symbol["value"] & ~1:
-            size = symbol["size"]
         if size <= 0:
             later = [
                 other["value"] for other in functions
@@ -586,7 +584,8 @@ def inspect_archive(path: Path):
     files = []
     total = 0
     manifest_lines = []
-    skipped_note = "No exporter manifest was found."
+    candidate_members = 0
+    invalid_elf_members = 0
     with tarfile.open(path, mode="r:gz") as archive:
         members = archive.getmembers()
         if len(members) > 10000:
@@ -594,12 +593,17 @@ def inspect_archive(path: Path):
         for member in members:
             if not member.isfile():
                 continue
-            if member.name.endswith("manifest.tsv"):
+            normalized_name = member.name.replace("\\\\", "/")
+            parts = [part for part in normalized_name.split("/") if part]
+            if parts and parts[-1] == "manifest.tsv":
                 source = archive.extractfile(member)
                 if source is not None:
                     manifest_lines = source.read(2_000_000).decode("utf-8", "replace").splitlines()
-            if "/files/" not in ("/" + member.name):
+            # The exporter stores native files below a directory named "files".
+            # Accept the component anywhere in the archive path, not by substring.
+            if "files" not in parts:
                 continue
+            candidate_members += 1
             if member.size <= 0 or member.size > MAX_ARCHIVE_MEMBER:
                 continue
             total += member.size
@@ -615,6 +619,7 @@ def inspect_archive(path: Path):
                 raise ValueError("archive member size mismatch")
             layout = elf_layout(data)
             if layout is None:
+                invalid_elf_members += 1
                 continue
             basename = Path(member.name).name
             files.append({
@@ -622,7 +627,11 @@ def inspect_archive(path: Path):
                 "sha256": sha256_bytes(data),
             })
     if not files:
-        raise ValueError("no readable ELF files were found in the archive")
+        raise ValueError(
+            "no readable ELF files found; native file entries under 'files': {}; invalid ELF headers: {}".format(
+                candidate_members, invalid_elf_members
+            )
+        )
     if manifest_lines:
         skipped_note = "Exporter manifest was present."
     return files, manifest_lines, skipped_note
