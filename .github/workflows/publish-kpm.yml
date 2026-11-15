@@ -140,7 +140,7 @@ jobs:
           gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" \
             "dist/KPP-Native-Bridge-Inspector-Windows.zip" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
-            --notes "KPM package with one manual read-only native KPP executable/shared-library export, an offline Windows ELF symbol/string inspector that uploads only filtered text findings to Pasters.io, automatic cleanup and version reporting through Update All, and KOReader plugin repair. The completed comprehensive diagnostic, last-open-page check and Hermes bytecode exporter are retired and removed. The Windows helper uses Python already installed; no pip packages or compiler are required."
+            --notes "KPM package with one manual read-only native KPP executable/shared-library export, an offline Windows ELF symbol/string inspector that saves findings locally without network access, automatic cleanup and version reporting through Update All, and KOReader plugin repair. The completed comprehensive diagnostic, last-open-page check and Hermes bytecode exporter are retired and removed. The Windows helper uses Python already installed; no pip packages or compiler are required."
 
       - name: Update KPM repository manifest
         if: github.event_name != 'pull_request'
@@ -167,7 +167,7 @@ jobs:
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "One-run read-only native KPP executable/shared-library export, offline Windows ELF interface inspection with filtered Pasters.io findings upload, automatic cleanup/version reporting, plus KOReader maintenance tools.",
+                      "description": "One-run read-only native KPP executable/shared-library export, offline Windows ELF interface inspection with findings saved locally and no network upload, automatic cleanup/version reporting, plus KOReader maintenance tools.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,

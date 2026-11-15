@@ -7,16 +7,12 @@ import re
 import struct
 import sys
 import tarfile
-import urllib.error
-import urllib.request
 from pathlib import Path
-from urllib.parse import urlsplit
 
 MAX_ARCHIVE_MEMBER = 80_000_000
 MAX_TOTAL_INPUT = 180_000_000
 MAX_FINDINGS_PER_FILE = 180
 MAX_FINDINGS_TOTAL = 700
-PASTE_URL = "https://pasters.io/?expires=1w"
 
 MARKERS = re.compile(
     r"invokeAction|getLastOpenPage|getAllSettings|webViewURL|"
@@ -274,29 +270,6 @@ def build_report(files, archive_name: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def upload_report(report: str):
-    request = urllib.request.Request(
-        PASTE_URL,
-        data=report.encode("utf-8"),
-        headers={
-            "Content-Type": "text/plain; charset=utf-8",
-            "Accept": "text/plain",
-            "User-Agent": "KPP-Native-Bridge-Inspector/1.0",
-        },
-        method="POST",
-    )
-    with urllib.request.urlopen(request, timeout=35) as response:
-        status = response.status
-        body = response.read(4096).decode("utf-8", "replace").strip()
-        location = response.headers.get("Location", "").strip()
-        delete_url = response.headers.get("x-delete-url", "").strip()
-
-    paste_url = body if body.startswith("https://pasters.io/") else location
-    parsed = urlsplit(paste_url)
-    if status not in (200, 201) or parsed.scheme != "https" or parsed.netloc.lower() not in ("pasters.io", "www.pasters.io"):
-        raise RuntimeError(f"Pasters.io did not confirm a valid paste (HTTP {status})")
-    return paste_url, delete_url
-
 
 def main() -> int:
     if len(sys.argv) > 1:
@@ -314,33 +287,26 @@ def main() -> int:
     try:
         files = inspect_archive(archive_path)
         report = build_report(files, str(archive_path))
-    except (OSError, tarfile.TarError, ValueError, struct.error):
-        print("FAILURE: Could not inspect the archive. The local input was not uploaded.")
+    except (OSError, tarfile.TarError, ValueError, struct.error) as error:
+        print(f"FAILURE: Could not inspect the archive ({type(error).__name__}).")
         return 1
 
     if not report:
-        print("FAILURE: No relevant native browser/bridge markers were found. No paste was uploaded.")
+        print("FAILURE: No relevant native browser/bridge markers were found.")
+        print("No findings report was created.")
         return 1
 
     report_path = archive_path.with_name("KPP-Native-Bridge-Findings.txt")
-    report_path.write_text(report, encoding="utf-8", newline="\n")
     try:
-        paste_url, delete_url = upload_report(report)
-    except (OSError, urllib.error.URLError, RuntimeError) as error:
-        print(f"UPLOAD FAILED: Findings saved locally at {report_path.name}; no binary was uploaded.")
-        print(f"Upload detail: {type(error).__name__}")
-        return 0
+        report_path.write_text(report, encoding="utf-8", newline="\n")
+    except OSError as error:
+        print(f"FAILURE: Could not save the findings report ({type(error).__name__}).")
+        return 1
 
-    archive_path.with_name("KPP-Native-Bridge-Findings-upload-url.txt").write_text(
-        paste_url + "\n", encoding="utf-8"
-    )
-    if delete_url.startswith("https://pasters.io/d/"):
-        archive_path.with_name("KPP-Native-Bridge-Findings-delete-url.txt").write_text(
-            delete_url + "\n", encoding="utf-8"
-        )
-    print("SUCCESS: Native findings uploaded to Pasters.io:")
-    print(paste_url)
-    print("One-week expiry requested. The archive and raw binaries were not uploaded.")
+    print("SUCCESS: Native inspection completed.")
+    print(f"Findings report saved locally: {report_path}")
+    print("No network connection or paste service was used.")
+    print("Attach KPP-Native-Bridge-Findings.txt in ChatGPT.")
     return 0
 
 

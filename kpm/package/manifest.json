@@ -3,7 +3,7 @@
   "id": "royalroad-kindle-tools",
   "name": "Royal Road Kindle Tools",
   "author": "E-Abenson",
-  "description": "One manual native KPP executable/shared-library export, offline Windows ELF browser/bridge inspection with filtered Pasters.io findings upload, automatic cleanup/version reporting, and KOReader maintenance tools.",
+  "description": "One manual native KPP executable/shared-library export, offline Windows ELF browser/bridge inspection with findings saved locally and no network upload, automatic cleanup/version reporting, and KOReader maintenance tools.",
   "version": [
     0,
     1,
