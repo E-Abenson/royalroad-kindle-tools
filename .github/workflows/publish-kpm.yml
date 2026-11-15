@@ -69,7 +69,7 @@ jobs:
         shell: pwsh
         run: |
           $wheel = Join-Path $env:RUNNER_TEMP "capstone-5.0.9-py3-none-win_amd64.whl"
-          $url = "https://files.pythonhosted.org/packages/50/e6/6f06fdb6a9ed32c9c37b5bdbeff0b50e66fdb6a9ed32b2f7cd9c036b92d5324112c3ef7080f2c71ecf367d40dd/capstone-5.0.9-py3-none-win_amd64.whl"
+          $url = "https://files.pythonhosted.org/packages/50/e6/6f06fdb6a9ed32b2f7cd9c036b92d5324112c3ef7080f2c71ecf367d40dd/capstone-5.0.9-py3-none-win_amd64.whl"
           Invoke-WebRequest -Uri $url -OutFile $wheel
           $actual = (Get-FileHash -Algorithm SHA256 $wheel).Hash.ToLowerInvariant()
           $expected = "732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0"
@@ -184,7 +184,7 @@ jobs:
           mkdir -p dist/KPP-Native-Bridge-Inspector
           cp -R pc-tools/native-bridge-inspector/. dist/KPP-Native-Bridge-Inspector/
           WHEEL="dist/KPP-Native-Bridge-Inspector/capstone-5.0.9-py3-none-win_amd64.whl"
-          curl -fsSL "https://files.pythonhosted.org/packages/50/e6/6f06fdb6a9ed32c9c37b5bdbeff0b50e66fdb6a9ed32b2f7cd9c036b92d5324112c3ef7080f2c71ecf367d40dd/capstone-5.0.9-py3-none-win_amd64.whl" -o "$WHEEL"
+          curl -fsSL "https://files.pythonhosted.org/packages/50/e6/6f06fdb6a9ed32b2f7cd9c036b92d5324112c3ef7080f2c71ecf367d40dd/capstone-5.0.9-py3-none-win_amd64.whl" -o "$WHEEL"
           echo "732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0  $WHEEL" | sha256sum -c -
           python - "$WHEEL" "dist/KPP-Native-Bridge-Inspector/CAPSTONE-LICENSE.txt" <<'PY'
           import sys, zipfile
