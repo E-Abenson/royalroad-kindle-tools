@@ -2,7 +2,7 @@
 
 ## Goal
 
-Use the Kindle's own built-in browser session to retrieve pages the user can open normally, validate completeness, and eventually build one offline EPUB. Avoid manual chapter-by-chapter copying.
+Investigate the Kindle's own built-in browser session and, only where ordinary access works, eventually build one offline EPUB. Avoid manual chapter-by-chapter copying. This project is not yet a story downloader.
 
 ## Confirmed device facts
 
@@ -11,63 +11,64 @@ Use the Kindle's own built-in browser session to retrieve pages the user can ope
 - SpringBoard jailbreak completed; KPM works.
 - The built-in Kindle browser can open Royal Road chapters.
 - A separate Kindle curl request to Royal Road returned HTTP 403 with Cloudflare challenge markers.
-- com.lab126.kppbrowser.getLastOpenPage is readable.
+- com.lab126.kppbrowser.getLastOpenPage is readable and returned the current browser URL.
 - com.lab126.kppbrowser.invokeAction exists as a write-only string property.
 - The LIPC owner was identified as KPPMainApp, executable /app/bin/KPPMainAppV2.
 - The accepted invokeAction string format remains unknown. No action payload has been sent.
 
+## Completed investigation
+
+The comprehensive LIPC/property diagnostic established that the running KPPMainApp process owns com.lab126.kppbrowser. Its service metadata included the read-only getLastOpenPage and getAllSettings properties, plus write-only invokeAction. The live getLastOpenPage check returned a URL.
+
+The existing Hermes bundle was exported and disassembled once. Its focused analysis found internal functions/references including navigateToKPPBrowser, redirectToWebView, webViewURL and webViewURLRedirectActionId. These are internal code references, not proof of a public LIPC method, safe callable action, or page-text API. The bundle export and disassembly are complete and must not be repeated.
+
 ## Current tools
 
-- **KPP-Comprehensive-Diagnostic** — one manual, read-only snapshot of relevant processes, LIPC service names, individually queried property names/type/access metadata, read-only owner-process mappings, and KPP binary fingerprints. It then uploads only the sanitized report to Pasters.io. The paste link and any delete link are retained locally.
-- **RR-KPP-Bytecode-Export** — one-time manual export of an unmodified KPP Hermes bundle to the USB-visible Kindle Documents folder.
-- **KPM-Update-All** — manually refreshes and upgrades KPM packages, then automatically runs the private cleanup helper and refreshes the version report.
+- **KPP-Native-Bridge-Export** — one manual, read-only export of the running KPP native executable and selected shared libraries mapped by KPPMainApp. It creates a private tar.gz archive in Kindle Documents for USB transfer. It collects no page URL, page text, cookies, account identifiers, process IDs or command lines. It does not upload binaries.
+- **KPM-Update-All** — manually refreshes and upgrades KPM packages, then automatically runs the private cleanup helper and regenerates the version report.
 - **KindleBatchPrepareFix** — manual repair/reinstall utility for the KOReader Kindle Batch Preparation plugin.
 
-## One-run comprehensive device diagnostic
+The prior comprehensive diagnostic, last-open-page test and Hermes bytecode exporter are retired. The current package removes their launcher source files and queues their installed launchers, reports, upload-link files, saved remote-delete metadata and cached package copies for cleanup.
 
-Open the built-in KPP browser to an ordinary page the user can access, then launch **KPP-Comprehensive-Diagnostic** once from the Kindle library. It creates `/mnt/us/documents/KPP-Comprehensive-Diagnostic.txt` and uploads the sanitized report to Pasters.io.
+## Native browser bridge inspection — current stage
 
-The prior device run showed that `lipc-probe -a` exited with status 1. The revised diagnostic now preserves and parses its partial stdout even when the exit status is nonzero. It first runs `lipc-probe -l` to discover KPP/browser-related names, then runs the non-verbose all-service scan (`-a`, never `-v`), individual targeted probes, and read-only D-Bus introspection on relevant KPP/browser services. The exact previously used services (`com.lab126.kppbrowser`, `com.lab126.browser` and `com.lab126.appmgrd`) remain explicit fallbacks.
+1. Open the Kindle's built-in browser and leave it running.
+2. Run **KPP-Native-Bridge-Export** once.
+3. The launcher locates the running KPPMainApp process, copies /app/bin/KPPMainAppV2, and copies selected shared libraries mapped by that process. Selection is limited to app-bundled shared objects and system libraries with KPP/browser/WebView/WebKit/Chromium/Hermes/React/JSI/LIPC-related names. The archive has file-count and size caps.
+4. The archive and manifest are stored in Documents. The manifest includes only each copied file's basename, role, size and SHA256; original paths, process IDs, memory maps and runtime values are excluded.
+5. Copy KPP-Native-Bridge-Binaries.tar.gz to Windows over USB.
+6. Run the bundled KPP-Native-Bridge-Inspector-Windows helper by dragging the archive onto Run-KPP-Native-Inspection.bat.
+7. The helper parses ELF headers, static/dynamic symbol tables, and selected embedded ASCII/UTF-16LE strings. It filters to browser, WebView, JavaScript, LIPC and bridge markers. It does not execute the binaries or disassemble machine instructions.
+8. The helper writes KPP-Native-Bridge-Findings.txt and attempts to upload only that filtered text report to https://pasters.io/?expires=1w. The raw archive, binaries, full strings and complete symbol tables remain local. A one-line success/failure does not create a paste. If report upload fails, the local report remains available.
 
-The metadata parser accepts standard `access type property` rows and the earlier project's pipe-delimited layout. It recovers rows from partial all-service stdout, summarizes individual probe status/output sizes/parsed-row counts, and retains LIPC-shaped method names from read-only D-Bus introspection when available. Raw output and property values are discarded; `-v` is never used. Service-owner lookups record process names but not PIDs or executable paths. Relevant processes are identified by name only; command lines and PIDs are omitted. KPP executable/Hermes bundle names, sizes and SHA256 fingerprints are retained.
+The report omits page URLs, absolute paths, emails and cookie/session/credential/account markers. It includes ELF class/architecture, file hashes and matching marker names/excerpts. Anyone with the paste link can view the report; one-week expiry is requested, not guaranteed.
 
-The report does not read the current page at all. It excludes URLs, hostnames, page paths, query strings, fragments, account identifiers, cookies, history and page text. It also excludes raw command output. The single network operation is an HTTPS POST of the sanitized report to `https://pasters.io/?expires=1w`. Anyone with the resulting link can view it; one-week expiry is requested, not guaranteed. The paste link and remote-delete link, if returned, are stored locally with restricted file permissions. If upload fails, the local report remains available for USB transfer.
+A native string or symbol is only a lead. It does not establish that an external interface is callable, that its argument format is known, or that calling it would be read-only. No guessed invokeAction payload may be sent.
 
-Historical implementations used to repair the failed inventory:
-- [Earlier project per-service browser diagnostic](https://github.com/E-Abenson/royalroad-kindle-tools/commit/e1bd63af7589cd620f0b45862d3e27095225b22b), which queried the browser services individually.
-- [Earlier project read-only LIPC probe](https://github.com/E-Abenson/royalroad-kindle-tools/commit/336c4c1b36c27998f2f30983533572516c0bbc2).
-- [K3Libre Kindle command reference](https://github.com/dpavlin/k3libre), demonstrating `lipc-probe -l` and individual service queries.
-- [OpenLIPC `lipc-probe` source](https://github.com/arkq/openlipc/blob/master/src/lipc-probe.c), documenting all-service scanning and the separate value-display flag.
-- [KindleModding LIPC overview](https://kindlemodding.org/kindle-apps-and-services/index.html), documenting read-only service-owner discovery.
+## Safety and access limits
 
-The diagnostic runs `lipc-probe -a` without `-v`, keeps partial output on nonzero exit, probes selected services individually, and attempts read-only D-Bus introspection. No LIPC properties are written, no events are sent, no browser action or JavaScript is attempted, no D-Bus monitor/eavesdropping policy is enabled, and no app/configuration files are changed. This remains one consolidated manual test, not multiple separate launchers.
+- Do not write LIPC properties or send events during static inspection.
+- Do not send guessed values to com.lab126.kppbrowser.invokeAction.
+- Do not inspect browser memory, cookies, authenticated storage, history, or page text using this native inspection workflow.
+- Stop on access-denial, Cloudflare challenge, unexpected redirect, or incomplete page.
+- Do not attempt CAPTCHA/proof-of-work bypasses or other access-control circumvention.
 
-## One-time Windows disassembly
+## Future stages after native findings
 
-Run **RR-KPP-Bytecode-Export** once. It copies the unmodified Hermes bundle to the USB-visible Kindle Documents folder, verifies its SHA256 and header, and writes the size/version/checksum to `KPP-Bytecode-Export.txt`. It does not modify the original application or upload the bundle.
-
-Connect the Kindle to Windows and copy `KPPMainApp.js.hbc` from Documents. Run the supplied Windows helper beside the bundle. It uses Python 3.8+ already installed, downloads a pinned pure-Python Hermes disassembler source on first run, and needs no pip packages or compiler. It creates a focused findings report plus the full local disassembly. The bundle and disassembly remain local.
-
-## Browser investigation safety
-
-The accepted format for `com.lab126.kppbrowser.invokeAction` is unknown. Do not write to it, change LIPC properties, send events, or try guessed payloads until a specific action schema is established from reliable implementation evidence.
-
-Stop on access-denial or Cloudflare challenge responses. Do not attempt CAPTCHA/proof-of-work bypasses or other access-control circumvention.
-
-## Future stages
-
-1. Review the focused findings report and the new live LIPC metadata.
-2. Design a minimal live test only when a supported method and argument format are established.
-3. Test a small number of pages already accessible to the user.
-4. Stop on challenge, access denial, unexpected redirect or incomplete page.
-5. Only after reliable ordinary retrieval, design a local collector and EPUB validation.
+1. Review only the filtered native findings and determine whether a concrete browser bridge implementation path is identifiable.
+2. Correlate any native bridge lead with reliable implementation evidence and documented read-only semantics.
+3. Only if such an API is established, design a minimal live test for metadata that is explicitly safe to query. Do not infer or guess an invokeAction schema from a string name alone.
+4. If there is no supported read-only page-content interface, stop the native LIPC path and evaluate ordinary browser-supported export options instead.
+5. Only after reliable ordinary retrieval is established, design a local collector and validate EPUB completeness.
 
 Keep the existing Apps Script receiver and EPUB builder separate and unchanged.
 
 ## Cleanup and versions
 
-The cleanup queue removes retired smoke-test scripts/logs, old KPP bundle-scan tools, the previous broad LIPC probe/uploader, and the superseded Kindle-side interface inspector/uploader, including their local reports and share-link metadata.
+There is no separate cleanup launcher. The runner is private at /mnt/us/documents/.royalroadtools/cleanup.sh and is called automatically by KPM-Update-All after a successful package upgrade.
 
-The active **KPP-Comprehensive-Diagnostic** launcher and report are not queued while the test is pending. The generated paste URL and delete URL are also retained until remote deletion is confirmed. After the report is reviewed, these temporary artifacts can be queued in a subsequent package update. KPM-Update-All runs the private cleanup helper automatically after a successful package upgrade; there is no manual cleanup launcher. The cleaner re-queues listed retired targets that still exist, even if an old completion ledger says they were removed.
+The installer merges the queue template into /mnt/us/documents/RoyalRoadTools-Cleanup-Queue.txt, and the updater runs it after the KPM upgrade. Existing targets are re-queued even when a stale completion ledger entry exists. Successful actions leave the queue and are recorded in RoyalRoadTools-Cleanup-Completed.txt. Failed/unverifiable actions remain pending.
 
-`Kindle-Version-Report.txt` is regenerated automatically after successful Update All and successful plugin repair.
+Remote paste deletion is attempted only when a private deletion URL was saved. A token remains locally while remote deletion is pending; local files are removed separately. If there is no saved token, the remote paste cannot be deleted through the cleanup helper and remains subject to the paste service's expiry policy.
+
+Kindle-Version-Report.txt is regenerated automatically after successful Update All and successful plugin repair.
