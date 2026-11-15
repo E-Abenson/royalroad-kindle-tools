@@ -8,7 +8,6 @@ import struct
 import sys
 import tarfile
 from pathlib import Path
-from urllib.parse import urlsplit
 
 MAX_ARCHIVE_MEMBER = 80_000_000
 MAX_TOTAL_INPUT = 180_000_000
@@ -299,7 +298,7 @@ def main() -> int:
 
     report_path = archive_path.with_name("KPP-Native-Bridge-Findings.txt")
     try:
-        report_path.write_text(report, encoding="utf-8", newline="\\n")
+        report_path.write_text(report, encoding="utf-8", newline="\n")
     except OSError as error:
         print(f"FAILURE: Could not save the findings report ({type(error).__name__}).")
         return 1
