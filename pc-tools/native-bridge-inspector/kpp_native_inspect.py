@@ -355,12 +355,18 @@ def load_capstone(script_dir: Path):
         importlib.invalidate_caches()
     import capstone
     version = getattr(capstone, "__version__", "unknown")
-    if version != CAPSTONE_VERSION:
-        raise RuntimeError(
-            "Expected Capstone {}, but loaded {}. Re-extract the Windows helper ZIP.".format(
-                CAPSTONE_VERSION, version
+    if sys.platform == "win32":
+        # The distributed Windows helper is tied to the exact wheel verified by SHA256.
+        if version != CAPSTONE_VERSION:
+            raise RuntimeError(
+                "Expected bundled Capstone {}, but loaded {}. Re-extract the Windows helper ZIP.".format(
+                    CAPSTONE_VERSION, version
+                )
             )
-        )
+    elif not str(version).startswith("5."):
+        # Linux CI checks the Capstone 5 API; package and native-core patch versions
+        # can differ between distribution builds.
+        raise RuntimeError("Capstone 5.x is required for the Linux-side validation; loaded {}.".format(version))
     return capstone
 
 
