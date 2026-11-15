@@ -106,7 +106,7 @@ chmod 644 "$SOURCE_TEMP"
 mv -f "$SOURCE_TEMP" "$DOCS/KindleBatchPrepare-main.lua.gz"
 
 PACKAGE_VERSION="$(awk '
-  /"version"[[:space:]]*:/ {
+  index($0, "\"version\"") {
     if (getline > 0) { gsub(/[^0-9]/, ""); a=$0 }
     if (getline > 0) { gsub(/[^0-9]/, ""); b=$0 }
     if (getline > 0) { gsub(/[^0-9]/, ""); c=$0 }

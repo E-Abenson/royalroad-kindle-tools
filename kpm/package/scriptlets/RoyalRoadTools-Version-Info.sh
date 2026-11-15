@@ -224,7 +224,7 @@ else
   say "Automatic cleanup result: log not found"
 fi
 if [ -r "$DOCS/RoyalRoadTools-Cleanup-Queue.txt" ]; then
-  PENDING_COUNT="$(awk 'NF && $0 !~ /^[[:space:]]*#/ {n++} END {print n+0}' "$DOCS/RoyalRoadTools-Cleanup-Queue.txt")"
+  PENDING_COUNT="$(awk 'NF && substr($0, 1, 1) != "#" {n++} END {print n+0}' "$DOCS/RoyalRoadTools-Cleanup-Queue.txt")"
   say "Pending cleanup actions: ${PENDING_COUNT:-unknown}"
 fi
 say ""
