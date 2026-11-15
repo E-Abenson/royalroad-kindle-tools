@@ -8,11 +8,13 @@
 # BOOKMARK|title           removes only the named project test JavaScript bookmark
 #
 # The installer merges these entries into the Kindle's pending queue.
-# The cleaner removes an entry from that queue only after deletion is verified.
-# Completed entries are recorded locally so later updates do not re-add them.
+# The cleaner removes an entry only after its deletion is verified.
+# Completed entries are recorded locally; targets that reappear are re-queued.
 #
-# Only the current KPP comprehensive diagnostic and one-time bytecode exporter remain active.
-# Legacy launchers, reports, temporary upload files and package-cache copies are removed below.
+# The previous KPP comprehensive diagnostic, last-open-page test and Hermes
+# bytecode exporter are completed stages. They are retired in favour of the
+# single current native bridge export workflow. The updater and batch repair
+# launcher remain manual; the cleanup runner remains hidden.
 
 DOC|RR-JS-Smoke-Test.sh
 DOC|RR-JS-Smoke-Test.log
@@ -65,8 +67,6 @@ PKGDIR|tools
 BOOKMARK|Royal Road Session Test
 
 DOC|Kindle-Version-Report.sh
-
-# Retired Kindle-side KPP interface-inspector stage. Keep the one-time USB bytecode export.
 DOC|RR-KPP-Interface-Inspector.sh
 DOC|RR-KPP-Interface-Inspector-Upload.sh
 DOC|RR-KPP-Interface-Inspector.log
@@ -80,9 +80,30 @@ DOCGLOB|.KPM-Update-All-status.*
 DOCGLOB|.RoyalRoadTools-installed-version.txt.tmp.*
 DOCGLOB|.Kindle-Version-Report.txt.tmp.*
 
-# Catch all generated files from retired browser and KPP smoke-test tools.
-# These patterns deliberately exclude the current KPP-Comprehensive-Diagnostic
-# and RR-KPP-Bytecode-Export launchers.
+# Completed-stage launchers and artifacts: remove from Documents and the KPM
+# package cache. Remote paste deletion is attempted only when a saved private
+# deletion URL exists; local files are still removed independently.
+REMOTE_DELETE|KPP-Comprehensive-Diagnostic-delete-url.txt
+REMOTE_DELETE|KPP-Last-Open-Page-Check-delete-url.txt
+DOC|KPP-Comprehensive-Diagnostic-upload-url.txt
+DOC|KPP-Last-Open-Page-Check-upload-url.txt
+DOC|KPP-Comprehensive-Diagnostic.txt
+DOC|KPP-Last-Open-Page-Check.txt
+DOC|KPP-Comprehensive-Diagnostic.sh
+DOC|KPP-Last-Open-Page-Check.sh
+DOC|RR-KPP-Bytecode-Export.sh
+DOC|KPPMainApp.js.hbc
+DOC|KPP-Bytecode-Export.txt
+PKG|scriptlets/KPP-Comprehensive-Diagnostic.sh
+PKG|scriptlets/KPP-Last-Open-Page-Check.sh
+PKG|scriptlets/RR-KPP-Bytecode-Export.sh
+DOCGLOB|KPP-Comprehensive-Diagnostic*
+DOCGLOB|KPP-Last-Open-Page-Check*
+DOCGLOB|RR-KPP-Bytecode-Export*
+DOCGLOB|.KPP-Comprehensive-Diagnostic-*
+DOCGLOB|.KPP-Last-Open-Page-Check-*
+
+# Older catch-all outputs and logs from retired browser/KPP smoke tests.
 DOCGLOB|RR-JS-Smoke-Test*
 DOCGLOB|RR-KPP-Bundle-Scan*
 DOCGLOB|RR-LIPC-*
@@ -97,7 +118,7 @@ DOCGLOB|.RR-Upload-Diagnostic-*
 DOCGLOB|.RR-Upload-Bundle-Scan-*
 DOCGLOB|.KindleBatchPrepareDiagnostics-*
 
-# Legacy launchers that existed in earlier published KPM packages.
+# Legacy cached launchers must not be reinstalled by an older package.
 PKG|scriptlets/RR-JS-Smoke-Test.sh
 PKG|scriptlets/RR-LIPC-Metadata-Check.sh
 PKG|scriptlets/RR-Upload-Diagnostic.sh
