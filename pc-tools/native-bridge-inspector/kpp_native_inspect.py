@@ -584,6 +584,7 @@ def inspect_archive(path: Path):
     files = []
     total = 0
     manifest_lines = []
+    skipped_note = "No exporter manifest was found."
     candidate_members = 0
     invalid_elf_members = 0
     with tarfile.open(path, mode="r:gz") as archive:
@@ -599,6 +600,7 @@ def inspect_archive(path: Path):
                 source = archive.extractfile(member)
                 if source is not None:
                     manifest_lines = source.read(2_000_000).decode("utf-8", "replace").splitlines()
+                    skipped_note = "Exporter manifest was present."
             # The exporter stores native files below a directory named "files".
             # Accept the component anywhere in the archive path, not by substring.
             if "files" not in parts:
