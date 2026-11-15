@@ -8,17 +8,12 @@ COMPLETED="$DOCS/RoyalRoadTools-Cleanup-Completed.txt"
 QUEUE_TEMPLATE="scriptlets/RoyalRoadTools-Cleanup-Queue.txt"
 INTERNAL_DIR="$DOCS/.royalroadtools"
 mkdir -p "$DOCS" "$INTERNAL_DIR"
-
 say() { printf '%s\n' "$*"; }
 
 install_scriptlet() {
-  SOURCE="$1"
-  DEST="$2"
-  TEMP="$DEST.new.$$"
+  SOURCE="$1"; DEST="$2"; TEMP="$DEST.new.$$"
   say "Installing $(basename "$DEST")..."
-  cp "$SOURCE" "$TEMP"
-  chmod 755 "$TEMP"
-  mv -f "$TEMP" "$DEST"
+  cp "$SOURCE" "$TEMP"; chmod 755 "$TEMP"; mv -f "$TEMP" "$DEST"
 }
 
 merge_cleanup_queue() {
@@ -49,24 +44,19 @@ requeue_existing_targets() {
     case "$ITEM_TYPE" in
       DOC)
         TARGET="$DOCS/$ITEM_VALUE"
-        if [ -e "$TARGET" ] || [ -L "$TARGET" ]; then FOUND=1; fi
-        ;;
+        if [ -e "$TARGET" ] || [ -L "$TARGET" ]; then FOUND=1; fi ;;
       DOCGLOB)
         for TARGET in "$DOCS"/$ITEM_VALUE; do
           if [ -e "$TARGET" ] || [ -L "$TARGET" ]; then FOUND=1; fi
-        done
-        ;;
+        done ;;
       PKG)
         TARGET="/mnt/us/kmc/kpm/packages/royalroad-kindle-tools/$ITEM_VALUE"
-        if [ -e "$TARGET" ] || [ -L "$TARGET" ]; then FOUND=1; fi
-        ;;
+        if [ -e "$TARGET" ] || [ -L "$TARGET" ]; then FOUND=1; fi ;;
       PKGDIR)
         TARGET="/mnt/us/kmc/kpm/packages/royalroad-kindle-tools/$ITEM_VALUE"
-        if [ -d "$TARGET" ]; then FOUND=1; fi
-        ;;
+        if [ -d "$TARGET" ]; then FOUND=1; fi ;;
       REMOTE_DELETE)
-        if [ -s "$DOCS/$ITEM_VALUE" ]; then FOUND=1; fi
-        ;;
+        if [ -s "$DOCS/$ITEM_VALUE" ]; then FOUND=1; fi ;;
       BOOKMARK)
         if [ "$ITEM_VALUE" = "Royal Road Session Test" ]; then
           if [ -f "/var/local/KPPBrowser.db" ] && command -v sqlite3 >/dev/null 2>&1; then
@@ -79,8 +69,7 @@ requeue_existing_targets() {
           else
             FOUND=1
           fi
-        fi
-        ;;
+        fi ;;
     esac
     if [ "$FOUND" -eq 1 ]; then
       TEMP="$COMPLETED.new.$$"
@@ -95,24 +84,22 @@ requeue_existing_targets() {
 }
 
 say "Royal Road Kindle Tools — installing current toolset."
-# Only the current native export stage, KPM updater and plugin repair remain
-# as user-facing Kindle launchers. The prior diagnostic/bytecode stages are
-# deliberately retired and removed by the cleanup queue below.
 install_scriptlet "scriptlets/KPP-Native-Bridge-Export.sh" "$DOCS/KPP-Native-Bridge-Export.sh"
 install_scriptlet "scriptlets/KPM-Update-All.sh" "$DOCS/KPM-Update-All.sh"
 install_scriptlet "scriptlets/KindleBatchPrepareFix.sh" "$DOCS/KindleBatchPrepareFix.sh"
 install_scriptlet "scriptlets/RoyalRoadTools-Version-Info.sh" "$INTERNAL_DIR/version-info.sh"
 
-# The cleanup runner is hidden and is called by KPM-Update-All after upgrades.
+# Private cleaner: invoked by KPM-Update-All after successful package upgrades.
 install_scriptlet "scriptlets/RoyalRoadTools-Cleanup.sh" "$INTERNAL_DIR/cleanup.sh"
 rm -f "$DOCS/RoyalRoadTools-Cleanup.sh"
 rm -f "$INTERNAL_DIR/inspector-upload.sh" "$INTERNAL_DIR/bytecode-export.sh"
+# The previous URL test is complete; remove its privately saved URL too.
+rm -f "$INTERNAL_DIR/last-open-page-private.txt"
 rm -f "$DOCS/Kindle-Version-Report.sh" "$DOCS/RoyalRoadTools-Version-Info.sh"
 
 merge_cleanup_queue
 requeue_existing_targets
 
-# Bundle the source used by KindleBatchPrepareFix so repairs work offline.
 SOURCE_TEMP="$DOCS/KindleBatchPrepare-main.lua.gz.new.$$"
 cp "files/kindle_batch_prepare_main.lua.gz" "$SOURCE_TEMP"
 chmod 644 "$SOURCE_TEMP"
