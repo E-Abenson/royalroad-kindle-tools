@@ -14,7 +14,7 @@ It does NOT:
 - run or modify the Kindle binaries;
 - send LIPC writes, events or browser actions;
 - inspect browser memory, cookies, history, page text or page source;
-- upload any binary or the original archive;
+- make any network connection or upload any file;
 - attempt to bypass a website challenge or access restriction.
 
 KINDLE STEP
@@ -35,19 +35,19 @@ WINDOWS STEP
    Run-KPP-Native-Inspection.bat.
 3. The helper uses Python 3.8+ already installed. It needs no pip packages,
    compiler, administrator rights or system-wide installation.
-4. It creates KPP-Native-Bridge-Findings.txt and attempts to upload only
-   that filtered text report to Pasters.io with one-week expiry requested.
-5. Send the displayed paste link. If upload fails, send the local report.
+4. It creates KPP-Native-Bridge-Findings.txt in the same folder as the archive.
+5. Attach KPP-Native-Bridge-Findings.txt directly in the ChatGPT conversation.
 
 PRIVACY
 -------
-Only the final filtered findings report is uploaded. The native executable,
-shared libraries, archive, full strings and full symbol tables remain local.
-The report includes ELF class/architecture, hashes, and selected browser/
-bridge-related symbol or string markers. URLs, absolute paths, emails,
-cookie/session/credential/account markers and runtime data are withheld.
-Anyone with the paste link can view the report; expiry is requested, not
-guaranteed.
+Everything stays on your PC. The helper performs offline ELF header,
+symbol-table and selected embedded-string inspection. It does not upload
+the binary archive, executable, shared libraries, full strings, findings
+or any other file. It does not contact Pasters.io or any other service.
+The findings report contains ELF class/architecture, file hashes, and
+selected browser/bridge-related symbol or string markers. URLs, absolute
+paths, emails, cookie/session/credential/account markers and runtime data
+are withheld.
 
 INTERPRETATION
 --------------
