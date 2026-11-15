@@ -44,9 +44,21 @@ jobs:
           set -eu
           python -m py_compile pc-tools/native-bridge-inspector/kpp_native_inspect.py
           python - <<'PY'
-          import tarfile
+          import tarfile, sys
           with tarfile.open("native-inspector-test.tar.gz", "w:gz") as archive:
-              archive.add("/bin/ls", arcname="native-export/files/001_ls.elf")
+              archive.add(sys.executable, arcname="files/001_python-test.elf")
+          PY
+          python - <<'PY'
+          import importlib.util, tarfile
+          spec = importlib.util.spec_from_file_location("native_inspector", "pc-tools/native-bridge-inspector/kpp_native_inspect.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          with tarfile.open("native-inspector-test.tar.gz", "r:gz") as archive:
+              for member in archive.getmembers():
+                  print("Archive test member:", repr(member.name), "regular:", member.isfile())
+                  if member.isfile():
+                      data = archive.extractfile(member).read()
+                      print("ELF header recognized:", module.elf_layout(data) is not None, "magic:", data[:4].hex())
           PY
           python pc-tools/native-bridge-inspector/kpp_native_inspect.py native-inspector-test.tar.gz
           grep -q "Disassembly backend: Capstone 5.0.9" KPP-Native-Bridge-Findings.txt
@@ -69,12 +81,26 @@ jobs:
         shell: pwsh
         run: |
           $wheel = Join-Path $env:RUNNER_TEMP "capstone-5.0.9-py3-none-win_amd64.whl"
-          $url = "https://files.pythonhosted.org/packages/50/e6/6f06fdb6a9ed32b2f7cd9c036b92d5324112c3ef7080f2c71ecf367d40dd/capstone-5.0.9-py3-none-win_amd64.whl"
-          Invoke-WebRequest -Uri $url -OutFile $wheel
-          $actual = (Get-FileHash -Algorithm SHA256 $wheel).Hash.ToLowerInvariant()
-          $expected = "732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0"
-          if ($actual -ne $expected) { throw "Capstone wheel SHA256 mismatch: $actual" }
           $env:KPP_CAPSTONE_WHEEL = $wheel
+          python - <<'PY'
+          import hashlib, json, os, urllib.request
+          expected = "732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0"
+          metadata = json.load(urllib.request.urlopen("https://pypi.org/pypi/capstone/5.0.9/json", timeout=30))
+          artifact = next(item for item in metadata["urls"] if item["filename"] == "capstone-5.0.9-py3-none-win_amd64.whl")
+          if artifact["digests"]["sha256"] != expected:
+              raise SystemExit("PyPI Capstone wheel SHA256 differs from the pinned expected value.")
+          request = urllib.request.Request(artifact["url"], headers={"User-Agent": "KPP-Native-Inspector-CI/1.0"})
+          with urllib.request.urlopen(request, timeout=90) as response, open(os.environ["KPP_CAPSTONE_WHEEL"], "wb") as output:
+              while True:
+                  chunk = response.read(1024 * 1024)
+                  if not chunk:
+                      break
+                  output.write(chunk)
+          actual = hashlib.sha256(open(os.environ["KPP_CAPSTONE_WHEEL"], "rb").read()).hexdigest()
+          if actual != expected:
+              raise SystemExit("Downloaded Capstone wheel SHA256 mismatch: " + actual)
+          print("Downloaded the exact pinned Capstone wheel.")
+          PY
           python -c "import os,sys,zipfile,tempfile,pathlib; p=pathlib.Path(os.environ['KPP_CAPSTONE_WHEEL']); d=pathlib.Path(tempfile.mkdtemp()); zipfile.ZipFile(p).extractall(d); sys.path.insert(0,str(d)); import capstone; assert capstone.__version__=='5.0.9'; cs=capstone.Cs(capstone.CS_ARCH_ARM64,capstone.CS_MODE_ARM); ins=list(cs.disasm(bytes.fromhex('1f2003d5'),0x1000)); assert ins and ins[0].mnemonic=='nop'; print('Windows Capstone wheel verified; AArch64 NOP decoded.')"
           python -m py_compile pc-tools/native-bridge-inspector/kpp_native_inspect.py
 
@@ -184,8 +210,26 @@ jobs:
           mkdir -p dist/KPP-Native-Bridge-Inspector
           cp -R pc-tools/native-bridge-inspector/. dist/KPP-Native-Bridge-Inspector/
           WHEEL="dist/KPP-Native-Bridge-Inspector/capstone-5.0.9-py3-none-win_amd64.whl"
-          curl -fsSL "https://files.pythonhosted.org/packages/50/e6/6f06fdb6a9ed32b2f7cd9c036b92d5324112c3ef7080f2c71ecf367d40dd/capstone-5.0.9-py3-none-win_amd64.whl" -o "$WHEEL"
-          echo "732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0  $WHEEL" | sha256sum -c -
+          python - "$WHEEL" <<'PY'
+          import hashlib, json, sys, urllib.request
+          destination = sys.argv[1]
+          expected = "732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0"
+          metadata = json.load(urllib.request.urlopen("https://pypi.org/pypi/capstone/5.0.9/json", timeout=30))
+          artifact = next(item for item in metadata["urls"] if item["filename"] == "capstone-5.0.9-py3-none-win_amd64.whl")
+          if artifact["digests"]["sha256"] != expected:
+              raise SystemExit("PyPI Capstone wheel SHA256 differs from the pinned expected value.")
+          request = urllib.request.Request(artifact["url"], headers={"User-Agent": "KPP-Native-Inspector-Build/1.0"})
+          with urllib.request.urlopen(request, timeout=90) as response, open(destination, "wb") as output:
+              while True:
+                  chunk = response.read(1024 * 1024)
+                  if not chunk:
+                      break
+                  output.write(chunk)
+          actual = hashlib.sha256(open(destination, "rb").read()).hexdigest()
+          if actual != expected:
+              raise SystemExit("Downloaded Capstone wheel SHA256 mismatch: " + actual)
+          print("Downloaded the exact pinned Capstone wheel.")
+          PY
           python - "$WHEEL" "dist/KPP-Native-Bridge-Inspector/CAPSTONE-LICENSE.txt" <<'PY'
           import sys, zipfile
           wheel, destination = sys.argv[1:]
