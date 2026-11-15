@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "kpm/package/**"
+      - "pc-tools/native-bridge-inspector/**"
       - "install/Install-RoyalRoadTools.sh"
       - ".github/workflows/publish-kpm.yml"
   pull_request:
@@ -24,7 +25,71 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  validate-native-inspector:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install pinned Capstone for Linux-side validation
+        run: python -m pip install --disable-pip-version-check capstone==5.0.9
+
+      - name: Compile and exercise the ELF disassembly pipeline
+        run: |
+          set -eu
+          python -m py_compile pc-tools/native-bridge-inspector/kpp_native_inspect.py
+          python - <<'PY'
+          import tarfile
+          from pathlib import Path
+          binary = Path("/usr/bin/ls").resolve()
+          with tarfile.open("native-inspector-test.tar.gz", "w:gz") as archive:
+              archive.add(str(binary), arcname="files/001_test.elf")
+          PY
+          python - <<'PY'
+          import importlib.util, tarfile
+          spec = importlib.util.spec_from_file_location("native_inspector", "pc-tools/native-bridge-inspector/kpp_native_inspect.py")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          with tarfile.open("native-inspector-test.tar.gz", "r:gz") as archive:
+              for member in archive.getmembers():
+                  print("Archive test member:", repr(member.name), "regular:", member.isfile())
+                  if member.isfile():
+                      data = archive.extractfile(member).read()
+                      print("ELF header recognized:", module.elf_layout(data) is not None, "magic:", data[:4].hex())
+          PY
+          python pc-tools/native-bridge-inspector/kpp_native_inspect.py native-inspector-test.tar.gz
+          grep -q "Disassembly backend: Capstone 5.0.9" KPP-Native-Bridge-Findings.txt
+          grep -Eq "Instructions decoded during reference scan: [1-9][0-9]*" KPP-Native-Bridge-Findings.txt
+          grep -q "ELF files fully inspected: 1" KPP-Native-Bridge-Findings.txt
+          echo "Native ELF parsing and instruction disassembly passed."
+
+  validate-windows-wheel:
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify and test the bundled Windows Capstone wheel
+        shell: pwsh
+        run: |
+          $wheel = Join-Path $env:RUNNER_TEMP "capstone-5.0.9-py3-none-win_amd64.whl"
+          $env:KPP_CAPSTONE_WHEEL = $wheel
+          python -c "import hashlib,json,os,urllib.request; e='732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0'; d=json.load(urllib.request.urlopen('https://pypi.org/pypi/capstone/5.0.9/json',timeout=30)); a=next(x for x in d['urls'] if x['filename']=='capstone-5.0.9-py3-none-win_amd64.whl'); assert a['digests']['sha256']==e,'PyPI wheel hash differs from pinned value'; r=urllib.request.urlopen(urllib.request.Request(a['url'],headers={'User-Agent':'KPP-Native-Inspector-CI/1.0'}),timeout=90); p=os.environ['KPP_CAPSTONE_WHEEL']; open(p,'wb').write(r.read()); h=hashlib.sha256(open(p,'rb').read()).hexdigest(); assert h==e,'wheel SHA256 mismatch: '+h; print('Downloaded the exact pinned Capstone wheel.')"
+          python -c "import os,sys,zipfile,tempfile,pathlib; p=pathlib.Path(os.environ['KPP_CAPSTONE_WHEEL']); d=pathlib.Path(tempfile.mkdtemp()); zipfile.ZipFile(p).extractall(d); sys.path.insert(0,str(d)); import capstone; assert capstone.__version__=='5.0.9'; cs=capstone.Cs(capstone.CS_ARCH_ARM64,capstone.CS_MODE_ARM); ins=list(cs.disasm(bytes.fromhex('1f2003d5'),0x1000)); assert ins and ins[0].mnemonic=='nop'; print('Windows Capstone wheel verified; AArch64 NOP decoded.')"
+          python -m py_compile pc-tools/native-bridge-inspector/kpp_native_inspect.py
+
   publish:
+    needs: [validate-native-inspector, validate-windows-wheel]
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -128,6 +193,40 @@ jobs:
           fi
           mkdir -p dist/KPP-Native-Bridge-Inspector
           cp -R pc-tools/native-bridge-inspector/. dist/KPP-Native-Bridge-Inspector/
+          WHEEL="dist/KPP-Native-Bridge-Inspector/capstone-5.0.9-py3-none-win_amd64.whl"
+          python - "$WHEEL" <<'PY'
+          import hashlib, json, sys, urllib.request
+          destination = sys.argv[1]
+          expected = "732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0"
+          metadata = json.load(urllib.request.urlopen("https://pypi.org/pypi/capstone/5.0.9/json", timeout=30))
+          artifact = next(item for item in metadata["urls"] if item["filename"] == "capstone-5.0.9-py3-none-win_amd64.whl")
+          if artifact["digests"]["sha256"] != expected:
+              raise SystemExit("PyPI Capstone wheel SHA256 differs from the pinned expected value.")
+          request = urllib.request.Request(artifact["url"], headers={"User-Agent": "KPP-Native-Inspector-Build/1.0"})
+          with urllib.request.urlopen(request, timeout=90) as response, open(destination, "wb") as output:
+              while True:
+                  chunk = response.read(1024 * 1024)
+                  if not chunk:
+                      break
+                  output.write(chunk)
+          actual = hashlib.sha256(open(destination, "rb").read()).hexdigest()
+          if actual != expected:
+              raise SystemExit("Downloaded Capstone wheel SHA256 mismatch: " + actual)
+          print("Downloaded the exact pinned Capstone wheel.")
+          PY
+          python - "$WHEEL" "dist/KPP-Native-Bridge-Inspector/CAPSTONE-LICENSE.txt" <<'PY'
+          import sys, zipfile
+          wheel, destination = sys.argv[1:]
+          with zipfile.ZipFile(wheel) as archive:
+              candidates = [
+                  name for name in archive.namelist()
+                  if "license" in name.lower() and not name.endswith("/")
+              ]
+              if not candidates:
+                  raise SystemExit("Capstone wheel did not contain its license file.")
+              with open(destination, "wb") as output:
+                  output.write(archive.read(candidates[0]))
+          PY
           (cd dist && zip -qr KPP-Native-Bridge-Inspector-Windows.zip KPP-Native-Bridge-Inspector)
           sha256sum "$PACKAGE" dist/KPP-Native-Bridge-Inspector-Windows.zip | tee dist/SHA256SUMS
           echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
@@ -140,7 +239,7 @@ jobs:
           gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" \
             "dist/KPP-Native-Bridge-Inspector-Windows.zip" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
-            --notes "KPM package with one manual read-only native KPP executable/shared-library export, an offline Windows ELF symbol/string inspector that saves findings locally without network access, automatic cleanup and version reporting through Update All, and KOReader plugin repair. The completed comprehensive diagnostic, last-open-page check and Hermes bytecode exporter are retired and removed. The Windows helper uses Python already installed; no pip packages or compiler are required."
+            --notes "KPM package with one manual read-only native KPP executable/shared-library export and a comprehensive offline Windows ELF inspector. The inspector uses bundled, SHA256-verified Capstone 5.0.9 to disassemble named browser/bridge functions and locate static references to relevant strings across every ELF in the supplied archive. It makes no network connections on the user's PC and saves one local findings report. Automatic cleanup/version reporting and KOReader maintenance tools are also included."
 
       - name: Update KPM repository manifest
         if: github.event_name != 'pull_request'
@@ -167,7 +266,7 @@ jobs:
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "One-run read-only native KPP executable/shared-library export, offline Windows ELF interface inspection with findings saved locally and no network upload, automatic cleanup/version reporting, plus KOReader maintenance tools.",
+                      "description": "One-run read-only native KPP executable/shared-library export, comprehensive offline Windows ELF disassembly and cross-reference analysis with locally saved findings and no PC network upload, automatic cleanup/version reporting, plus KOReader maintenance tools.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
