@@ -427,9 +427,6 @@ def find_string_xrefs(data: bytes, layout, strings, capstone):
         if layout["machine"] == 183:
             page_targets[item["address"] & ~0xFFF].append(index)
 
-    if not targets:
-        return [], 0, 0, "No marker strings had a mapped virtual address."
-
     results = []
     seen = set()
     instructions_scanned = 0
@@ -528,10 +525,12 @@ def relevant_function_symbols(symbols, layout):
         section = layout["sections"][symbol["section_index"]]
         if not (section["flags"] & 4):
             continue
-        value = symbol["value"] & ~1 if layout["machine"] == 40 else symbol["value"]
+        raw_value = symbol["value"]
+        thumb = layout["machine"] == 40 and bool(raw_value & 1)
+        value = raw_value & ~1 if layout["machine"] == 40 else raw_value
         if value < section["addr"] or value >= section["addr"] + section["size"]:
             continue
-        candidates.append({**symbol, "value": value, "section": section})
+        candidates.append({**symbol, "value": value, "thumb": thumb, "section": section})
     candidates.sort(key=lambda item: (item["section"]["index"], item["value"], item["name"]))
     return candidates
 
@@ -555,7 +554,7 @@ def disassemble_relevant_functions(data: bytes, layout, symbols, capstone):
         size = min(size, MAX_FUNCTION_BYTES, len(data) - start)
         if size <= 0 or start < 0 or start + size > len(data):
             continue
-        thumb = layout["machine"] == 40 and bool(symbol["value"] & 1)
+        thumb = bool(symbol.get("thumb", False))
         engine = make_engine(
             capstone, layout["machine"], layout["class"], layout["endian"], thumb=thumb
         )
