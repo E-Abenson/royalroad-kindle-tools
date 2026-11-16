@@ -18,36 +18,53 @@ CAPSTONE_VERSION = "5.0.9"
 CAPSTONE_WHEEL = "capstone-5.0.9-py3-none-win_amd64.whl"
 CAPSTONE_SHA256 = "732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0"
 
-MAX_ARCHIVE_MEMBER = 80_000_000
-MAX_TOTAL_INPUT = 180_000_000
-MAX_FILES = 96
-MAX_FINDINGS_PER_FILE = 240
-MAX_FINDINGS_TOTAL = 1600
+MAX_ARCHIVE_MEMBER = 120_000_000
+MAX_TOTAL_INPUT = 400_000_000
+MAX_FILES = 128
+MAX_FINDINGS_PER_FILE = 180
+MAX_FINDINGS_TOTAL = 2400
 MAX_CODE_BYTES_PER_FILE = 55_000_000
-MAX_CODE_BYTES_TOTAL = 135_000_000
-MAX_RELEVANT_FUNCTIONS_PER_FILE = 70
-MAX_FUNCTION_BYTES = 48_000
-MAX_FUNCTION_INSTRUCTIONS = 180
-MAX_XREFS_PER_FILE = 100
-MAX_XREFS_PER_STRING = 12
-MAX_REPORT_CHARS = 1_400_000
+MAX_CODE_BYTES_TOTAL = 320_000_000
+MAX_RELEVANT_FUNCTIONS_PER_FILE = 100
+MAX_FUNCTION_BYTES = 30_000
+MAX_FUNCTION_INSTRUCTIONS = 160
+MAX_XREFS_PER_FILE = 120
+MAX_XREFS_PER_STRING = 16
+MAX_REPORT_CHARS = 3_000_000
 
 MARKER_RE = re.compile(
     r"invokeAction|getLastOpenPage|getAllSettings|webViewURL|"
     r"webViewURLRedirectActionId|navigateToKPPBrowser|redirectToWebView|"
     r"BrowserDataProvider|ApplicationLipcProvider|NavigationInterface|"
+    r"KPPBrowser|KPPNavigation|WebViewURLRedirectActionHandler|"
     r"evaluateJavaScript|evaluateJavascript|executeJavaScript|"
     r"executeJavascript|runJavaScript|loadUrl|loadURL|loadHTMLString|"
     r"WKWebView|WebKit|JavaScriptCore|JSContext|JSValue|"
-    r"ReactNative|facebook::react|hermes|WebView|webview|"
     r"ContentController|ScriptMessageHandler|messageHandlers|"
     r"pageSource|getPageSource|getHTML|readHTML|executeScript|"
     r"innerText|textContent|outerHTML|documentElement|"
     r"getStringProperty|setStringProperty|getIntProperty|setIntProperty|"
     r"getHashArrayProperty|registerProperty|LIPC|lipc|"
-    r"browser|Browser|Navigation|navigation",
+    r"browser|navigation",
     re.IGNORECASE,
 )
+STRING_MARKER_RE = re.compile(
+    MARKER_RE.pattern + r"|webview|webkit|javascript|browser|navigation|hermes",
+    re.IGNORECASE,
+)
+FUNCTION_MARKER_RE = re.compile(
+    r"invokeAction|getLastOpenPage|getAllSettings|webViewURL|"
+    r"webViewURLRedirectActionId|navigateToKPPBrowser|redirectToWebView|"
+    r"BrowserDataProvider|ApplicationLipcProvider|NavigationInterface|"
+    r"KPPBrowser|KPPNavigation|WebViewURLRedirectActionHandler|"
+    r"evaluateJavaScript|evaluateJavascript|executeJavaScript|"
+    r"executeJavascript|runJavaScript|loadUrl|loadURL|loadHTMLString|"
+    r"pageSource|getPageSource|getHTML|readHTML|executeScript|"
+    r"getStringProperty|setStringProperty|getIntProperty|setIntProperty|"
+    r"getHashArrayProperty|registerProperty",
+    re.IGNORECASE,
+)
+
 SENSITIVE_RE = re.compile(
     r"cookie|session|access.?token|auth|credential|password|passwd|"
     r"secret|account|serial|mac.?address|device.?id|email",
@@ -205,7 +222,7 @@ def extract_marker_strings(data: bytes, layout):
     seen = set()
 
     def add(offset: int, raw: str):
-        if not MARKER_RE.search(raw):
+        if not STRING_MARKER_RE.search(raw):
             return
         preview = safe_preview(raw)
         if not preview:
@@ -327,60 +344,57 @@ def parse_relocations(data: bytes, layout, table_symbols):
 
 
 def load_capstone(script_dir: Path):
+    """Load a local Capstone 5.x backend without requiring one exact patch version."""
     if sys.platform == "win32":
         wheel = script_dir / CAPSTONE_WHEEL
-        if not wheel.is_file():
-            raise RuntimeError(
-                "The bundled Capstone disassembler is missing. Re-extract the complete Windows ZIP."
-            )
-        actual = sha256_file(wheel)
-        if actual.lower() != CAPSTONE_SHA256:
-            raise RuntimeError("The bundled Capstone file failed its SHA256 integrity check.")
+        if wheel.is_file():
+            actual = sha256_file(wheel)
+            if actual.lower() != CAPSTONE_SHA256:
+                raise RuntimeError("The bundled Capstone wheel failed its SHA256 integrity check.")
 
-        runtime = script_dir / (".capstone-runtime-" + CAPSTONE_VERSION)
+            runtime = script_dir / (".capstone-runtime-" + CAPSTONE_VERSION)
+            # Always rebuild from the verified wheel; never reuse stale extracted files.
+            if runtime.exists():
+                shutil.rmtree(runtime)
+            runtime.mkdir(parents=True, exist_ok=False)
+            try:
+                with zipfile.ZipFile(wheel, "r") as archive:
+                    for item in archive.infolist():
+                        name = item.filename.replace("\\", "/")
+                        parts = Path(name).parts
+                        if not parts or name.startswith("/") or ".." in parts:
+                            raise RuntimeError("The bundled Capstone wheel contains an unsafe path.")
+                        target = runtime.joinpath(*parts)
+                        if item.is_dir():
+                            target.mkdir(parents=True, exist_ok=True)
+                        else:
+                            target.parent.mkdir(parents=True, exist_ok=True)
+                            with archive.open(item) as source, target.open("wb") as output:
+                                shutil.copyfileobj(source, output)
+            except Exception:
+                shutil.rmtree(runtime, ignore_errors=True)
+                raise
 
-        # Always rebuild the extracted runtime from the verified wheel. Older
-        # helper versions reused this same folder name without checking its
-        # contents, which allowed an older extraction to be imported instead.
-        if runtime.exists():
-            shutil.rmtree(runtime)
-        runtime.mkdir(parents=True, exist_ok=False)
-        try:
-            with zipfile.ZipFile(wheel, "r") as archive:
-                for item in archive.infolist():
-                    name = item.filename.replace("\\", "/")
-                    parts = Path(name).parts
-                    if not parts or name.startswith("/") or ".." in parts:
-                        raise RuntimeError("The bundled Capstone wheel contains an unsafe path.")
-                    target = runtime.joinpath(*parts)
-                    if item.is_dir():
-                        target.mkdir(parents=True, exist_ok=True)
-                    else:
-                        target.parent.mkdir(parents=True, exist_ok=True)
-                        with archive.open(item) as source, target.open("wb") as output:
-                            shutil.copyfileobj(source, output)
-        except Exception:
-            shutil.rmtree(runtime, ignore_errors=True)
-            raise
+            # A prior failed import must not pin an already-loaded system copy.
+            sys.modules.pop("capstone", None)
+            sys.path.insert(0, str(runtime))
+            importlib.invalidate_caches()
 
-        sys.path.insert(0, str(runtime))
-        importlib.invalidate_caches()
-
-    import capstone
-    version = getattr(capstone, "__version__", "unknown")
-    if sys.platform == "win32":
-        if version != CAPSTONE_VERSION:
-            raise RuntimeError(
-                "Expected bundled Capstone {}, but loaded {}. "
-                "The extracted runtime was rebuilt from the verified wheel; "
-                "please attach the full error text.".format(CAPSTONE_VERSION, version)
-            )
-    elif not str(version).startswith("5."):
+    try:
+        import capstone
+    except ImportError as error:
         raise RuntimeError(
-            "Capstone 5.x is required for the Linux-side validation; loaded {}.".format(version)
+            "Capstone is unavailable. Use the complete inspector ZIP, which includes "
+            "the verified Windows wheel, or install any Capstone 5.x release."
+        ) from error
+
+    version = str(getattr(capstone, "__version__", "unknown"))
+    # 5.0.7, 5.0.9 and later compatible 5.x patch releases are accepted.
+    if not version.startswith("5."):
+        raise RuntimeError(
+            "Capstone 5.x is required; loaded version {}. The exact patch version is not restricted.".format(version)
         )
     return capstone
-
 
 def make_engine(capstone, machine: int, elf_class: int, endian: str, thumb: bool = False):
     mode = capstone.CS_MODE_BIG_ENDIAN if endian == "big" else capstone.CS_MODE_LITTLE_ENDIAN
@@ -407,8 +421,9 @@ def instruction_text(insn) -> str:
     return "0x{:x}: {:<9}{}".format(insn.address, insn.mnemonic, operands)
 
 
-def instruction_references(insn, capstone, machine: int):
+def instruction_references(insn, capstone, machine: int, thumb: bool = False):
     references = set()
+    # Do not call this function for Capstone skip-data pseudo-instructions (id 0).
     for operand in getattr(insn, "operands", []):
         if operand.type == capstone.CS_OP_IMM:
             try:
@@ -418,14 +433,14 @@ def instruction_references(insn, capstone, machine: int):
         elif operand.type == capstone.CS_OP_MEM:
             try:
                 base = insn.reg_name(operand.mem.base).lower()
-                if machine == 62 or machine == 3:
-                    if base == "rip":
-                        references.add(
-                            (insn.address + insn.size + int(operand.mem.disp))
-                            & 0xFFFFFFFFFFFFFFFF
-                        )
-                elif machine == 40 and base == "pc":
-                    pc_bias = 4 if insn.size == 2 else 8
+                if machine in (62, 3) and base == "rip":
+                    references.add(
+                        (insn.address + insn.size + int(operand.mem.disp))
+                        & 0xFFFFFFFFFFFFFFFF
+                    )
+                elif machine == 40 and base in ("pc", "r15"):
+                    # ARM reads PC as instruction address + 8; Thumb uses +4.
+                    pc_bias = 4 if thumb else 8
                     references.add(
                         (insn.address + pc_bias + int(operand.mem.disp))
                         & 0xFFFFFFFFFFFFFFFF
@@ -433,6 +448,8 @@ def instruction_references(insn, capstone, machine: int):
             except Exception:
                 pass
     return references
+
+
 
 
 def find_string_xrefs(data: bytes, layout, strings, capstone):
@@ -449,7 +466,9 @@ def find_string_xrefs(data: bytes, layout, strings, capstone):
     seen = set()
     instructions_scanned = 0
     code_bytes_scanned = 0
+    skipped_data = 0
     notes = []
+
     for section in layout["sections"]:
         if not (section["flags"] & 4) or section["type"] == 8 or section["size"] <= 0:
             continue
@@ -458,134 +477,211 @@ def find_string_xrefs(data: bytes, layout, strings, capstone):
         if section["size"] > MAX_CODE_BYTES_PER_FILE:
             notes.append("{} skipped (executable section exceeds per-file scan limit)".format(section["name"]))
             continue
-        if code_bytes_scanned + section["size"] > MAX_CODE_BYTES_TOTAL:
-            notes.append("Further executable sections skipped at total code-scan limit.")
-            break
 
-        engine = make_engine(
-            capstone, layout["machine"], layout["class"], layout["endian"]
-        )
-        if engine is None:
-            return results, instructions_scanned, code_bytes_scanned, "Architecture not supported by Capstone."
-        code_bytes_scanned += section["size"]
+        # ARM Kindle executables can mix ARM and Thumb functions. Scan both
+        # instruction sets; other architectures have one applicable mode here.
+        scan_modes = (False, True) if layout["machine"] == 40 else (False,)
         code = data[section["offset"]:section["offset"] + section["size"]]
-        recent = deque(maxlen=4)
-        pending = []
-        for insn in engine.disasm(code, section["addr"]):
-            instructions_scanned += 1
-            if getattr(insn, "is_data", False):
-                continue
-            line = instruction_text(insn)
 
-            still_pending = []
-            for item in pending:
-                if item["remaining"] > 0:
-                    item["window"].append(line)
-                    item["remaining"] -= 1
-                if item["remaining"] <= 0:
-                    results.append(item)
-                else:
-                    still_pending.append(item)
-            pending = still_pending
+        for thumb_mode in scan_modes:
+            if code_bytes_scanned + section["size"] > MAX_CODE_BYTES_TOTAL:
+                notes.append("Further executable scans skipped at total code-scan limit.")
+                break
 
-            refs = instruction_references(insn, capstone, layout["machine"])
-            matched = set()
-            for address in refs:
-                matched.update(targets.get(address, []))
-            if layout["machine"] == 183 and insn.mnemonic.lower() == "adrp":
-                for address in refs:
-                    matched.update(page_targets.get(address & ~0xFFF, []))
+            engine = make_engine(
+                capstone, layout["machine"], layout["class"], layout["endian"],
+                thumb=thumb_mode
+            )
+            if engine is None:
+                return (
+                    results, instructions_scanned, code_bytes_scanned,
+                    "Architecture not supported by Capstone.", skipped_data
+                )
 
-            for string_index in sorted(matched):
-                key = (string_index, insn.address)
-                already = sum(1 for old in results if old["key"][0] == string_index)
-                already += sum(1 for old in pending if old["key"][0] == string_index)
-                if key in seen or already >= MAX_XREFS_PER_STRING:
+            code_bytes_scanned += section["size"]
+            recent = deque(maxlen=4)
+            pending = []
+            for insn in engine.disasm(code, section["addr"]):
+                instructions_scanned += 1
+
+                # Capstone skip-data records have id 0. Do not inspect op_str,
+                # operands, or any detail fields on these pseudo-instructions.
+                if getattr(insn, "id", 0) == 0:
+                    skipped_data += 1
                     continue
-                seen.add(key)
-                pending.append({
-                    "key": key,
-                    "string_index": string_index,
-                    "address": insn.address,
-                    "section": section["name"],
-                    "window": list(recent) + [line],
-                    "remaining": 5,
-                    "kind": (
-                        "AArch64 ADRP page candidate"
-                        if layout["machine"] == 183 and insn.mnemonic.lower() == "adrp"
-                        else "direct address reference candidate"
-                    ),
-                })
+
+                line = instruction_text(insn)
+                still_pending = []
+                for pending_item in pending:
+                    if pending_item["remaining"] > 0:
+                        pending_item["window"].append(line)
+                        pending_item["remaining"] -= 1
+                    if pending_item["remaining"] <= 0:
+                        results.append(pending_item)
+                    else:
+                        still_pending.append(pending_item)
+                pending = still_pending
+
+                refs = instruction_references(
+                    insn, capstone, layout["machine"], thumb=thumb_mode
+                )
+                matched = set()
+                for address in refs:
+                    matched.update(targets.get(address, []))
+                if layout["machine"] == 183 and insn.mnemonic.lower() == "adrp":
+                    for address in refs:
+                        matched.update(page_targets.get(address & ~0xFFF, []))
+
+                for string_index in sorted(matched):
+                    key = (string_index, insn.address, thumb_mode)
+                    already = sum(
+                        1 for old in results
+                        if old["key"][0] == string_index
+                    )
+                    already += sum(
+                        1 for old in pending
+                        if old["key"][0] == string_index
+                    )
+                    if key in seen or already >= MAX_XREFS_PER_STRING:
+                        continue
+                    seen.add(key)
+                    if layout["machine"] == 40:
+                        mode_label = "Thumb" if thumb_mode else "ARM"
+                    else:
+                        mode_label = machine_name(layout["machine"])
+                    pending.append({
+                        "key": key,
+                        "string_index": string_index,
+                        "address": insn.address,
+                        "section": section["name"],
+                        "window": list(recent) + [line],
+                        "remaining": 5,
+                        "kind": (
+                            "{} AArch64 ADRP page candidate".format(mode_label)
+                            if layout["machine"] == 183 and insn.mnemonic.lower() == "adrp"
+                            else "{} direct address-reference candidate".format(mode_label)
+                        ),
+                    })
+                    if len(results) + len(pending) >= MAX_XREFS_PER_FILE:
+                        break
+
+                recent.append(line)
                 if len(results) + len(pending) >= MAX_XREFS_PER_FILE:
                     break
-            recent.append(line)
+
+            results.extend(pending)
             if len(results) >= MAX_XREFS_PER_FILE:
+                results = results[:MAX_XREFS_PER_FILE]
+                notes.append("Cross-reference cap reached; further sites were omitted.")
                 break
-        results.extend(pending)
         if len(results) >= MAX_XREFS_PER_FILE:
-            results = results[:MAX_XREFS_PER_FILE]
-            notes.append("Cross-reference cap reached; additional sites were omitted.")
             break
 
-    note = "; ".join(notes) if notes else "All executable sections within limits were scanned."
-    return results, instructions_scanned, code_bytes_scanned, note
+    note = "; ".join(notes) if notes else "All executable sections scanned in supported instruction modes."
+    return results, instructions_scanned, code_bytes_scanned, note, skipped_data
+
+
+
+
+def function_priority(name: str) -> int:
+    if FUNCTION_MARKER_RE.search(name):
+        return 3
+    if MARKER_RE.search(name):
+        return 2
+    return 0
 
 
 def relevant_function_symbols(symbols, layout):
     candidates = []
     for symbol in symbols:
-        if symbol["type"] != 2 or symbol["section_index"] <= 0:
+        if symbol["type"] != 2:
             continue
-        if symbol["section_index"] >= len(layout["sections"]):
-            continue
-        if not MARKER_RE.search(symbol["name"]):
-            continue
-        section = layout["sections"][symbol["section_index"]]
-        if not (section["flags"] & 4):
-            continue
+
         raw_value = symbol["value"]
         thumb = layout["machine"] == 40 and bool(raw_value & 1)
         value = raw_value & ~1 if layout["machine"] == 40 else raw_value
-        if value < section["addr"] or value >= section["addr"] + section["size"]:
-            continue
-        candidates.append({**symbol, "value": value, "thumb": thumb, "section": section})
-    candidates.sort(key=lambda item: (item["section"]["index"], item["value"], item["name"]))
-    return candidates
 
+        # Prefer the symbol's declared section, but recover from bad/missing
+        # section indices by resolving its value against executable sections.
+        section = None
+        section_index = symbol["section_index"]
+        if 0 < section_index < len(layout["sections"]):
+            candidate_section = layout["sections"][section_index]
+            if candidate_section["flags"] & 4:
+                section = candidate_section
+        if section is None:
+            candidate_section = section_for_address(layout, value)
+            if candidate_section is not None and (candidate_section["flags"] & 4):
+                section = candidate_section
+        if section is None or not (section["addr"] <= value < section["addr"] + section["size"]):
+            continue
+
+        priority = function_priority(symbol["name"])
+        if priority <= 0:
+            continue
+        candidates.append({
+            **symbol, "value": value, "thumb": thumb,
+            "section": section, "priority": priority
+        })
+
+    # Highest-value browser/bridge functions are disassembled first, not the
+    # first generic C++/React Native symbols encountered in the symbol table.
+    candidates.sort(
+        key=lambda item: (
+            -item["priority"], item["section"]["index"],
+            item["value"], item["name"]
+        )
+    )
+    deduplicated = []
+    seen = set()
+    for item in candidates:
+        key = (item["name"], item["value"], item["section"]["index"])
+        if key not in seen:
+            seen.add(key)
+            deduplicated.append(item)
+    return deduplicated
 
 def disassemble_relevant_functions(data: bytes, layout, symbols, capstone):
     functions = relevant_function_symbols(symbols, layout)
     output = []
     total_instructions = 0
-    for function_index, symbol in enumerate(functions[:MAX_RELEVANT_FUNCTIONS_PER_FILE]):
+
+    for symbol in functions[:MAX_RELEVANT_FUNCTIONS_PER_FILE]:
         section = symbol["section"]
         start = section["offset"] + symbol["value"] - section["addr"]
         size = symbol["size"]
         if size <= 0:
             later = [
                 other["value"] for other in functions
-                if other["section"]["index"] == section["index"] and other["value"] > symbol["value"]
+                if other["section"]["index"] == section["index"]
+                and other["value"] > symbol["value"]
             ]
             size = min(later) - symbol["value"] if later else 2048
         size = min(size, MAX_FUNCTION_BYTES, len(data) - start)
         if size <= 0 or start < 0 or start + size > len(data):
             continue
+
         thumb = bool(symbol.get("thumb", False))
         engine = make_engine(
-            capstone, layout["machine"], layout["class"], layout["endian"], thumb=thumb
+            capstone, layout["machine"], layout["class"],
+            layout["endian"], thumb=thumb
         )
         if engine is None:
             continue
+
         instructions = []
         code = data[start:start + size]
         for insn in engine.disasm(code, symbol["value"]):
-            if getattr(insn, "is_data", False):
+            # id 0 is Capstone's skip-data pseudo-instruction. Skip it before
+            # instruction_text accesses op_str or any operand details.
+            if getattr(insn, "id", 0) == 0:
                 continue
             instructions.append(instruction_text(insn))
             if len(instructions) >= MAX_FUNCTION_INSTRUCTIONS:
                 break
         if not instructions:
             continue
+
         total_instructions += len(instructions)
         output.append({
             "name": safe_preview(symbol["name"]) or "[symbol withheld]",
@@ -593,9 +689,14 @@ def disassemble_relevant_functions(data: bytes, layout, symbols, capstone):
             "size": symbol["size"],
             "section": section["name"],
             "binding": symbol["bind"],
+            "priority": symbol["priority"],
+            "mode": "Thumb" if thumb else ("ARM" if layout["machine"] == 40 else machine_name(layout["machine"])),
             "instructions": instructions,
         })
+
     return output, len(functions), total_instructions
+
+
 
 
 def inspect_archive(path: Path):
@@ -657,30 +758,65 @@ def inspect_archive(path: Path):
     return files, manifest_lines, skipped_note
 
 
+def cross_file_symbol_links(files):
+    """Match browser/bridge imports in one ELF to exact definitions in another."""
+    exports = defaultdict(set)
+    imports = []
+    for item in files:
+        _, tables = parse_symbol_tables(item["data"], item["layout"])
+        seen = set()
+        for table_symbols in tables.values():
+            for symbol in table_symbols:
+                name = symbol["name"]
+                if not name or not MARKER_RE.search(name):
+                    continue
+                key = (name, symbol["section_index"], symbol["type"])
+                if key in seen:
+                    continue
+                seen.add(key)
+                if symbol["section_index"] == 0:
+                    imports.append((item["name"], name))
+                elif symbol["type"] == 2:
+                    exports[name].add(item["name"])
+
+    links = []
+    for importer, name in imports:
+        providers = sorted(provider for provider in exports.get(name, set()) if provider != importer)
+        for provider in providers:
+            preview = safe_preview(name)
+            if preview:
+                links.append((importer, provider, preview))
+    links.sort()
+    return links
+
+
 def build_report(files, archive_name: str, manifest_lines, capstone):
+    backend_version = str(getattr(capstone, "__version__", "unknown"))
     lines = [
         "KPP NATIVE BRIDGE — COMPREHENSIVE OFFLINE STATIC ANALYSIS",
         "=" * 78,
         "Input archive: {}".format(Path(archive_name).name),
         "ELF files fully inspected: {}".format(len(files)),
-        "Disassembly backend: Capstone {}".format(CAPSTONE_VERSION),
-        "Coverage: ELF sections, symbol tables, imports, relocations, selected strings,",
-        "native function disassembly and code references to marker strings.",
+        "Disassembly backend: Capstone {}".format(backend_version),
+        "Coverage: ELF sections, symbols/imports/exports, relocations, selected strings,",
+        "ARM and Thumb code, browser/bridge function disassembly, static string references,",
+        "and exact cross-library symbol links.",
         "No binary was executed or modified. No LIPC request or browser action was sent.",
         "No network access, upload, paste service or external lookup was used.",
-        "No page text, cookies, browser history, process IDs, command lines or account data were collected.",
+        "No process memory, page text, cookies, browser history, URLs, command lines or account data were collected.",
         "",
         "EXPORT MANIFEST",
         "-" * 78,
     ]
+
     if manifest_lines:
-        for row in manifest_lines[:100]:
+        for row in manifest_lines[:MAX_FILES]:
             parts = row.split("\t")
             if len(parts) >= 4:
-                lines.append(
-                    "- {}: {} ({} bytes; SHA256 {})".format(parts[0], parts[1], parts[2], parts[3])
-                )
-        if len(manifest_lines) > 100:
+                lines.append("- {}: {} ({} bytes; SHA256 {})".format(
+                    parts[0], parts[1], parts[2], parts[3]
+                ))
+        if len(manifest_lines) > MAX_FILES:
             lines.append("- Further manifest rows omitted from report.")
     else:
         lines.append("No manifest.tsv was present in the archive.")
@@ -694,14 +830,25 @@ def build_report(files, archive_name: str, manifest_lines, capstone):
         ]
         lines.append(
             "- {}: ELF{} {}, {}; {:,} bytes; {} executable section(s); SHA256 {}".format(
-                item["name"], layout["class"], layout["endian"], machine_name(layout["machine"]),
-                len(item["data"]), len(executable_sections), item["sha256"]
+                item["name"], layout["class"], layout["endian"],
+                machine_name(layout["machine"]), len(item["data"]),
+                len(executable_sections), item["sha256"]
             )
         )
 
+    links = cross_file_symbol_links(files)
+    lines.extend(["", "CROSS-LIBRARY BROWSER/BRIDGE IMPORT LINKS", "-" * 78])
+    if links:
+        for importer, provider, name in links[:MAX_FINDINGS_TOTAL]:
+            lines.append("  {} imports {} -> defined in {}".format(importer, name, provider))
+    else:
+        lines.append(
+            "No exact browser/bridge import-to-definition pairs were found across the supplied ELF files."
+        )
+
     total_symbols = total_strings = total_relocations = total_functions = total_xrefs = 0
-    total_instructions = 0
-    total_code_scanned = 0
+    total_instructions = total_code_scanned = total_skipdata = 0
+
     for file_index, item in enumerate(files):
         data, layout = item["data"], item["layout"]
         symbols, symbol_tables = parse_symbol_tables(data, layout)
@@ -710,9 +857,10 @@ def build_report(files, archive_name: str, manifest_lines, capstone):
         functions, function_count, function_instruction_count = disassemble_relevant_functions(
             data, layout, symbols, capstone
         )
-        xrefs, instruction_count, code_bytes, scan_note = find_string_xrefs(
+        xrefs, instruction_count, code_bytes, scan_note, skipped_data = find_string_xrefs(
             data, layout, strings, capstone
         )
+
         total_symbols += len(symbols)
         total_strings += len(strings)
         total_relocations += len(relocations)
@@ -720,24 +868,29 @@ def build_report(files, archive_name: str, manifest_lines, capstone):
         total_xrefs += len(xrefs)
         total_instructions += instruction_count + function_instruction_count
         total_code_scanned += code_bytes
+        total_skipdata += skipped_data
 
         lines.extend([
             "",
             "=" * 78,
             "FILE {} OF {}: {}".format(file_index + 1, len(files), item["name"]),
             "=" * 78,
-            "Architecture: ELF{} {} {}".format(layout["class"], layout["endian"], machine_name(layout["machine"])),
+            "Architecture: ELF{} {} {}".format(
+                layout["class"], layout["endian"], machine_name(layout["machine"])
+            ),
             "Entry point: 0x{:x}".format(layout["entry"]),
-            "Marker symbols found: {}".format(len(symbols)),
-            "Marker strings found: {}".format(len(strings)),
+            "Browser/bridge marker symbols found: {}".format(len(symbols)),
+            "Browser/bridge marker strings found: {}".format(len(strings)),
             "Relevant relocations found: {}".format(len(relocations)),
-            "Named relevant functions disassembled: {} of {}".format(len(functions), function_count),
-            "Executable bytes scanned for string references: {:,}".format(code_bytes),
+            "Priority functions identified: {}".format(function_count),
+            "Priority functions disassembled: {}".format(len(functions)),
+            "Executable bytes scanned (including ARM+Thumb passes): {:,}".format(code_bytes),
             "Instructions decoded during reference scan: {:,}".format(instruction_count),
+            "Skip-data pseudo-instructions safely skipped: {:,}".format(skipped_data),
             "Scan note: {}".format(scan_note),
         ])
 
-        lines.extend(["", "RELEVANT SYMBOLS", "-" * 78])
+        lines.extend(["", "BROWSER / BRIDGE SYMBOLS", "-" * 78])
         if symbols:
             for symbol in symbols[:MAX_FINDINGS_PER_FILE]:
                 section_name = (
@@ -745,60 +898,73 @@ def build_report(files, archive_name: str, manifest_lines, capstone):
                     if 0 < symbol["section_index"] < len(layout["sections"])
                     else ("UND/import" if symbol["section_index"] == 0 else "ABS/other")
                 )
-                kind = {0: "NOTYPE", 1: "OBJECT", 2: "FUNC", 3: "SECTION", 4: "FILE"}.get(symbol["type"], str(symbol["type"]))
+                kind = {
+                    0: "NOTYPE", 1: "OBJECT", 2: "FUNC",
+                    3: "SECTION", 4: "FILE"
+                }.get(symbol["type"], str(symbol["type"]))
                 lines.append(
                     "  {} [{}; {}; value=0x{:x}; size={}]".format(
-                        symbol["preview"], kind, section_name, symbol["value"], symbol["size"]
+                        symbol["preview"], kind, section_name,
+                        symbol["value"], symbol["size"]
                     )
                 )
         else:
-            lines.append("  No marker-matching symbol names found.")
+            lines.append("  No focused browser/bridge symbol names were found.")
 
         lines.extend(["", "RELEVANT RELOCATIONS / IMPORT REFERENCES", "-" * 78])
         if relocations:
-            for relocation in relocations:
+            for relocation in relocations[:MAX_FINDINGS_PER_FILE]:
                 lines.append(
                     "  {} -> {} at 0x{:x} (relocation type {}; {})".format(
                         relocation["symbol"], relocation["target_section"],
-                        relocation["offset"], relocation["type"], relocation["relocation_section"]
+                        relocation["offset"], relocation["type"],
+                        relocation["relocation_section"]
                     )
                 )
         else:
-            lines.append("  No marker-matching relocation names found.")
+            lines.append("  No focused browser/bridge relocation names were found.")
 
-        lines.extend(["", "MARKER STRINGS", "-" * 78])
+        lines.extend(["", "BROWSER / BRIDGE STRINGS", "-" * 78])
         if strings:
             for string in strings[:MAX_FINDINGS_PER_FILE]:
-                address = "0x{:x}".format(string["address"]) if string["address"] is not None else "not mapped"
+                address = (
+                    "0x{:x}".format(string["address"])
+                    if string["address"] is not None else "not mapped"
+                )
                 lines.append(
-                    "  {} | {} | file offset 0x{:x} | virtual address {} | {}".format(
-                        string["text"], string["section"], string["offset"], address, string["section"]
+                    "  {} | file offset 0x{:x} | virtual address {} | section {}".format(
+                        string["text"], string["offset"], address, string["section"]
                     )
                 )
         else:
             lines.append("  No browser/bridge marker strings found.")
 
-        lines.extend(["", "DISASSEMBLED RELEVANT FUNCTIONS", "-" * 78])
+        lines.extend(["", "PRIORITY FUNCTION DISASSEMBLY", "-" * 78])
         if functions:
             for function in functions:
                 lines.append(
-                    "\n  FUNCTION {} at 0x{:x} ({} bytes declared; section {})".format(
-                        function["name"], function["address"], function["size"], function["section"]
+                    "\n  FUNCTION {} at 0x{:x} ({} bytes declared; {}; section {})".format(
+                        function["name"], function["address"],
+                        function["size"], function["mode"], function["section"]
                     )
                 )
                 for instruction in function["instructions"]:
                     lines.append("    " + instruction)
         else:
-            lines.append("  No named marker-matching function symbols were available.")
+            lines.append(
+                "  No priority function symbols could be resolved to executable sections. "
+                "The report still includes symbols, strings, relocations and import/export matches."
+            )
 
-        lines.extend(["", "CODE REFERENCES TO MARKER STRINGS", "-" * 78])
+        lines.extend(["", "STATIC CODE REFERENCES TO MARKER STRINGS", "-" * 78])
         if xrefs:
             for xref in xrefs:
                 string = strings[xref["string_index"]]
                 lines.append(
                     "\n  {}: {} (string at 0x{})".format(
                         xref["kind"], string["text"],
-                        "{:x}".format(string["address"]) if string["address"] is not None else "unknown"
+                        "{:x}".format(string["address"])
+                        if string["address"] is not None else "unknown"
                     )
                 )
                 lines.append(
@@ -818,7 +984,7 @@ def build_report(files, archive_name: str, manifest_lines, capstone):
                 for instruction in xref["window"]:
                     lines.append("    " + instruction)
         else:
-            lines.append("  No direct code references were resolved for the marker strings.")
+            lines.append("  No direct code references were resolved for the selected marker strings.")
 
     lines.extend([
         "",
@@ -826,36 +992,41 @@ def build_report(files, archive_name: str, manifest_lines, capstone):
         "COVERAGE SUMMARY",
         "=" * 78,
         "ELF files inspected: {}".format(len(files)),
-        "Marker symbols: {}".format(total_symbols),
-        "Marker strings: {}".format(total_strings),
+        "Focused browser/bridge symbols: {}".format(total_symbols),
+        "Browser/bridge strings: {}".format(total_strings),
         "Relevant relocations: {}".format(total_relocations),
-        "Named functions disassembled: {}".format(total_functions),
+        "Priority functions disassembled: {}".format(total_functions),
         "String-reference sites: {}".format(total_xrefs),
         "Executable bytes scanned: {:,}".format(total_code_scanned),
         "Decoded instructions (scan plus named functions): {:,}".format(total_instructions),
+        "Skip-data pseudo-instructions safely skipped: {:,}".format(total_skipdata),
+        "Cross-library exact symbol links: {}".format(len(links)),
         "",
         "HOW TO READ THE RESULTS",
         "-" * 78,
-        "A named function is disassembled only when the ELF contains a usable function symbol.",
-        "A code reference is a static address-pattern match; AArch64 ADRP page matches are candidates",
-        "and should be checked alongside the nearby ADD/LDR instructions shown in the window.",
+        "ARM32 executable sections are scanned in both ARM and Thumb modes because one ELF can mix them.",
+        "Named functions are disassembled only when a function symbol can be resolved to executable code.",
+        "Cross-library links require an exact imported-symbol name to match a defined function symbol in another ELF.",
+        "Code-reference matches are static address candidates, not proof of calls or runtime data flow.",
         "Static analysis can miss indirect references, stripped functions, runtime-generated code,",
-        "and data-flow that crosses several instructions or libraries. A lead is not proof of a usable API.",
+        "and data flow spanning multiple instructions or libraries. A lead is not proof of a usable API.",
         "No function was called and no live browser test was attempted.",
         "",
         "SAFETY",
         "-" * 78,
-        "Do not guess invokeAction values or send LIPC writes. Any future live check must be based",
-        "on a confirmed method implementation and a verified read-only contract.",
-        "The helper processed all ELF files it found in the supplied archive. It cannot inspect a",
-        "library that the Kindle exporter did not place in that archive.",
+        "Do not guess invokeAction values or send LIPC writes. Any live check must be based on a",
+        "confirmed method implementation and a verified read-only contract.",
+        "The helper only inspected ELF files supplied by the Kindle exporter. It cannot inspect",
+        "a mapped library that was unreadable or excluded by the exporter's explicit size/count caps.",
         "",
-        "This is one comprehensive static-analysis pass of the supplied archive. All outputs remain local.",
+        "This is offline static analysis only. All inputs and outputs remain local.",
     ])
     report = "\n".join(lines) + "\n"
     if len(report) > MAX_REPORT_CHARS:
-        report = report[:MAX_REPORT_CHARS] + "\n[Report truncated at the 1.4 MB safety limit.]\n"
+        report = report[:MAX_REPORT_CHARS] + "\n[Report truncated at the 3 MB safety limit.]\n"
     return report
+
+
 
 
 def main() -> int:

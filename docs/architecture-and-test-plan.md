@@ -32,18 +32,20 @@ The prior comprehensive diagnostic, last-open-page test and Hermes bytecode expo
 
 ## Native browser bridge inspection — current stage
 
-1. Open the Kindle's built-in browser and leave it running.
+The next collection is intended to be one comprehensive read-only export, followed by one offline Windows analysis.
+
+1. Open the Kindle's built-in browser and leave KPPMainApp running.
 2. Run **KPP-Native-Bridge-Export** once.
-3. The launcher locates the running KPPMainApp process, copies /app/bin/KPPMainAppV2, and copies selected shared libraries mapped by that process. Selection is limited to app-bundled shared objects and system libraries with KPP/browser/WebView/WebKit/Chromium/Hermes/React/JSI/LIPC-related names. The archive has file-count and size caps.
-4. The archive and manifest are stored in Documents. The manifest includes only each copied file's basename, role, size and SHA256; original paths, process IDs, memory maps and runtime values are excluded.
-5. Copy KPP-Native-Bridge-Binaries.tar.gz to Windows over USB.
-6. Run the bundled KPP-Native-Bridge-Inspector-Windows helper by dragging the archive onto Run-KPP-Native-Inspection.bat.
-7. The helper parses ELF headers, static/dynamic symbol tables, and selected embedded ASCII/UTF-16LE strings. It filters to browser, WebView, JavaScript, LIPC and bridge markers. It does not execute the binaries or disassemble machine instructions.
-8. The helper writes KPP-Native-Bridge-Findings.txt and attempts to upload only that filtered text report to https://pasters.io/?expires=1w. The raw archive, binaries, full strings and complete symbol tables remain local. A one-line success/failure does not create a paste. If report upload fails, the local report remains available.
+3. The exporter copies the KPP main executable and every readable ELF object found in a file-backed executable mapping of that running process. It does not filter by library filename, so generic-named system or app libraries are not excluded.
+4. Multiple mappings of the same underlying file are deduplicated by SHA256. The exporter tries the exact `/proc/<pid>/map_files/<range>` backing object before falling back to its pathname, which also helps when a mapped file has been renamed or unlinked.
+5. The archive contains unchanged ELF files, a basename/size/SHA256 manifest, and a small README. It excludes original paths, process IDs, raw memory-map rows, process memory, URLs, page text, cookies, history, command lines and runtime property values.
+6. The explicit caps are 128 ELF files, 120 MB per file and 400 MB total uncompressed. The export summary reports candidate, exported, duplicate and skipped counts.
+7. Copy `KPP-Native-Bridge-Binaries.tar.gz` to Windows over USB.
+8. Run the complete offline Windows helper by dragging the archive onto `Run-KPP-Native-Inspection.bat`.
+9. The helper checks ELF headers, sections, dynamic/static symbols, imports, exports, relocations and filtered browser-related strings. It prioritizes the known KPP browser/navigation/LIPC markers, disassembles defined browser/bridge functions where symbols resolve to executable code, scans ARM32 sections in both ARM and Thumb modes, and correlates exact imports with definitions in other supplied ELF files.
+10. The helper records the actual Capstone 5.x version used, safely skips Capstone data pseudo-instructions before querying operands, and writes `KPP-Native-Bridge-Findings.txt` locally. It does not connect to the internet, upload results or use a paste service.
 
-The report omits page URLs, absolute paths, emails and cookie/session/credential/account markers. It includes ELF class/architecture, file hashes and matching marker names/excerpts. Anyone with the paste link can view the report; one-week expiry is requested, not guaranteed.
-
-A native string or symbol is only a lead. It does not establish that an external interface is callable, that its argument format is known, or that calling it would be read-only. No guessed invokeAction payload may be sent.
+The analysis is static only. It does not execute the binaries or contact the Kindle. It cannot inspect a library that the exporter could not read or that exceeded the explicit safety caps. If no dependency files appear, the export summary identifies whether mappings were absent, unreadable, non-ELF or over the caps.
 
 ## Safety and access limits
 
