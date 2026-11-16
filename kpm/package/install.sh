@@ -17,13 +17,14 @@ install_scriptlet() {
 }
 
 
-# Install the separate, pre-inverted KOReader night-mode screensaver collection.
+# Install normal-grayscale KOReader custom screensavers.
+# Keep the legacy folder name so the user's existing KOReader folder selection remains valid.
 # This never changes /mnt/us/screensavers or the standard Custom Screensaver set.
 install_koreader_screensavers() {
   SOURCE_DIR="files/koreader-screensavers-inverted"
   DEST_DIR="/mnt/us/koreader-screensavers-inverted"
   if [ ! -d "$SOURCE_DIR" ] || [ ! -s "$SOURCE_DIR/SHA256SUMS" ]; then
-    say "WARNING: KOReader inverted screensaver assets are missing from this package."
+    say "WARNING: KOReader screensaver assets are missing from this package."
     return 1
   fi
   if ! (cd "$SOURCE_DIR" && sha256sum -c SHA256SUMS); then
@@ -44,9 +45,9 @@ install_koreader_screensavers() {
       say "ERROR: Could not install $IMAGE."
       return 1
     fi
-    say "Installed KOReader inverted screensaver: $DEST_DIR/$IMAGE"
+    say "Installed normal-grayscale KOReader screensaver: $DEST_DIR/$IMAGE"
   done
-  say "KOReader screensaver folder ready: $DEST_DIR"
+  say "KOReader custom screensaver folder ready: $DEST_DIR"
 }
 
 merge_cleanup_queue() {
