@@ -152,6 +152,19 @@ class NativeInspectorTests(unittest.TestCase):
             self.assertIn("Skip-data pseudo-instructions safely skipped:", report)
             self.assertIn("Capstone 5.", report)
 
+    def test_xref_scan_skips_code_when_no_mapped_marker_strings_exist(self):
+        data = make_elf32_arm("_ZN13KPPNavigation15getLastOpenPageEv")
+        layout = inspector.elf_layout(data)
+        progress = []
+        results = inspector.find_string_xrefs(
+            data, layout, [], object(), progress_callback=progress.append
+        )
+        self.assertEqual([], results[0])
+        self.assertEqual(0, results[1])
+        self.assertEqual(0, results[2])
+        self.assertIn("skipped", results[3].lower())
+        self.assertTrue(any("Skipping code scan" in line for line in progress))
+
     def test_build_report_resumes_completed_elf_checkpoints(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
