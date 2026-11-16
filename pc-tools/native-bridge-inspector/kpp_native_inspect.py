@@ -31,6 +31,10 @@ MAX_FUNCTION_INSTRUCTIONS = 160
 MAX_XREFS_PER_FILE = 120
 MAX_XREFS_PER_STRING = 16
 MAX_REPORT_CHARS = 3_000_000
+INSPECTOR_VERSION = "0.1.110"
+CHECKPOINT_FORMAT_VERSION = 1
+DEFAULT_BATCH_SIZE = 8
+PROGRESS_INSTRUCTION_INTERVAL = 2_000_000
 
 MARKER_RE = re.compile(
     r"invokeAction|getLastOpenPage|getAllSettings|webViewURL|"
@@ -452,7 +456,7 @@ def instruction_references(insn, capstone, machine: int, thumb: bool = False):
 
 
 
-def find_string_xrefs(data: bytes, layout, strings, capstone):
+def find_string_xrefs(data: bytes, layout, strings, capstone, progress_callback=None):
     targets = defaultdict(list)
     page_targets = defaultdict(list)
     for index, item in enumerate(strings):
@@ -469,7 +473,12 @@ def find_string_xrefs(data: bytes, layout, strings, capstone):
     skipped_data = 0
     notes = []
 
-    for section in layout["sections"]:
+    executable_sections = [
+        section for section in layout["sections"]
+        if (section["flags"] & 4) and section["type"] != 8 and section["size"] > 0
+    ]
+    total_executable_sections = len(executable_sections)
+    for section_number, section in enumerate(executable_sections, start=1):
         if not (section["flags"] & 4) or section["type"] == 8 or section["size"] <= 0:
             continue
         if section["offset"] + section["size"] > len(data):
@@ -483,7 +492,17 @@ def find_string_xrefs(data: bytes, layout, strings, capstone):
         scan_modes = (False, True) if layout["machine"] == 40 else (False,)
         code = data[section["offset"]:section["offset"] + section["size"]]
 
-        for thumb_mode in scan_modes:
+        for mode_number, thumb_mode in enumerate(scan_modes, start=1):
+            mode_label = "Thumb" if layout["machine"] == 40 and thumb_mode else (
+                "ARM" if layout["machine"] == 40 else machine_name(layout["machine"])
+            )
+            if progress_callback:
+                progress_callback(
+                    "Section {}/{} — {} pass ({} bytes)".format(
+                        section_number, total_executable_sections, mode_label, section["size"]
+                    )
+                )
+            last_progress_instructions = instructions_scanned
             if code_bytes_scanned + section["size"] > MAX_CODE_BYTES_TOTAL:
                 notes.append("Further executable scans skipped at total code-scan limit.")
                 break
@@ -503,6 +522,19 @@ def find_string_xrefs(data: bytes, layout, strings, capstone):
             pending = []
             for insn in engine.disasm(code, section["addr"]):
                 instructions_scanned += 1
+                if (
+                    progress_callback
+                    and instructions_scanned - last_progress_instructions
+                    >= PROGRESS_INSTRUCTION_INTERVAL
+                ):
+                    section_offset = max(0, min(section["size"], insn.address - section["addr"]))
+                    section_percent = int(section_offset * 100 / section["size"])
+                    progress_callback(
+                        "{} pass: {:,} instructions scanned; section approximately {}%".format(
+                            mode_label, instructions_scanned, section_percent
+                        )
+                    )
+                    last_progress_instructions = instructions_scanned
 
                 # Capstone skip-data records have id 0. Do not inspect op_str,
                 # operands, or any detail fields on these pseudo-instructions.
@@ -578,6 +610,12 @@ def find_string_xrefs(data: bytes, layout, strings, capstone):
             break
 
     note = "; ".join(notes) if notes else "All executable sections scanned in supported instruction modes."
+    if progress_callback:
+        progress_callback(
+            "Code-reference scan finished: {:,} instructions; {:,} executable bytes.".format(
+                instructions_scanned, code_bytes_scanned
+            )
+        )
     return results, instructions_scanned, code_bytes_scanned, note, skipped_data
 
 
@@ -706,10 +744,19 @@ def inspect_archive(path: Path):
     skipped_note = "No exporter manifest was found."
     candidate_members = 0
     invalid_elf_members = 0
+    print("Opening archive and checking its file index...", flush=True)
     with tarfile.open(path, mode="r:gz") as archive:
         members = archive.getmembers()
         if len(members) > 10000:
             raise ValueError("archive contains an unexpected number of entries")
+        candidate_total = sum(
+            1 for member in members
+            if member.isfile()
+            and "files" in [
+                part for part in member.name.replace("\\\\", "/").split("/") if part
+            ]
+        )
+        print("Archive contains {} native-file entries.".format(candidate_total), flush=True)
         for member in members:
             if not member.isfile():
                 continue
@@ -725,13 +772,22 @@ def inspect_archive(path: Path):
             if "files" not in parts:
                 continue
             candidate_members += 1
+            if candidate_members == 1 or candidate_members % DEFAULT_BATCH_SIZE == 0:
+                print(
+                    "Loading ELF inputs: {} of {} archive entries...".format(
+                        candidate_members, candidate_total
+                    ),
+                    flush=True,
+                )
             if member.size <= 0 or member.size > MAX_ARCHIVE_MEMBER:
                 continue
             total += member.size
             if total > MAX_TOTAL_INPUT:
                 raise ValueError("archive exceeds supported total input size")
             if len(files) >= MAX_FILES:
-                raise ValueError("archive contains more native files than the 96-file safety limit")
+                raise ValueError(
+                    "archive contains more native files than the {}-file safety limit".format(MAX_FILES)
+                )
             source = archive.extractfile(member)
             if source is None:
                 continue
@@ -747,6 +803,7 @@ def inspect_archive(path: Path):
                 "name": basename, "data": data, "layout": layout,
                 "sha256": sha256_bytes(data),
             })
+    print("Loaded {} valid ELF files ({} bytes total).".format(len(files), total), flush=True)
     if not files:
         raise ValueError(
             "no readable ELF files found; native file entries under 'files': {}; invalid ELF headers: {}".format(
@@ -790,8 +847,69 @@ def cross_file_symbol_links(files):
     return links
 
 
-def build_report(files, archive_name: str, manifest_lines, capstone):
+def load_cached_file_result(cache_file: Path, archive_sha256: str, item):
+    """Return a completed per-ELF result only when every cache identity matches."""
+    if not cache_file.is_file():
+        return None
+    try:
+        payload = json.loads(cache_file.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+    if (
+        payload.get("inspector_version") != INSPECTOR_VERSION
+        or payload.get("checkpoint_format") != CHECKPOINT_FORMAT_VERSION
+        or payload.get("archive_sha256") != archive_sha256
+        or payload.get("elf_sha256") != item["sha256"]
+        or payload.get("elf_name") != item["name"]
+    ):
+        return None
+    result = payload.get("result")
+    return result if isinstance(result, dict) else None
+
+
+def save_cached_file_result(cache_file: Path, archive_sha256: str, item, result):
+    """Atomically persist one completed ELF so an interrupted run can resume."""
+    payload = {
+        "inspector_version": INSPECTOR_VERSION,
+        "checkpoint_format": CHECKPOINT_FORMAT_VERSION,
+        "archive_sha256": archive_sha256,
+        "elf_sha256": item["sha256"],
+        "elf_name": item["name"],
+        "result": result,
+    }
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    temporary = cache_file.with_suffix(cache_file.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(payload, separators=(",", ":"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    temporary.replace(cache_file)
+
+
+def build_report(
+    files, archive_name: str, manifest_lines, capstone,
+    checkpoint_dir: Path | None = None, archive_sha256: str | None = None,
+    batch_size: int = DEFAULT_BATCH_SIZE,
+):
     backend_version = str(getattr(capstone, "__version__", "unknown"))
+    archive_path = Path(archive_name)
+    if archive_sha256 is None:
+        archive_sha256 = sha256_file(archive_path)
+    if checkpoint_dir is None:
+        checkpoint_dir = archive_path.with_name(
+            "KPP-Native-Bridge-Checkpoint-" + archive_sha256[:12]
+        )
+    checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    if batch_size < 1:
+        batch_size = DEFAULT_BATCH_SIZE
+    total_batches = (len(files) + batch_size - 1) // batch_size
+    print(
+        "Starting analysis: {} ELF files, {} batches of up to {}.".format(
+            len(files), total_batches, batch_size
+        ),
+        flush=True,
+    )
+    print("Completed-file checkpoints: {}".format(checkpoint_dir), flush=True)
     lines = [
         "KPP NATIVE BRIDGE — COMPREHENSIVE OFFLINE STATIC ANALYSIS",
         "=" * 78,
@@ -851,15 +969,99 @@ def build_report(files, archive_name: str, manifest_lines, capstone):
 
     for file_index, item in enumerate(files):
         data, layout = item["data"], item["layout"]
-        symbols, symbol_tables = parse_symbol_tables(data, layout)
-        strings = extract_marker_strings(data, layout)
-        relocations = parse_relocations(data, layout, symbol_tables)
-        functions, function_count, function_instruction_count = disassemble_relevant_functions(
-            data, layout, symbols, capstone
-        )
-        xrefs, instruction_count, code_bytes, scan_note, skipped_data = find_string_xrefs(
-            data, layout, strings, capstone
-        )
+        batch_number = file_index // batch_size + 1
+        if file_index % batch_size == 0:
+            print(
+                "\\nBATCH {}/{} — files {}–{} of {}".format(
+                    batch_number, total_batches, file_index + 1,
+                    min(file_index + batch_size, len(files)), len(files)
+                ),
+                flush=True,
+            )
+
+        cache_file = checkpoint_dir / (item["sha256"] + ".json")
+        cached_result = load_cached_file_result(cache_file, archive_sha256, item)
+        if cached_result is not None:
+            symbols = cached_result["symbols"]
+            strings = cached_result["strings"]
+            relocations = cached_result["relocations"]
+            functions = cached_result["functions"]
+            function_count = cached_result["function_count"]
+            function_instruction_count = cached_result["function_instruction_count"]
+            xrefs = cached_result["xrefs"]
+            instruction_count = cached_result["instruction_count"]
+            code_bytes = cached_result["code_bytes"]
+            scan_note = cached_result["scan_note"]
+            skipped_data = cached_result["skipped_data"]
+            print(
+                "File {}/{}: {} — resumed from checkpoint.".format(
+                    file_index + 1, len(files), item["name"]
+                ),
+                flush=True,
+            )
+        else:
+            print(
+                "File {}/{}: {} — parsing symbols, strings and relocations...".format(
+                    file_index + 1, len(files), item["name"]
+                ),
+                flush=True,
+            )
+            symbols, symbol_tables = parse_symbol_tables(data, layout)
+            strings = extract_marker_strings(data, layout)
+            relocations = parse_relocations(data, layout, symbol_tables)
+
+            print(
+                "File {}/{}: disassembling named functions...".format(
+                    file_index + 1, len(files)
+                ),
+                flush=True,
+            )
+            functions, function_count, function_instruction_count = disassemble_relevant_functions(
+                data, layout, symbols, capstone
+            )
+
+            print(
+                "File {}/{}: scanning code for string references...".format(
+                    file_index + 1, len(files)
+                ),
+                flush=True,
+            )
+            def report_xref_progress(message):
+                print("    " + message, flush=True)
+
+            xrefs, instruction_count, code_bytes, scan_note, skipped_data = find_string_xrefs(
+                data, layout, strings, capstone,
+                progress_callback=report_xref_progress,
+            )
+
+            cached_result = {
+                "symbols": symbols,
+                "strings": strings,
+                "relocations": relocations,
+                "functions": functions,
+                "function_count": function_count,
+                "function_instruction_count": function_instruction_count,
+                "xrefs": xrefs,
+                "instruction_count": instruction_count,
+                "code_bytes": code_bytes,
+                "scan_note": scan_note,
+                "skipped_data": skipped_data,
+            }
+            try:
+                save_cached_file_result(cache_file, archive_sha256, item, cached_result)
+                print(
+                    "File {}/{}: checkpoint saved.".format(
+                        file_index + 1, len(files)
+                    ),
+                    flush=True,
+                )
+            except OSError as error:
+                print(
+                    "WARNING: Could not save checkpoint for {} ({}).".format(
+                        item["name"], type(error).__name__
+                    ),
+                    flush=True,
+                )
 
         total_symbols += len(symbols)
         total_strings += len(strings)
@@ -1022,6 +1224,7 @@ def build_report(files, archive_name: str, manifest_lines, capstone):
         "This is offline static analysis only. All inputs and outputs remain local.",
     ])
     report = "\n".join(lines) + "\n"
+    print("Combining saved per-file results into the final report...", flush=True)
     if len(report) > MAX_REPORT_CHARS:
         report = report[:MAX_REPORT_CHARS] + "\n[Report truncated at the 3 MB safety limit.]\n"
     return report
@@ -1045,22 +1248,57 @@ def main() -> int:
         print("FAILURE: The native-inspection archive was not found.")
         return 1
 
+    print("KPP Native Bridge Inspector {}".format(INSPECTOR_VERSION), flush=True)
+    print("Input archive: {}".format(archive_path), flush=True)
+    checkpoint_dir = None
     try:
+        print("Calculating archive checksum...", flush=True)
+        archive_sha256 = sha256_file(archive_path)
+        checkpoint_dir = archive_path.with_name(
+            "KPP-Native-Bridge-Checkpoint-" + archive_sha256[:12]
+        )
         files, manifest_lines, manifest_note = inspect_archive(archive_path)
+        print("Loading bundled Capstone disassembly engine...", flush=True)
         capstone = load_capstone(Path(__file__).resolve().parent)
-        report = build_report(files, str(archive_path), manifest_lines, capstone)
+        print(
+            "Capstone {} ready. Matching cross-library symbols...".format(
+                getattr(capstone, "__version__", "unknown")
+            ),
+            flush=True,
+        )
+        report = build_report(
+            files, str(archive_path), manifest_lines, capstone,
+            checkpoint_dir=checkpoint_dir,
+            archive_sha256=archive_sha256,
+            batch_size=DEFAULT_BATCH_SIZE,
+        )
+    except KeyboardInterrupt:
+        print(
+            "\\nINTERRUPTED. Completed ELF files have been checkpointed. "
+            "Run this same BAT again with the same archive to resume.",
+            flush=True,
+        )
+        if checkpoint_dir is not None:
+            print("Checkpoint folder: {}".format(checkpoint_dir), flush=True)
+        return 130
     except (OSError, tarfile.TarError, ValueError, struct.error, zipfile.BadZipFile, RuntimeError, ImportError) as error:
         print("FAILURE: Could not complete the native inspection ({}).".format(type(error).__name__))
         print(str(error))
+        if checkpoint_dir is not None and checkpoint_dir.exists():
+            print("Completed-file checkpoints were kept at: {}".format(checkpoint_dir))
         return 1
 
     report_path = archive_path.with_name("KPP-Native-Bridge-Findings.txt")
     try:
-        report_path.write_text(report, encoding="utf-8", newline="\n")
+        print("Writing final findings report...", flush=True)
+        report_path.write_text(report, encoding="utf-8", newline="\\n")
     except OSError as error:
         print("FAILURE: Could not save the findings report ({}).".format(type(error).__name__))
+        print("Completed-file checkpoints were kept at: {}".format(checkpoint_dir))
         return 1
 
+    if checkpoint_dir is not None:
+        shutil.rmtree(checkpoint_dir, ignore_errors=True)
     print("SUCCESS: Comprehensive offline native inspection completed.")
     print("ELF files inspected: {}".format(len(files)))
     print("Findings report saved locally: {}".format(report_path))
@@ -1068,7 +1306,6 @@ def main() -> int:
     print("No Kindle connection, network connection, upload or paste service was used.")
     print("Attach KPP-Native-Bridge-Findings.txt in ChatGPT.")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())
