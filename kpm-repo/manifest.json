@@ -10,11 +10,11 @@
       "description": "One-run read-only native KPP executable/shared-library export, comprehensive offline Windows ELF disassembly and cross-reference analysis with locally saved findings and no PC network upload, automatic cleanup/version reporting, plus KOReader maintenance tools.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.106/royalroad-kindle-tools_0.1.106_kindlehf.kpkg",
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.107/royalroad-kindle-tools_0.1.107_kindlehf.kpkg",
           "version": [
             0,
             1,
-            106
+            107
           ],
           "dependencies": [],
           "supported_platforms": [
