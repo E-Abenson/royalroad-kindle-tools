@@ -57,6 +57,8 @@ jobs:
             echo "No generated files changed."
           else
             git commit -m "Add generated rabbinic Kindle screensavers"
+            git fetch origin rabbinic-screensavers-run
+            git rebase origin/rabbinic-screensavers-run
             git push origin HEAD:rabbinic-screensavers-run
           fi
 
