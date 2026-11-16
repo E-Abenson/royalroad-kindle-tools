@@ -48,7 +48,9 @@ Stop on access-denial or Cloudflare challenge responses. Do not attempt CAPTCHA/
 After installing/upgrading this KPM package, open **Install-Rabbinic-Screensavers**
 from the Kindle library. It downloads the prepared Rav Zvi Kushelevsky and
 Rav Osher Arieli portraits directly to /mnt/us/screensavers/, checks each
-file against a pinned SHA256 digest, and atomically replaces only those two
+file against a pinned SHA256 digest, tries three GitHub download routes and
+falls back from curl to wget. Detailed errors are saved to
+/mnt/us/documents/Install-Rabbinic-Screensavers.log. It atomically replaces only those two
 named files. Existing unrelated screensaver images are preserved. No USB
 transfer or Windows-side download is required.
 
