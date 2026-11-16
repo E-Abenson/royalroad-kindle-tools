@@ -39,6 +39,9 @@ jobs:
       - name: Install pinned Capstone for Linux-side validation
         run: python -m pip install --disable-pip-version-check capstone==5.0.9
 
+      - name: Run comprehensive native export and inspector regression tests
+        run: python -m unittest discover -s pc-tools/native-bridge-inspector/tests -v
+
       - name: Compile and exercise the ELF disassembly pipeline
         run: |
           set -eu
@@ -233,6 +236,13 @@ jobs:
           PY
           (cd dist && zip -qr KPP-Native-Bridge-Inspector-Windows.zip KPP-Native-Bridge-Inspector)
           sha256sum "$PACKAGE" dist/KPP-Native-Bridge-Inspector-Windows.zip | tee dist/SHA256SUMS
+
+      - name: Upload the complete Windows helper for direct retrieval
+        uses: actions/upload-artifact@v4
+        with:
+          name: KPP-Native-Bridge-Inspector-Windows
+          path: dist/KPP-Native-Bridge-Inspector-Windows.zip
+          retention-days: 7
           echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
 
       - name: Publish immutable versioned release
