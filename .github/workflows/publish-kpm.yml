@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "kpm/package/**"
+      - "kpm/assets/**"
+      - "kpm/build_koreader_screensavers.py"
       - "pc-tools/native-bridge-inspector/**"
       - "install/Install-RoyalRoadTools.sh"
       - ".github/workflows/publish-kpm.yml"
