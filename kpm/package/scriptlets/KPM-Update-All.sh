@@ -1,12 +1,18 @@
 #!/bin/sh
-# One-tap KPM repository refresh, package upgrade, and automatic cleanup.
-# Other tools remain manual launchers and are never started by this script.
+# One-tap KPM repository refresh, automatic screensaver installation/upgrade,
+# package upgrades, and automatic cleanup. Other tools remain manual launchers.
 
 KPM="/var/local/kmc/bin/kpm"
 DOCS="/mnt/us/documents"
 LOG="$DOCS/KPM-Update-All.log"
 CLEANUP="$DOCS/.royalroadtools/cleanup.sh"
 VERSION_REPORT="$DOCS/.royalroadtools/version-info.sh"
+
+# Official third-party repository for Kindle Custom Screensaver.
+SCREENSAVER_REPO="https://kpm.andrecheng.com/kpm.json"
+SCREENSAVER_PACKAGE="custom-screensaver"
+SCREENSAVER_APP_DIR="/mnt/us/extensions/custom-screensaver"
+SCREENSAVER_SCRIPTLET="$DOCS/Custom Screensaver.sh"
 
 mkdir -p "$DOCS"
 : > "$LOG"
@@ -50,25 +56,67 @@ if [ ! -x "$KPM" ]; then
 fi
 
 say ""
-say "STEP 1 OF 2 — Refreshing package repositories..."
+say "STEP 1 OF 4 — Ensuring the Custom Screensaver repository is registered..."
+SCREENSAVER_REPO_READY=0
+
+if "$KPM" list-repo 2>&1 | grep -F "$SCREENSAVER_REPO" >/dev/null 2>&1; then
+  SCREENSAVER_REPO_READY=1
+  say "Custom Screensaver repository is already registered."
+else
+  if run_and_show "$KPM" add-repo "$SCREENSAVER_REPO"; then
+    SCREENSAVER_REPO_READY=1
+    say "Custom Screensaver repository added."
+  elif "$KPM" list-repo 2>&1 | grep -F "$SCREENSAVER_REPO" >/dev/null 2>&1; then
+    # Treat an "already registered" response as success.
+    SCREENSAVER_REPO_READY=1
+    say "Custom Screensaver repository is registered; continuing."
+  else
+    say "WARNING — could not register the Custom Screensaver repository."
+    say "The normal KPM update will continue; screensaver installation will be skipped."
+  fi
+fi
+
+say ""
+say "STEP 2 OF 4 — Refreshing package repositories..."
 if run_and_show "$KPM" update; then
-  say "STEP 1 COMPLETE — repository refresh succeeded."
+  say "STEP 2 COMPLETE — repository refresh succeeded."
 else
   RESULT=$?
   say "ERROR — KPM repository refresh failed (exit code $RESULT)."
-  say "STEP 2 was skipped. Check Wi-Fi and the log."
+  say "Package upgrades and cleanup were skipped. Check Wi-Fi and the log."
   exit "$RESULT"
 fi
 
 say ""
-say "STEP 2 OF 2 — Upgrading installed KPM packages..."
+say "STEP 3 OF 4 — Checking the Custom Screensaver installation..."
+if [ "$SCREENSAVER_REPO_READY" -eq 1 ]; then
+  if [ -x "$SCREENSAVER_APP_DIR/custom_ss_daemon.sh" ] &&
+     [ -f "$SCREENSAVER_SCRIPTLET" ]; then
+    say "Custom Screensaver is already installed."
+    say "Any newer release will be applied by the normal KPM upgrade step."
+  else
+    say "Custom Screensaver is missing or incomplete; installing it now."
+    if run_and_show "$KPM" -y install "$SCREENSAVER_PACKAGE"; then
+      say "SUCCESS — Custom Screensaver package installed."
+    else
+      INSTALL_RESULT=$?
+      say "WARNING — Custom Screensaver installation failed (exit code $INSTALL_RESULT)."
+      say "Other installed KPM packages will still be upgraded."
+    fi
+  fi
+else
+  say "WARNING — screensaver install skipped because its repository is unavailable."
+fi
+
+say ""
+say "STEP 4 OF 4 — Upgrading installed KPM packages..."
 say "Automatic confirmation is enabled."
 if run_and_show "$KPM" -y upgrade; then
   say "SUCCESS — KPM upgrade completed."
   say "All available upgrades have been processed."
 
   say ""
-  say "STEP 3 — Running the automatic cleanup queue..."
+  say "STEP 5 — Running the automatic cleanup queue..."
   if [ -x "$CLEANUP" ]; then
     if run_and_show sh "$CLEANUP"; then
       say "SUCCESS — cleanup completed; no pending items remain."
@@ -84,7 +132,7 @@ if run_and_show "$KPM" -y upgrade; then
   fi
 
   say ""
-  say "STEP 4 — Regenerating the Kindle software version report..."
+  say "STEP 6 — Regenerating the Kindle software version report..."
   if [ -x "$VERSION_REPORT" ]; then
     if run_and_show sh "$VERSION_REPORT"; then
       say "SUCCESS — Kindle-Version-Report.txt was regenerated and replaced."
