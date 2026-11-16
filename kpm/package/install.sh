@@ -87,6 +87,7 @@ say "Royal Road Kindle Tools — installing current toolset."
 install_scriptlet "scriptlets/KPP-Native-Bridge-Export.sh" "$DOCS/KPP-Native-Bridge-Export.sh"
 install_scriptlet "scriptlets/KPM-Update-All.sh" "$DOCS/KPM-Update-All.sh"
 install_scriptlet "scriptlets/Install-Rabbinic-Screensavers.sh" "$DOCS/Install-Rabbinic-Screensavers.sh"
+install_scriptlet "scriptlets/Inspect-USB-Screen.sh" "$DOCS/Inspect-USB-Screen.sh"
 install_scriptlet "scriptlets/KindleBatchPrepareFix.sh" "$DOCS/KindleBatchPrepareFix.sh"
 install_scriptlet "scriptlets/RoyalRoadTools-Version-Info.sh" "$INTERNAL_DIR/version-info.sh"
 
@@ -124,7 +125,7 @@ chmod 600 "$DOCS/.RoyalRoadTools-installed-version.txt" 2>/dev/null || true
 
 say "Cleanup runner installed privately at $INTERNAL_DIR/cleanup.sh."
 say "It runs automatically only when KPM-Update-All completes successfully."
-say "Manual launchers installed: native bridge export, KPM updater, rabbinic screensaver downloader, and plugin repair."
+say "Manual launchers installed: native bridge export, USB screen inspection, KPM updater, rabbinic screensaver downloader, and plugin repair."
 say "The version-report helper is private; no version-report launcher is installed."
 if sh "$INTERNAL_DIR/version-info.sh"; then
   say "SUCCESS — Kindle-Version-Report.txt was regenerated."

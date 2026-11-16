@@ -145,6 +145,7 @@ jobs:
           test -s pc-tools/native-bridge-inspector/README-FIRST.txt
           test -s kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
           test -s kpm/package/scriptlets/Install-Rabbinic-Screensavers.sh
+          test -s kpm/package/scriptlets/Inspect-USB-Screen.sh
           echo "All source checks passed."
 
       - name: Download official KPM packager
@@ -197,6 +198,7 @@ jobs:
           tar -tzf "$PACKAGE" | grep -q 'RoyalRoadTools-Cleanup-Queue.txt' || { echo "KPM package is missing the cleanup queue template"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'KPP-Native-Bridge-Export.sh' || { echo "KPM package is missing the current native bridge export launcher"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'Install-Rabbinic-Screensavers.sh' || { echo "KPM package is missing the manual rabbinic screensaver downloader"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -q 'Inspect-USB-Screen.sh' || { echo "KPM package is missing the read-only USB display inspector"; exit 1; }
           if tar -tzf "$PACKAGE" | grep -Eq 'scriptlets/(KPP-Comprehensive-Diagnostic|KPP-Last-Open-Page-Check|RR-KPP-Bytecode-Export)[.]sh'; then
             echo "A completed KPP diagnostic/bytecode launcher was reintroduced into the KPM package"
             exit 1
