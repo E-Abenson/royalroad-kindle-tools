@@ -6,6 +6,7 @@ This package contains a small set of manual Kindle utilities and a private clean
 
 - **KPP-Native-Bridge-Export** — one manual export of the running KPP executable and selected shared libraries mapped by KPPMainApp. It creates KPP-Native-Bridge-Binaries.tar.gz in Documents for USB transfer. It does not inspect page contents, read cookies, modify the app or upload binaries.
 - **KPM-Update-All** — manually refreshes package repositories and upgrades installed packages. After a successful upgrade, it automatically runs the private cleanup helper and regenerates the version report.
+- **Install-Rabbinic-Screensavers** — a separate manual launcher. When opened on the Kindle, it downloads two SHA256-verified grayscale portraits directly into /mnt/us/screensavers/. It does not run automatically during KPM installation and does not change any other images.
 - **KindleBatchPrepareFix** — manually repairs/reinstalls the separate Kindle Batch Preparation KOReader plugin.
 
 The previous comprehensive diagnostic, last-open-page test and Hermes bytecode export are completed and retired. Their launchers, output files and package-cache copies are queued for removal by the automatic cleanup.
@@ -40,3 +41,17 @@ Remote Pasters deletion is attempted only for old retired diagnostic pastes when
 The export reads only the running KPP executable and selected mapped shared libraries. It does not read browser memory, cookies, history, current page text, page source or JavaScript state. It does not send LIPC writes, events or invokeAction messages. It does not alter the KPP application. The archive and findings report stay on the user's PC.
 
 Stop on access-denial or Cloudflare challenge responses. Do not attempt CAPTCHA/proof-of-work bypasses or other access-control circumvention. Full chapter collection and EPUB creation have not been implemented.
+
+
+## Rabbinic screensavers
+
+After installing/upgrading this KPM package, open **Install-Rabbinic-Screensavers**
+from the Kindle library. It downloads the prepared Rav Zvi Kushelevsky and
+Rav Osher Arieli portraits directly to /mnt/us/screensavers/, checks each
+file against a pinned SHA256 digest, and atomically replaces only those two
+named files. Existing unrelated screensaver images are preserved. No USB
+transfer or Windows-side download is required.
+
+The images are 1072x1448 PNGs in 8-bit grayscale, adjusted for e-ink contrast.
+The Custom Screensaver Scriptlet remains responsible for enabling/rotating
+screensavers.
