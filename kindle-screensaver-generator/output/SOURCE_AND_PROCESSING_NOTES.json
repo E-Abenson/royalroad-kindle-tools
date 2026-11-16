@@ -1,0 +1,45 @@
+{
+  "output_size": "1072x1448",
+  "format": "PNG, 8-bit grayscale",
+  "processing": "Portrait crop; gentle levels and contrast; slightly lifted brightness; restrained unsharp mask.",
+  "images": [
+    {
+      "name": "Rav Zvi Kushelevsky",
+      "file": "01_Rav_Zvi_Kushelevsky.png",
+      "source_dimensions": "3549x4724",
+      "output_dimensions": "1072x1448",
+      "download_bytes": 1203716,
+      "actual_source_url": "https://upload.wikimedia.org/wikipedia/commons/e/e1/R%27_Zvi_Kushelevsky.jpg",
+      "source_note": "Wikimedia Commons: R' Zvi Kushelevsky.jpg, 3549x4724. Photographer Yzfreeman; CC BY-SA 4.0.",
+      "fallback_used": false,
+      "processing": {
+        "centering": [
+          0.5,
+          0.42
+        ],
+        "contrast": 1.16,
+        "brightness": 1.035,
+        "sharpen_percent": 115
+      }
+    },
+    {
+      "name": "Rav Osher Arieli",
+      "file": "02_Rav_Osher_Arieli.png",
+      "source_dimensions": "4320x2880",
+      "output_dimensions": "1072x1448",
+      "download_bytes": 484094,
+      "actual_source_url": "https://i.vimeocdn.com/video/2123355371-d30093f3d2af5b3c3be757a95fea26cde6559c5da5a269f7495767c76b5c87a3-d?f=webp&region=us",
+      "source_note": "Primary: Agudath Israel Vimeo recording, 'YYK, 2.17.2026, Shiur from HaRav Asher Arieli'. Fallbacks: Kikar photo from the 19 February 2026 Malchei Rabbanan event; then Hm-News Malchei Rabbanan gallery image 42.",
+      "fallback_used": false,
+      "processing": {
+        "centering": [
+          0.6,
+          0.49
+        ],
+        "contrast": 1.2,
+        "brightness": 1.045,
+        "sharpen_percent": 125
+      }
+    }
+  ]
+}
