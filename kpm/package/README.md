@@ -69,3 +69,20 @@ transfer or Windows-side download is required.
 The images are 1072x1448 PNGs in 8-bit grayscale, adjusted for e-ink contrast.
 The Custom Screensaver Scriptlet remains responsible for enabling/rotating
 screensavers.
+
+
+## KOReader inverted sleep-screen images
+
+The KPM package automatically installs a separate collection to:
+
+`/mnt/us/koreader-screensavers-inverted/`
+
+It contains three images that have already been colour-inverted for use while KOReader Night Mode is enabled:
+
+- `01_Rav_Zvi_Kushelevsky.png`
+- `02_Rav_Osher_Arieli.png`
+- `03_Chofetz_Chaim.jpg`
+
+The installer verifies all three SHA256 checksums before changing anything, then atomically replaces only those three named files in the KOReader folder. It preserves all other files and does not touch `/mnt/us/screensavers/` or the normal Custom Screensaver collection.
+
+After the KPM package update, open KOReader's **Screensaver** settings and use its custom/random-image-folder chooser to select `/mnt/us/koreader-screensavers-inverted/`. Keep the images in this separate folder; don't mix them with the normal Kindle screensavers. The images are pre-inverted specifically so they display normally when KOReader's Night Mode reverses the sleep screen.
