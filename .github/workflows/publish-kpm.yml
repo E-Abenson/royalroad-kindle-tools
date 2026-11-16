@@ -131,6 +131,12 @@ jobs:
       - name: Patch Kindle Batch Preparation controls (validated source)
         run: python scripts/patch_batch_controls.py
 
+      - name: Build KOReader inverted screensaver assets
+        run: |
+          python -m pip install --disable-pip-version-check Pillow
+          python -m py_compile kpm/build_koreader_screensavers.py
+          python kpm/build_koreader_screensavers.py
+
       - name: Validate shell and Windows helper scripts
         run: |
           set -eu
@@ -146,6 +152,10 @@ jobs:
           test -s kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
           test -s kpm/package/scriptlets/Install-Rabbinic-Screensavers.sh
           test -s kpm/package/scriptlets/Inspect-USB-Screen.sh
+          test -s kpm/package/files/koreader-screensavers-inverted/01_Rav_Zvi_Kushelevsky.png
+          test -s kpm/package/files/koreader-screensavers-inverted/02_Rav_Osher_Arieli.png
+          test -s kpm/package/files/koreader-screensavers-inverted/03_Chofetz_Chaim.jpg
+          test -s kpm/package/files/koreader-screensavers-inverted/SHA256SUMS
           echo "All source checks passed."
 
       - name: Download official KPM packager
@@ -199,6 +209,9 @@ jobs:
           tar -tzf "$PACKAGE" | grep -q 'KPP-Native-Bridge-Export.sh' || { echo "KPM package is missing the current native bridge export launcher"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'Install-Rabbinic-Screensavers.sh' || { echo "KPM package is missing the manual rabbinic screensaver downloader"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'Inspect-USB-Screen.sh' || { echo "KPM package is missing the read-only USB display inspector"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/01_Rav_Zvi_Kushelevsky.png' || { echo "KPM package is missing the inverted Rav Zvi screensaver"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/02_Rav_Osher_Arieli.png' || { echo "KPM package is missing the inverted Rav Osher screensaver"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/03_Chofetz_Chaim.jpg' || { echo "KPM package is missing the inverted Chofetz Chaim screensaver"; exit 1; }
           if tar -tzf "$PACKAGE" | grep -Eq 'scriptlets/(KPP-Comprehensive-Diagnostic|KPP-Last-Open-Page-Check|RR-KPP-Bytecode-Export)[.]sh'; then
             echo "A completed KPP diagnostic/bytecode launcher was reintroduced into the KPM package"
             exit 1
