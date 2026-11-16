@@ -466,6 +466,17 @@ def find_string_xrefs(data: bytes, layout, strings, capstone, progress_callback=
         if layout["machine"] == 183:
             page_targets[item["address"] & ~0xFFF].append(index)
 
+    if not targets:
+        if progress_callback:
+            progress_callback(
+                "Skipping code scan: this ELF has no marker strings mapped to executable addresses."
+            )
+        return (
+            [], 0, 0,
+            "Code scan skipped because no mapped marker-string addresses were found.",
+            0,
+        )
+
     results = []
     seen = set()
     instructions_scanned = 0
@@ -855,6 +866,8 @@ def load_cached_file_result(cache_file: Path, archive_sha256: str, item):
         payload = json.loads(cache_file.read_text(encoding="utf-8"))
     except (OSError, ValueError, json.JSONDecodeError):
         return None
+    if not isinstance(payload, dict):
+        return None
     if (
         payload.get("inspector_version") != INSPECTOR_VERSION
         or payload.get("checkpoint_format") != CHECKPOINT_FORMAT_VERSION
@@ -972,7 +985,7 @@ def build_report(
         batch_number = file_index // batch_size + 1
         if file_index % batch_size == 0:
             print(
-                "\\nBATCH {}/{} — files {}–{} of {}".format(
+                "\nBATCH {}/{} — files {}–{} of {}".format(
                     batch_number, total_batches, file_index + 1,
                     min(file_index + batch_size, len(files)), len(files)
                 ),
@@ -1274,7 +1287,7 @@ def main() -> int:
         )
     except KeyboardInterrupt:
         print(
-            "\\nINTERRUPTED. Completed ELF files have been checkpointed. "
+            "\nINTERRUPTED. Completed ELF files have been checkpointed. 
             "Run this same BAT again with the same archive to resume.",
             flush=True,
         )
@@ -1291,7 +1304,7 @@ def main() -> int:
     report_path = archive_path.with_name("KPP-Native-Bridge-Findings.txt")
     try:
         print("Writing final findings report...", flush=True)
-        report_path.write_text(report, encoding="utf-8", newline="\\n")
+        report_path.write_text(report, encoding="utf-8", newline="\n")
     except OSError as error:
         print("FAILURE: Could not save the findings report ({}).".format(type(error).__name__))
         print("Completed-file checkpoints were kept at: {}".format(checkpoint_dir))
