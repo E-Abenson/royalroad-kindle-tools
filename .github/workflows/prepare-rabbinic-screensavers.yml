@@ -4,10 +4,13 @@ on:
   push:
     branches:
       - rabbinic-screensavers-run
-  workflow_dispatch:
+    paths:
+      - ".github/workflows/prepare-rabbinic-screensavers.yml"
+      - "kindle-screensaver-generator/prepare_screensavers.py"
+      - "kindle-screensaver-generator/requirements.txt"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   prepare:
@@ -39,7 +42,25 @@ jobs:
             README.txt \
             SOURCE_AND_PROCESSING_NOTES.json
 
-      - name: Upload finished screensavers
+      - name: Save finished files on this branch
+        run: |
+          mkdir -p kindle-screensaver-generator/output
+          cp dist/01_Rav_Zvi_Kushelevsky.png kindle-screensaver-generator/output/
+          cp dist/02_Rav_Osher_Arieli.png kindle-screensaver-generator/output/
+          cp dist/README.txt kindle-screensaver-generator/output/
+          cp dist/SOURCE_AND_PROCESSING_NOTES.json kindle-screensaver-generator/output/
+          cp rabbinic-kindle-screensavers.zip kindle-screensaver-generator/output/
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add kindle-screensaver-generator/output/
+          if git diff --cached --quiet; then
+            echo "No generated files changed."
+          else
+            git commit -m "Add generated rabbinic Kindle screensavers"
+            git push origin HEAD:rabbinic-screensavers-run
+          fi
+
+      - name: Upload downloadable ZIP artifact
         uses: actions/upload-artifact@v4
         with:
           name: rabbinic-kindle-screensavers
