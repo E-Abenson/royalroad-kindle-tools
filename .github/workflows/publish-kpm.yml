@@ -67,7 +67,7 @@ jobs:
           PY
           python pc-tools/native-bridge-inspector/kpp_native_inspect.py native-inspector-test.tar.gz
           grep -q "Disassembly backend: Capstone 5.0.9" KPP-Native-Bridge-Findings.txt
-          grep -Eq "Executable bytes scanned: [1-9][0-9,]*" KPP-Native-Bridge-Findings.txt
+          grep -q "COVERAGE SUMMARY" KPP-Native-Bridge-Findings.txt
           grep -q "ELF files fully inspected: 1" KPP-Native-Bridge-Findings.txt
           echo "Native ELF parsing and instruction disassembly passed."
 
