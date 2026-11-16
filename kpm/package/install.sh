@@ -32,7 +32,7 @@ install_koreader_screensavers() {
   fi
   mkdir -p "$DEST_DIR"
   for IMAGE in 01_Rav_Zvi_Kushelevsky.png 02_Rav_Osher_Arieli.png 03_Chofetz_Chaim.jpg; do
-    TEMP="$DEST_DIR/.$IMAGE.new.$"
+    TEMP="$DEST_DIR/.$IMAGE.new.$(date +%s)"
     if ! cp "$SOURCE_DIR/$IMAGE" "$TEMP"; then
       rm -f "$TEMP"
       say "ERROR: Could not stage $IMAGE; existing destination was left unchanged."
