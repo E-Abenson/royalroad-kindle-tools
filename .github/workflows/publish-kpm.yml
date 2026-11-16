@@ -133,7 +133,7 @@ jobs:
       - name: Patch Kindle Batch Preparation controls (validated source)
         run: python scripts/patch_batch_controls.py
 
-      - name: Build KOReader inverted screensaver assets
+      - name: Build normal-grayscale KOReader screensaver assets
         run: |
           python -m pip install --disable-pip-version-check Pillow
           python -m py_compile kpm/build_koreader_screensavers.py
@@ -211,9 +211,9 @@ jobs:
           tar -tzf "$PACKAGE" | grep -q 'KPP-Native-Bridge-Export.sh' || { echo "KPM package is missing the current native bridge export launcher"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'Install-Rabbinic-Screensavers.sh' || { echo "KPM package is missing the manual rabbinic screensaver downloader"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'Inspect-USB-Screen.sh' || { echo "KPM package is missing the read-only USB display inspector"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/01_Rav_Zvi_Kushelevsky.png' || { echo "KPM package is missing the inverted Rav Zvi screensaver"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/02_Rav_Osher_Arieli.png' || { echo "KPM package is missing the inverted Rav Osher screensaver"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/03_Chofetz_Chaim.jpg' || { echo "KPM package is missing the inverted Chofetz Chaim screensaver"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/01_Rav_Zvi_Kushelevsky.png' || { echo "KPM package is missing the Rav Zvi KOReader screensaver"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/02_Rav_Osher_Arieli.png' || { echo "KPM package is missing the Rav Osher KOReader screensaver"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/03_Chofetz_Chaim.jpg' || { echo "KPM package is missing the Chofetz Chaim KOReader screensaver"; exit 1; }
           if tar -tzf "$PACKAGE" | grep -Eq 'scriptlets/(KPP-Comprehensive-Diagnostic|KPP-Last-Open-Page-Check|RR-KPP-Bytecode-Export)[.]sh'; then
             echo "A completed KPP diagnostic/bytecode launcher was reintroduced into the KPM package"
             exit 1
