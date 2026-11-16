@@ -1,0 +1,48 @@
+name: Prepare Rabbi Kindle Screensavers
+
+on:
+  push:
+    branches:
+      - rabbinic-screensavers-run
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out screensaver generator
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: kindle-screensaver-generator/requirements.txt
+
+      - name: Install image-processing dependency
+        run: python -m pip install -r kindle-screensaver-generator/requirements.txt
+
+      - name: Download and prepare the two photographs
+        run: python kindle-screensaver-generator/prepare_screensavers.py dist
+
+      - name: Package finished screensavers
+        run: |
+          cd dist
+          zip -9 ../rabbinic-kindle-screensavers.zip \
+            01_Rav_Zvi_Kushelevsky.png \
+            02_Rav_Osher_Arieli.png \
+            README.txt \
+            SOURCE_AND_PROCESSING_NOTES.json
+
+      - name: Upload finished screensavers
+        uses: actions/upload-artifact@v4
+        with:
+          name: rabbinic-kindle-screensavers
+          path: rabbinic-kindle-screensavers.zip
+          if-no-files-found: error
+          retention-days: 14
