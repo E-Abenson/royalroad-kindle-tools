@@ -216,7 +216,7 @@ class NativeInspectorTests(unittest.TestCase):
             self.assertIn("libwebkit2gtk.so", manifest)
             self.assertIn("libgraphics_runtime.so.1", manifest)
             self.assertNotIn("not-a-library", manifest)
-            self.assertIn("filename", readme.lower()) is False  # no filename-only selection claim
+            self.assertIn("Selection is NOT based on the", readme)
             self.assertIn("every readable ELF file", readme)
             self.assertNotIn(str(root), manifest + readme)
             self.assertNotIn("4242", manifest + readme)
