@@ -6,10 +6,22 @@ This package contains a small set of manual Kindle utilities and a private clean
 
 - **KPP-Native-Bridge-Export** — one manual export of the running KPP executable and selected shared libraries mapped by KPPMainApp. It creates KPP-Native-Bridge-Binaries.tar.gz in Documents for USB transfer. It does not inspect page contents, read cookies, modify the app or upload binaries.
 - **KPM-Update-All** — manually refreshes package repositories and upgrades installed packages. After a successful upgrade, it automatically runs the private cleanup helper and regenerates the version report.
+- **Inspect-USB-Screen** — a one-run, read-only inventory of the stock USB-mode display assets. It copies the files in /usr/share/blanket/usb, records their metadata and PNG dimensions, and writes USB-Screen-Inspection.tar.gz to Documents. It does not modify the system.
 - **Install-Rabbinic-Screensavers** — a separate manual launcher. When opened on the Kindle, it downloads two SHA256-verified grayscale portraits directly into /mnt/us/screensavers/. It does not run automatically during KPM installation and does not change any other images.
 - **KindleBatchPrepareFix** — manually repairs/reinstalls the separate Kindle Batch Preparation KOReader plugin.
 
 The previous comprehensive diagnostic, last-open-page test and Hermes bytecode export are completed and retired. Their launchers, output files and package-cache copies are queued for removal by the automatic cleanup.
+
+## USB display inspection
+
+The USB-connected screen is rendered by the Kindle system USB display, separately from the sleep screensaver. The diagnostic copies the stock files under /usr/share/blanket/usb and records the device display information, image dimensions, permissions and checksums. It does not remount the root filesystem read-write, replace images, change permissions or restart Blanket.
+
+1. Open **Inspect-USB-Screen** from the Kindle library.
+2. It creates **USB-Screen-Inspection.tar.gz** in Kindle Documents.
+3. Connect the Kindle to the PC and copy that archive from Documents.
+4. Attach the archive in the ChatGPT conversation so the exact background and overlay assets can be checked before designing any replacement.
+
+The diagnostic is manual; it does not run during KPM installation or updates. The existing Custom Screensaver package and images are left untouched.
 
 ## Native browser bridge inspection
 
