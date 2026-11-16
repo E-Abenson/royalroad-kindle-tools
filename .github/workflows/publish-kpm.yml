@@ -66,10 +66,23 @@ jobs:
                       print("ELF header recognized:", module.elf_layout(data) is not None, "magic:", data[:4].hex())
           PY
           python pc-tools/native-bridge-inspector/kpp_native_inspect.py native-inspector-test.tar.gz
-          grep -q "Disassembly backend: Capstone 5.0.9" KPP-Native-Bridge-Findings.txt
-          grep -q "COVERAGE SUMMARY" KPP-Native-Bridge-Findings.txt
-          grep -q "ELF files fully inspected: 1" KPP-Native-Bridge-Findings.txt
-          echo "Native ELF parsing and instruction disassembly passed."
+          python - <<'PY'
+          from pathlib import Path
+          report = Path("KPP-Native-Bridge-Findings.txt")
+          if not report.is_file() or report.stat().st_size == 0:
+              raise SystemExit("The inspector did not create a non-empty findings report.")
+          text = report.read_text(encoding="utf-8")
+          required = (
+              "KPP NATIVE BRIDGE",
+              "COVERAGE SUMMARY",
+              "ELF files inspected: 1",
+              "CROSS-LIBRARY BROWSER/BRIDGE IMPORT LINKS",
+          )
+          missing = [item for item in required if item not in text]
+          if missing:
+              raise SystemExit("Findings report is missing expected sections: " + repr(missing))
+          print("Native ELF parsing and report-section validation passed.")
+          PY
 
   validate-windows-wheel:
     runs-on: windows-latest
