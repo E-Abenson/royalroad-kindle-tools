@@ -1,6 +1,6 @@
 # Rabbi Kindle Screensavers
 
-This isolated branch contains a small GitHub Actions job that downloads two
+This isolated branch contains a GitHub Actions job that downloads two
 photographs and prepares portrait-format grayscale PNGs for a Kindle.
 
 ## Output
@@ -9,11 +9,11 @@ photographs and prepares portrait-format grayscale PNGs for a Kindle.
 - Portrait crop, mild contrast/brightness adjustment and restrained sharpening
 - No text, frames or added graphics
 
-## Run
-The workflow runs automatically when this branch is pushed. The finished ZIP
-is uploaded as the Actions artifact named **rabbinic-kindle-screensavers**.
-It can also be rerun manually once the workflow is available in the repository's
-default branch.
+## Where the finished files appear
+The workflow runs automatically when this branch is pushed. It saves the
+finished PNGs and a ZIP in \`kindle-screensaver-generator/output/\` on this
+branch, and also uploads a downloadable Actions artifact named
+**rabbinic-kindle-screensavers**.
 
 ## Sources
 - Rav Zvi Kushelevsky: Wikimedia Commons, original 3549 x 4724 photograph
