@@ -17,7 +17,7 @@ OUTPUT_DIR = ROOT / "kpm" / "package" / "files" / "koreader-screensavers-inverte
 SOURCES = [
     (
         "01_Rav_Zvi_Kushelevsky.png",
-        "b8b6fc05c12f1d272a624725b25a330116a3a5614d2c0052cf1d93b578c1920",
+        "b8b6fc05c12f1d272a6247256b25a330116a3a5614d2c0052cf1d93b578c1920",
     ),
     (
         "02_Rav_Osher_Arieli.png",
