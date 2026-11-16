@@ -16,6 +16,39 @@ install_scriptlet() {
   cp "$SOURCE" "$TEMP"; chmod 755 "$TEMP"; mv -f "$TEMP" "$DEST"
 }
 
+
+# Install the separate, pre-inverted KOReader night-mode screensaver collection.
+# This never changes /mnt/us/screensavers or the standard Custom Screensaver set.
+install_koreader_screensavers() {
+  SOURCE_DIR="files/koreader-screensavers-inverted"
+  DEST_DIR="/mnt/us/koreader-screensavers-inverted"
+  if [ ! -d "$SOURCE_DIR" ] || [ ! -s "$SOURCE_DIR/SHA256SUMS" ]; then
+    say "WARNING: KOReader inverted screensaver assets are missing from this package."
+    return 1
+  fi
+  if ! (cd "$SOURCE_DIR" && sha256sum -c SHA256SUMS); then
+    say "ERROR: KOReader screensaver checksum validation failed; existing folder was left unchanged."
+    return 1
+  fi
+  mkdir -p "$DEST_DIR"
+  for IMAGE in 01_Rav_Zvi_Kushelevsky.png 02_Rav_Osher_Arieli.png 03_Chofetz_Chaim.jpg; do
+    TEMP="$DEST_DIR/.$IMAGE.new.$"
+    if ! cp "$SOURCE_DIR/$IMAGE" "$TEMP"; then
+      rm -f "$TEMP"
+      say "ERROR: Could not stage $IMAGE; existing destination was left unchanged."
+      return 1
+    fi
+    chmod 644 "$TEMP"
+    if ! mv -f "$TEMP" "$DEST_DIR/$IMAGE"; then
+      rm -f "$TEMP"
+      say "ERROR: Could not install $IMAGE."
+      return 1
+    fi
+    say "Installed KOReader inverted screensaver: $DEST_DIR/$IMAGE"
+  done
+  say "KOReader screensaver folder ready: $DEST_DIR"
+}
+
 merge_cleanup_queue() {
   [ -f "$QUEUE" ] || printf '%s\n' '# Pending cleanup actions: add TYPE|VALUE entries here.' > "$QUEUE"
   [ -f "$COMPLETED" ] || printf '%s\n' '# Entries successfully removed; do not requeue these.' > "$COMPLETED"
@@ -102,7 +135,9 @@ rm -f "$DOCS/Kindle-Version-Report.sh" "$DOCS/RoyalRoadTools-Version-Info.sh"
 merge_cleanup_queue
 requeue_existing_targets
 
-SOURCE_TEMP="$DOCS/KindleBatchPrepare-main.lua.gz.new.$$"
+install_koreader_screensavers
+
+SOURCE_TEMP="$DOCS/KindleBatchPrepare-main.lua.gz.new.$"
 cp "files/kindle_batch_prepare_main.lua.gz" "$SOURCE_TEMP"
 chmod 644 "$SOURCE_TEMP"
 mv -f "$SOURCE_TEMP" "$DOCS/KindleBatchPrepare-main.lua.gz"
