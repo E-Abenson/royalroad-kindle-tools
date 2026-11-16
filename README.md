@@ -16,9 +16,14 @@ An experimental KPM toolkit for investigating the jailbroken Kindle's built-in K
 
 - **KPP-Native-Bridge-Export** — the current single manual investigation launcher. It copies the running KPP executable and selected shared libraries mapped by KPPMainApp into a private USB-transfer archive. It collects no page URL, page text, cookie, account data, PID or command line, and does not upload any binary.
 - **KPM-Update-All** — manual KPM repository refresh and package upgrade. After a successful upgrade, it automatically runs the hidden cleanup helper and refreshes the version report.
+- **Inspect-USB-Screen** — one-run, read-only inventory of the stock USB display assets and screen dimensions; creates an archive in Documents without changing system files.
 - **KindleBatchPrepareFix** — manual repair/reinstall tool for the KOReader Kindle Batch Preparation plugin.
 
 The prior comprehensive diagnostic, getLastOpenPage check, and Hermes bytecode exporter are completed and retired. Their launchers, reports, temporary files, saved paste-link files and package-cache copies are queued for removal by the automatic cleanup.
+
+## USB display inspection
+
+The screen shown while the Kindle is connected to a computer is a separate system USB display, not the normal sleep screensaver. The Inspect-USB-Screen launcher copies the stock assets from /usr/share/blanket/usb and records their dimensions, permissions and checksums. It does not modify the system or the existing custom sleep screensavers. Copy USB-Screen-Inspection.tar.gz from Documents to the PC and attach it in the ChatGPT conversation before any replacement is prepared.
 
 ## Native browser bridge investigation
 
