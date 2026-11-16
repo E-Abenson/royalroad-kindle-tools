@@ -8,7 +8,7 @@ if "%~1"=="" (
 )
 where py >nul 2>nul
 if not errorlevel 1 (
-  py -3 "%~dp0kpp_native_inspect.py" "%~1"
+  py -3 -u "%~dp0kpp_native_inspect.py" "%~1"
 ) else (
   where python >nul 2>nul
   if errorlevel 1 (
@@ -16,6 +16,6 @@ if not errorlevel 1 (
     pause
     exit /b 1
   )
-  python "%~dp0kpp_native_inspect.py" "%~1"
+  python -u "%~dp0kpp_native_inspect.py" "%~1"
 )
 pause
