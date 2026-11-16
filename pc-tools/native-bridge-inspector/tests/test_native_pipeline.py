@@ -152,6 +152,39 @@ class NativeInspectorTests(unittest.TestCase):
             self.assertIn("Skip-data pseudo-instructions safely skipped:", report)
             self.assertIn("Capstone 5.", report)
 
+    def test_build_report_resumes_completed_elf_checkpoints(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            archive_path = root / "KPP-Native-Bridge-Binaries.tar.gz"
+            first = make_elf32_arm("_ZN13KPPNavigation15getLastOpenPageEv")
+            second = make_elf32_arm("_ZN13KPPBrowser16getAllSettingsEv", thumb=True)
+            with tarfile.open(archive_path, "w:gz") as archive:
+                tar_add_bytes(archive, "files/001_KPPMainAppV2.elf", first)
+                tar_add_bytes(archive, "files/002_libbrowser.so.elf", second)
+            files, manifest, _ = inspector.inspect_archive(archive_path)
+            capstone = inspector.load_capstone(INSPECTOR_DIR)
+            checkpoint_dir = root / "inspection-checkpoint"
+            archive_sha = inspector.sha256_file(archive_path)
+
+            first_report = inspector.build_report(
+                files, str(archive_path), manifest, capstone,
+                checkpoint_dir=checkpoint_dir, archive_sha256=archive_sha,
+                batch_size=1,
+            )
+            self.assertEqual(2, len(list(checkpoint_dir.glob("*.json"))))
+
+            with patch.object(
+                inspector, "find_string_xrefs",
+                side_effect=AssertionError("completed work should be read from checkpoint"),
+            ):
+                resumed_report = inspector.build_report(
+                    files, str(archive_path), manifest, capstone,
+                    checkpoint_dir=checkpoint_dir, archive_sha256=archive_sha,
+                    batch_size=1,
+                )
+            self.assertEqual(first_report, resumed_report)
+
+
     def test_exporter_captures_every_executable_mapped_elf_not_just_named_libraries(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
