@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Build the inverted KOReader screensaver set inside the KPM package."""
+"""Build normal-grayscale KOReader screensavers in the KPM package.
+
+The installed folder keeps its historical "-inverted" name so an existing
+KOReader custom-screensaver folder selection does not need to be changed.
+The image pixels written by this builder are normal (not inverted).
+"""
 from __future__ import annotations
 
 import base64
@@ -29,6 +34,8 @@ SOURCE_BASE = (
     "https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/"
     f"{PINNED_REF}/kindle-screensaver-generator/output/"
 )
+# This prepared JPEG is the negative/inverted source. We reverse it here so
+# the installed Chofetz Chaim image is a normal grayscale photograph.
 CHOFETZ_SHA256 = "adbaa80290c621e120e796cb5d5b0dae4460577f2e7b0bed453a7a714a2f3cf0"
 
 
@@ -55,42 +62,47 @@ def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     expected_outputs: list[str] = []
 
+    # The pinned Rav Zvi and Rav Osher source portraits are already normal.
+    # Keep their grayscale levels and contrast; do not invert them.
     for filename, expected_sha in SOURCES:
         source = fetch_verified(filename, expected_sha)
         with Image.open(io.BytesIO(source)) as image:
-            inverted = ImageOps.invert(image.convert("L"))
+            normal = image.convert("L")
             target = OUTPUT_DIR / filename
             temp = target.with_suffix(target.suffix + ".tmp")
-            inverted.save(temp, format="PNG", optimize=True)
+            normal.save(temp, format="PNG", optimize=True)
             temp.replace(target)
         expected_outputs.append(filename)
-        print(f"Built inverted {filename} ({target.stat().st_size} bytes)")
+        print(f"Built normal-grayscale {filename} ({target.stat().st_size} bytes)")
 
     chunks = sorted(ASSET_DIR.glob("chofetz-inverted.jpg.b64.part*"))
     if not chunks:
         raise RuntimeError("No Chofetz Chaim base64 asset segments were found.")
     encoded = "".join(path.read_text(encoding="ascii").strip() for path in chunks)
     try:
-        chofetz = base64.b64decode(encoded, validate=True)
+        chofetz_inverted = base64.b64decode(encoded, validate=True)
     except Exception as exc:
         raise RuntimeError(f"Chofetz Chaim base64 asset is invalid: {exc}") from exc
-    actual_chofetz = sha256(chofetz)
+    actual_chofetz = sha256(chofetz_inverted)
     if actual_chofetz != CHOFETZ_SHA256:
         raise RuntimeError(
-            f"Chofetz Chaim image hash mismatch: expected {CHOFETZ_SHA256}, got {actual_chofetz}"
+            f"Chofetz Chaim source hash mismatch: expected {CHOFETZ_SHA256}, got {actual_chofetz}"
         )
-    with Image.open(io.BytesIO(chofetz)) as image:
+    with Image.open(io.BytesIO(chofetz_inverted)) as image:
         if image.format != "JPEG" or image.size != (420, 598):
             raise RuntimeError(
                 f"Unexpected Chofetz image format/dimensions: {image.format}, {image.size}"
             )
-    chofetz_name = "03_Chofetz_Chaim.jpg"
-    chofetz_path = OUTPUT_DIR / chofetz_name
-    chofetz_tmp = chofetz_path.with_suffix(chofetz_path.suffix + ".tmp")
-    chofetz_tmp.write_bytes(chofetz)
-    chofetz_tmp.replace(chofetz_path)
+        # Reverse the old negative so the image displays as an ordinary,
+        # correctly toned grayscale portrait in KOReader's sleep screen.
+        chofetz_normal = ImageOps.invert(image.convert("L"))
+        chofetz_name = "03_Chofetz_Chaim.jpg"
+        chofetz_path = OUTPUT_DIR / chofetz_name
+        chofetz_tmp = chofetz_path.with_suffix(chofetz_path.suffix + ".tmp")
+        chofetz_normal.save(chofetz_tmp, format="JPEG", quality=95, optimize=True)
+        chofetz_tmp.replace(chofetz_path)
     expected_outputs.append(chofetz_name)
-    print(f"Installed prepared inverted {chofetz_name} ({len(chofetz)} bytes)")
+    print(f"Built normal-grayscale {chofetz_name} ({chofetz_path.stat().st_size} bytes)")
 
     lines = [
         f"{sha256((OUTPUT_DIR / filename).read_bytes())}  {filename}"
