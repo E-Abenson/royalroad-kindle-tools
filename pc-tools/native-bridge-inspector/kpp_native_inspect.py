@@ -1287,7 +1287,7 @@ def main() -> int:
         )
     except KeyboardInterrupt:
         print(
-            "\nINTERRUPTED. Completed ELF files have been checkpointed. 
+            "\nINTERRUPTED. Completed ELF files have been checkpointed. "
             "Run this same BAT again with the same archive to resume.",
             flush=True,
         )
