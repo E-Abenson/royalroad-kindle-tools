@@ -35,16 +35,24 @@ WINDOWS — ONE ANALYSIS
 3. Drag the archive onto Run-KPP-Native-Inspection.bat.
 4. Python 3.8+ must already be installed. No compiler or administrator rights
    are needed.
-5. The verified Capstone wheel is bundled. The helper accepts compatible
+5. Progress is printed live: archive loading, batch number, current ELF file,
+   named-function disassembly, and ARM/Thumb reference-scan progress.
+6. Results are checkpointed after each completed ELF. If the command window is
+   closed or the run is interrupted, launch the same BAT again with the same
+   archive; completed files are reused automatically. The checkpoint folder
+   is removed after the final report is successfully written.
+7. The verified Capstone wheel is bundled. The helper accepts compatible
    Capstone 5.x patch versions, including 5.0.7 and 5.0.9, and records the
    version actually used. No PyPI download or pip installation is required.
-6. Attach KPP-Native-Bridge-Findings.txt here. Also attach
+8. Attach KPP-Native-Bridge-Findings.txt here. Also attach
    KPP-Native-Bridge-Export.txt if the report still lists only one ELF or
    reports skipped files.
 
 OUTPUT
 ------
 One findings report: KPP-Native-Bridge-Findings.txt
+Temporary resume data: KPP-Native-Bridge-Checkpoint-<archive-sha-prefix>
+(The checkpoint folder is automatically removed when the final report is saved.)
 
 The report includes:
 - ELF architecture, section, symbol, import/export and relocation inventories;
