@@ -236,6 +236,7 @@ jobs:
           PY
           (cd dist && zip -qr KPP-Native-Bridge-Inspector-Windows.zip KPP-Native-Bridge-Inspector)
           sha256sum "$PACKAGE" dist/KPP-Native-Bridge-Inspector-Windows.zip | tee dist/SHA256SUMS
+          echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
 
       - name: Upload the complete Windows helper for direct retrieval
         uses: actions/upload-artifact@v4
@@ -243,7 +244,6 @@ jobs:
           name: KPP-Native-Bridge-Inspector-Windows
           path: dist/KPP-Native-Bridge-Inspector-Windows.zip
           retention-days: 7
-          echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
 
       - name: Publish immutable versioned release
         if: github.event_name != 'pull_request'
