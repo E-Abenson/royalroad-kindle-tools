@@ -10,6 +10,7 @@ import struct
 import sys
 import tarfile
 import zipfile
+import shutil
 from collections import defaultdict, deque
 from pathlib import Path
 
@@ -335,9 +336,16 @@ def load_capstone(script_dir: Path):
         actual = sha256_file(wheel)
         if actual.lower() != CAPSTONE_SHA256:
             raise RuntimeError("The bundled Capstone file failed its SHA256 integrity check.")
+
         runtime = script_dir / (".capstone-runtime-" + CAPSTONE_VERSION)
-        if not (runtime / "capstone" / "__init__.py").is_file():
-            runtime.mkdir(parents=True, exist_ok=True)
+
+        # Always rebuild the extracted runtime from the verified wheel. Older
+        # helper versions reused this same folder name without checking its
+        # contents, which allowed an older extraction to be imported instead.
+        if runtime.exists():
+            shutil.rmtree(runtime)
+        runtime.mkdir(parents=True, exist_ok=False)
+        try:
             with zipfile.ZipFile(wheel, "r") as archive:
                 for item in archive.infolist():
                     name = item.filename.replace("\\", "/")
@@ -350,23 +358,27 @@ def load_capstone(script_dir: Path):
                     else:
                         target.parent.mkdir(parents=True, exist_ok=True)
                         with archive.open(item) as source, target.open("wb") as output:
-                            output.write(source.read())
+                            shutil.copyfileobj(source, output)
+        except Exception:
+            shutil.rmtree(runtime, ignore_errors=True)
+            raise
+
         sys.path.insert(0, str(runtime))
         importlib.invalidate_caches()
+
     import capstone
     version = getattr(capstone, "__version__", "unknown")
     if sys.platform == "win32":
-        # The distributed Windows helper is tied to the exact wheel verified by SHA256.
         if version != CAPSTONE_VERSION:
             raise RuntimeError(
-                "Expected bundled Capstone {}, but loaded {}. Re-extract the Windows helper ZIP.".format(
-                    CAPSTONE_VERSION, version
-                )
+                "Expected bundled Capstone {}, but loaded {}. "
+                "The extracted runtime was rebuilt from the verified wheel; "
+                "please attach the full error text.".format(CAPSTONE_VERSION, version)
             )
     elif not str(version).startswith("5."):
-        # Linux CI checks the Capstone 5 API; package and native-core patch versions
-        # can differ between distribution builds.
-        raise RuntimeError("Capstone 5.x is required for the Linux-side validation; loaded {}.".format(version))
+        raise RuntimeError(
+            "Capstone 5.x is required for the Linux-side validation; loaded {}.".format(version)
+        )
     return capstone
 
 

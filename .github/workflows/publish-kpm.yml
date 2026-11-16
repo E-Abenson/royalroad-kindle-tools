@@ -79,13 +79,17 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Verify and test the bundled Windows Capstone wheel
+      - name: Verify the bundled wheel and replace a stale extracted cache
         shell: pwsh
         run: |
-          $wheel = Join-Path $env:RUNNER_TEMP "capstone-5.0.9-py3-none-win_amd64.whl"
+          $helper = Join-Path $env:GITHUB_WORKSPACE "pc-tools/native-bridge-inspector"
+          $wheel = Join-Path $helper "capstone-5.0.9-py3-none-win_amd64.whl"
           $env:KPP_CAPSTONE_WHEEL = $wheel
           python -c "import hashlib,json,os,urllib.request; e='732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0'; d=json.load(urllib.request.urlopen('https://pypi.org/pypi/capstone/5.0.9/json',timeout=30)); a=next(x for x in d['urls'] if x['filename']=='capstone-5.0.9-py3-none-win_amd64.whl'); assert a['digests']['sha256']==e,'PyPI wheel hash differs from pinned value'; r=urllib.request.urlopen(urllib.request.Request(a['url'],headers={'User-Agent':'KPP-Native-Inspector-CI/1.0'}),timeout=90); p=os.environ['KPP_CAPSTONE_WHEEL']; open(p,'wb').write(r.read()); h=hashlib.sha256(open(p,'rb').read()).hexdigest(); assert h==e,'wheel SHA256 mismatch: '+h; print('Downloaded the exact pinned Capstone wheel.')"
-          python -c "import os,sys,zipfile,tempfile,pathlib; p=pathlib.Path(os.environ['KPP_CAPSTONE_WHEEL']); d=pathlib.Path(tempfile.mkdtemp()); zipfile.ZipFile(p).extractall(d); sys.path.insert(0,str(d)); import capstone; assert capstone.__version__=='5.0.9'; cs=capstone.Cs(capstone.CS_ARCH_ARM64,capstone.CS_MODE_ARM); ins=list(cs.disasm(bytes.fromhex('1f2003d5'),0x1000)); assert ins and ins[0].mnemonic=='nop'; print('Windows Capstone wheel verified; AArch64 NOP decoded.')"
+          $staleRuntime = Join-Path $helper ".capstone-runtime-5.0.9"
+          New-Item -ItemType Directory -Force -Path (Join-Path $staleRuntime "capstone") | Out-Null
+          Set-Content -Path (Join-Path $staleRuntime "capstone/__init__.py") -Value '__version__ = "5.0.7"' -NoNewline
+          python -c "import importlib.util,pathlib,sys; root=pathlib.Path(sys.argv[1]); spec=importlib.util.spec_from_file_location('native_inspector',root/'kpp_native_inspect.py'); module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module); cap=module.load_capstone(root); assert cap.__version__=='5.0.9','loaded wrong Capstone version: '+cap.__version__; loaded=pathlib.Path(cap.__file__).resolve(); runtime=(root/'.capstone-runtime-5.0.9').resolve(); assert loaded.is_relative_to(runtime),'Capstone loaded outside the verified runtime: '+str(loaded); cs=cap.Cs(cap.CS_ARCH_ARM64,cap.CS_MODE_ARM); ins=list(cs.disasm(bytes.fromhex('1f2003d5'),0x1000)); assert ins and ins[0].mnemonic=='nop','AArch64 disassembly failed'; print('Stale 5.0.7 cache replaced; bundled 5.0.9 loaded and decoded ARM64 NOP.') " "$helper"
           python -m py_compile pc-tools/native-bridge-inspector/kpp_native_inspect.py
 
   publish:
