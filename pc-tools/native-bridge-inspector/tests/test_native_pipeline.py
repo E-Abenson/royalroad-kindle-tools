@@ -348,6 +348,41 @@ class NativeInspectorTests(unittest.TestCase):
             self.assertIsNotNone(loaded)
             self.assertEqual(0, loaded["work_index"])
 
+
+    def test_v0110_completed_file_checkpoint_is_reused(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            checkpoint = root / "legacy.json"
+            item = {"name": "libbrowser.so.elf", "sha256": "elf-sha"}
+            result = {
+                "symbols": [], "strings": [], "relocations": [],
+                "functions": [], "function_count": 0,
+                "function_instruction_count": 0, "xrefs": [],
+                "instruction_count": 0, "code_bytes": 0,
+                "scan_note": "legacy completed file",
+                "skipped_data": 0,
+            }
+            payload = {
+                "inspector_version": "0.1.110",
+                "checkpoint_format": 1,
+                "archive_sha256": "archive-sha",
+                "elf_sha256": "elf-sha",
+                "elf_name": "libbrowser.so.elf",
+                "result": result,
+            }
+            checkpoint.write_text(
+                __import__("json").dumps(payload), encoding="utf-8"
+            )
+            loaded = inspector.load_cached_file_result(
+                checkpoint, "archive-sha", item
+            )
+            self.assertEqual(result, loaded)
+            self.assertIsNone(
+                inspector.load_cached_file_result(
+                    checkpoint, "different-archive", item
+                )
+            )
+
     def test_build_report_selects_only_high_signal_candidates(self):
         main_app = make_elf32_arm("_ZN13KPPNavigation15getLastOpenPageEv")
         bridge = make_elf32_arm("_ZN13KPPBrowser16getAllSettingsEv", thumb=True)
