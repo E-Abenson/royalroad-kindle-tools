@@ -349,6 +349,21 @@ class NativeInspectorTests(unittest.TestCase):
             self.assertEqual(0, loaded["work_index"])
 
 
+
+    def test_targeted_scan_eta_accounts_for_both_arm_and_thumb_budgets(self):
+        item = {
+            "layout": {
+                "machine": 40,
+                "sections": [
+                    {"flags": 4, "type": 1, "size": 10 * 1024 * 1024},
+                ],
+            }
+        }
+        self.assertEqual(
+            8 * 1024 * 1024,
+            inspector.estimate_targeted_scan_budget([item]),
+        )
+
     def test_v0110_completed_file_checkpoint_is_reused(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
