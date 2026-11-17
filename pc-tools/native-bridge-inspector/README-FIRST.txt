@@ -49,9 +49,10 @@ WINDOWS — ONE ANALYSIS
    checkpointed after each chunk; completed per-file results are also saved.
    If interrupted, run the same BAT again with the same archive. Completed
    results and compatible prior scan checkpoints are reused automatically.
-10. Version 0.1.112 can reuse compatible v0.1.111 per-file and within-file
-    chunk checkpoints for the same archive SHA256. If none exist, it begins
-    with the inventory pass and creates checkpoints as it proceeds.
+10. Version 0.1.112 reuses compatible v0.1.111 per-file and within-file
+    chunk checkpoints for the same archive SHA256. It also reuses completed
+    v0.1.110 per-file checkpoints; an interrupted v0.1.110 file restarts.
+    If no compatible checkpoints exist, it begins with the inventory pass.
 11. The verified Capstone wheel is bundled. No PyPI download or pip
     installation is required.
 12. Attach KPP-Native-Bridge-Findings.txt here. Also attach
