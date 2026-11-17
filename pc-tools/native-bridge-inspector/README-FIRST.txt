@@ -39,9 +39,10 @@ WINDOWS — ONE ANALYSIS
 6. The second pass selects at most 12 files with the strongest, specific
    browser/bridge evidence for named-function disassembly. Generic words such
    as "browser" alone do not qualify.
-7. Static code-reference scans run on at most 8 selected files and are capped
-   at 4 MB per file. The underlying disassembler still uses bounded 256 KB
-   chunks and can split a chunk further if Capstone reports memory pressure.
+7. Static code-reference scans run on at most 8 selected files. Each ARM or
+   Thumb pass is capped at 4 MB (so an ARM32 file can receive up to 8 MB total).
+   The disassembler uses bounded 256 KB chunks and can split a chunk further
+   if Capstone reports memory pressure.
 8. The command window shows the inventory count, candidate selection, current
    file, chunk progress, elapsed time and estimated remaining time.
 9. Inventory is checkpointed after each ELF; code-reference scans are
