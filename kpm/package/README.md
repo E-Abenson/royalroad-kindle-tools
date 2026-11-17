@@ -7,7 +7,7 @@ This package contains a small set of manual Kindle utilities and a private clean
 - **KPP-Native-Bridge-Export** — one manual export of the running KPP executable and selected shared libraries mapped by KPPMainApp. It creates KPP-Native-Bridge-Binaries.tar.gz in Documents for USB transfer. It does not inspect page contents, read cookies, modify the app or upload binaries.
 - **KPM-Update-All** — manually refreshes package repositories and upgrades installed packages. After a successful upgrade, it automatically runs the private cleanup helper and regenerates the version report.
 - **Inspect-USB-Screen** — a one-run, read-only inventory of the stock USB-mode display assets. It copies the files in /usr/share/blanket/usb, records their metadata and PNG dimensions, and writes USB-Screen-Inspection.tar.gz to Documents. It does not modify the system.
-- **Install-Rabbinic-Screensavers** — a separate manual launcher. When opened on the Kindle, it downloads two SHA256-verified grayscale portraits directly into /mnt/us/screensavers/. It does not run automatically during KPM installation and does not change any other images.
+- **Install-Rabbinic-Screensavers** — a separate manual launcher. It copies the two normal-grayscale portraits already installed by KPM in `/mnt/us/koreader-screensavers-inverted/` into `/mnt/us/screensavers/`. It verifies each source and staged copy against the KPM package's `SHA256SUMS`; no internet download is involved. It changes only those two named images.
 - **KindleBatchPrepareFix** — manually repairs/reinstalls the separate Kindle Batch Preparation KOReader plugin.
 
 The previous comprehensive diagnostic, last-open-page test and Hermes bytecode export are completed and retired. Their launchers, output files and package-cache copies are queued for removal by the automatic cleanup.
@@ -58,19 +58,21 @@ Stop on access-denial or Cloudflare challenge responses. Do not attempt CAPTCHA/
 ## Rabbinic screensavers
 
 After installing/upgrading this KPM package, open **Install-Rabbinic-Screensavers**
-from the Kindle library. It downloads the prepared Rav Zvi Kushelevsky and
-Rav Osher Arieli portraits directly to /mnt/us/screensavers/, checks each
-file against a pinned SHA256 digest, tries three GitHub download routes and
-falls back from curl to wget. Detailed errors are saved to
-/mnt/us/documents/Install-Rabbinic-Screensavers.log. It atomically replaces only those two
-named files. Existing unrelated screensaver images are preserved. No USB
-transfer or Windows-side download is required.
+from the Kindle library. It copies the two prepared Rav Zvi Kushelevsky and
+Rav Osher Arieli portraits from the local KPM-installed folder
+`/mnt/us/koreader-screensavers-inverted/` into `/mnt/us/screensavers/`.
+
+The source folder has a historical `-inverted` name, but the current images
+inside it are normal grayscale, not colour-inverted. The installer reads their
+expected hashes from the package's `SHA256SUMS`, verifies each source, verifies
+the staged copy, and then replaces only the two matching files in the standard
+screensavers folder. No Wi-Fi or GitHub download is needed. Existing unrelated
+screensaver images are preserved. The launcher remains manual and does not run
+automatically during KPM installation.
 
 The images are 1072x1448 PNGs in 8-bit grayscale, adjusted for e-ink contrast.
 The Custom Screensaver Scriptlet remains responsible for enabling/rotating
 screensavers.
-
-
 
 ## KOReader custom sleep-screen images
 

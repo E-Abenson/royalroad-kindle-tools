@@ -1,28 +1,21 @@
 #!/bin/sh
 # Name: Install-Rabbinic-Screensavers
-# Build: 1.1
-# Downloads two prepared grayscale portraits directly onto the Kindle.
-# Run manually from the Kindle library. Does not run during KPM installation.
+# Build: 2.0
+# Copies normal-grayscale portraits from KPM's local KOReader asset folder.
+# Run manually from the Kindle library; no network download is performed.
 # Only the two named PNG files are created/replaced; all other files are untouched.
 
+SOURCE_DIR="/mnt/us/koreader-screensavers-inverted"
+CHECKSUMS="$SOURCE_DIR/SHA256SUMS"
 SCREENSAVERS_DIR="/mnt/us/screensavers"
 DOCS="/mnt/us/documents"
 LOG="$DOCS/Install-Rabbinic-Screensavers.log"
-PINNED_REF="61e39709381cedb675d88b220abfb5d27164f865"
-BRANCH_REF="rabbinic-screensavers-run"
-RELATIVE_DIR="kindle-screensaver-generator/output"
-
-RAV_ZVI_FILE="01_Rav_Zvi_Kushelevsky.png"
-RAV_ZVI_SHA="b8b6fc05c12f1d272a624725b25a330116a3a5614d2c0052cf1d93b578c1920"
-
-RAV_OSHER_FILE="02_Rav_Osher_Arieli.png"
-RAV_OSHER_SHA="736f9554e2f5b743f50fb4fd675bce7b4f68fcfb2b15ec2aafdd324f8024b67d"
 
 umask 022
-mkdir -p "$DOCS" "$SCREENSAVERS_DIR" 2>/dev/null || {
+if ! mkdir -p "$DOCS" "$SCREENSAVERS_DIR" 2>/dev/null; then
   printf '%s\n' "FAILURE: Could not prepare Documents or the screensavers folder."
   exit 1
-}
+fi
 : > "$LOG" 2>/dev/null || true
 
 say() {
@@ -31,124 +24,106 @@ say() {
 }
 
 if ! command -v sha256sum >/dev/null 2>&1; then
-  say "FAILURE: sha256sum is unavailable; no image was installed."
+  say "FAILURE: sha256sum is unavailable; no image was copied."
   say "Log: $LOG"
   exit 1
 fi
 
-download_one() {
+if [ ! -s "$CHECKSUMS" ]; then
+  say "FAILURE: The KPM-installed KOReader image folder or SHA256SUMS is missing."
+  say "Run KPM-Update-All first, then open this installer again."
+  say "Expected source folder: $SOURCE_DIR"
+  exit 1
+fi
+
+copy_one() {
   FILENAME="$1"
-  EXPECTED_SHA="$2"
+  SOURCE="$SOURCE_DIR/$FILENAME"
   DEST="$SCREENSAVERS_DIR/$FILENAME"
-  TEMP="$SCREENSAVERS_DIR/.$FILENAME.download.$$"
+  TEMP="$SCREENSAVERS_DIR/.$FILENAME.copy.$$"
+
+  if [ ! -s "$SOURCE" ]; then
+    say "FAILURE: Local source image is missing or empty: $SOURCE"
+    return 1
+  fi
+
+  EXPECTED_SHA="$(awk -v wanted="$FILENAME" '$2 == wanted { print $1; exit }' "$CHECKSUMS")"
+  if [ -z "$EXPECTED_SHA" ]; then
+    say "FAILURE: No SHA256 entry for $FILENAME in $CHECKSUMS"
+    return 1
+  fi
+
+  SOURCE_SHA="$(sha256sum "$SOURCE" 2>/dev/null | awk '{print $1}')"
+  if [ "$SOURCE_SHA" != "$EXPECTED_SHA" ]; then
+    say "FAILURE: The KOReader source image did not match its package checksum: $FILENAME"
+    say "Expected: $EXPECTED_SHA"
+    say "Received: $SOURCE_SHA"
+    return 1
+  fi
 
   if [ -f "$DEST" ]; then
-    CURRENT_SHA="$(sha256sum "$DEST" 2>/dev/null | awk '{print $1}')"
-    if [ "$CURRENT_SHA" = "$EXPECTED_SHA" ]; then
-      say "Already installed and verified: $FILENAME"
+    DEST_SHA="$(sha256sum "$DEST" 2>/dev/null | awk '{print $1}')"
+    if [ "$DEST_SHA" = "$EXPECTED_SHA" ]; then
+      say "Already installed and verified: $DEST"
       return 0
     fi
   fi
 
-  for ROUTE in pinned branch github_raw_api; do
-    case "$ROUTE" in
-      pinned)
-        URL="https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/$PINNED_REF/$RELATIVE_DIR/$FILENAME"
-        ;;
-      branch)
-        URL="https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/$BRANCH_REF/$RELATIVE_DIR/$FILENAME"
-        ;;
-      github_raw_api)
-        URL="https://api.github.com/repos/E-Abenson/royalroad-kindle-tools/contents/$RELATIVE_DIR/$FILENAME?ref=$PINNED_REF"
-        ;;
-    esac
-
+  rm -f "$TEMP"
+  if ! cp "$SOURCE" "$TEMP"; then
     rm -f "$TEMP"
-    say "Trying $ROUTE for $FILENAME ..."
+    say "FAILURE: Could not copy $SOURCE to the staging file."
+    return 1
+  fi
 
-    DOWNLOADED=0
-    if command -v curl >/dev/null 2>&1; then
-      if [ "$ROUTE" = "github_raw_api" ]; then
-        if curl -fLsS -L --connect-timeout 25 --max-time 180 --retry 2 \
-          -H "Accept: application/vnd.github.raw" \
-          -H "X-GitHub-Api-Version: 2022-11-28" \
-          -o "$TEMP" "$URL" 2>> "$LOG"; then
-          DOWNLOADED=1
-        else
-          say "curl request failed for route $ROUTE."
-        fi
-      else
-        if curl -fLsS -L --connect-timeout 25 --max-time 180 --retry 2 \
-          -o "$TEMP" "$URL" 2>> "$LOG"; then
-          DOWNLOADED=1
-        else
-          say "curl request failed for route $ROUTE."
-        fi
-      fi
-    fi
-
-    # Try wget too if curl's request failed, even if curl is installed.
-    if [ "$DOWNLOADED" -eq 0 ] && command -v wget >/dev/null 2>&1; then
-      rm -f "$TEMP"
-      if [ "$ROUTE" = "github_raw_api" ]; then
-        if wget -q -O "$TEMP" --timeout=45 --tries=2 \
-          --header="Accept: application/vnd.github.raw" "$URL" 2>> "$LOG"; then
-          DOWNLOADED=1
-        else
-          say "wget request failed for route $ROUTE."
-        fi
-      else
-        if wget -q -O "$TEMP" --timeout=45 --tries=2 "$URL" 2>> "$LOG"; then
-          DOWNLOADED=1
-        else
-          say "wget request failed for route $ROUTE."
-        fi
-      fi
-    fi
-
-    if [ "$DOWNLOADED" -eq 1 ] && [ -s "$TEMP" ]; then
-      ACTUAL_SHA="$(sha256sum "$TEMP" 2>/dev/null | awk '{print $1}')"
-      if [ "$ACTUAL_SHA" = "$EXPECTED_SHA" ]; then
-        chmod 644 "$TEMP" 2>/dev/null || true
-        if mv -f "$TEMP" "$DEST"; then
-          say "SUCCESS: Installed and verified $DEST"
-          return 0
-        fi
-        say "Could not move verified file into $DEST."
-      else
-        say "Downloaded data failed SHA256 verification for $FILENAME."
-        say "Expected: $EXPECTED_SHA"
-        say "Received: $ACTUAL_SHA"
-      fi
-    elif [ "$DOWNLOADED" -eq 1 ]; then
-      say "Download returned an empty file for $FILENAME."
-    fi
+  COPIED_SHA="$(sha256sum "$TEMP" 2>/dev/null | awk '{print $1}')"
+  if [ "$COPIED_SHA" != "$EXPECTED_SHA" ]; then
     rm -f "$TEMP"
-  done
+    say "FAILURE: The staged copy failed SHA256 verification: $FILENAME"
+    say "Expected: $EXPECTED_SHA"
+    say "Received: $COPIED_SHA"
+    return 1
+  fi
 
-  say "FAILURE: All download routes failed for $FILENAME."
-  return 1
+  chmod 644 "$TEMP" 2>/dev/null || true
+  if ! mv -f "$TEMP" "$DEST"; then
+    rm -f "$TEMP"
+    say "FAILURE: Could not move the verified local copy into $DEST"
+    return 1
+  fi
+
+  INSTALLED_SHA="$(sha256sum "$DEST" 2>/dev/null | awk '{print $1}')"
+  if [ "$INSTALLED_SHA" != "$EXPECTED_SHA" ]; then
+    say "FAILURE: Destination verification failed after copying: $DEST"
+    say "Expected: $EXPECTED_SHA"
+    say "Received: $INSTALLED_SHA"
+    return 1
+  fi
+
+  say "SUCCESS: Copied and verified $DEST"
+  return 0
 }
 
-say "Rabbinic Kindle Screensavers — installer build 1.1"
+say "Rabbinic Kindle Screensavers — installer build 2.0"
+say "Source: $SOURCE_DIR"
 say "Destination: $SCREENSAVERS_DIR"
-say "Detailed log: $LOG"
-say "Other files in the folder will not be changed."
+say "Using the normal-grayscale images already installed by KPM."
+say "No Wi-Fi or GitHub download is needed for this step."
+say "Only the two named portraits will be changed; other images are untouched."
 say ""
 
 FAILURES=0
-download_one "$RAV_ZVI_FILE" "$RAV_ZVI_SHA" || FAILURES=$((FAILURES + 1))
-download_one "$RAV_OSHER_FILE" "$RAV_OSHER_SHA" || FAILURES=$((FAILURES + 1))
+copy_one "01_Rav_Zvi_Kushelevsky.png" || FAILURES=$((FAILURES + 1))
+copy_one "02_Rav_Osher_Arieli.png" || FAILURES=$((FAILURES + 1))
 
 sync 2>/dev/null || true
 say ""
 if [ "$FAILURES" -eq 0 ]; then
-  say "COMPLETE — both screensavers are installed and SHA256-verified."
+  say "COMPLETE — both normal-grayscale screensavers are installed and SHA256-verified."
   say "Open the Custom Screensaver Scriptlet to use or rotate them."
   exit 0
 fi
 
-say "INCOMPLETE — $FAILURES image(s) could not be installed."
-say "The detailed error log is saved as Documents/Install-Rabbinic-Screensavers.log."
-say "Run this launcher again when the Kindle has a working Wi-Fi connection."
+say "INCOMPLETE — $FAILURES image(s) could not be copied."
+say "Detailed log: $LOG"
 exit 1

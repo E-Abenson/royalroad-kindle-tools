@@ -161,7 +161,7 @@ chmod 600 "$DOCS/.RoyalRoadTools-installed-version.txt" 2>/dev/null || true
 
 say "Cleanup runner installed privately at $INTERNAL_DIR/cleanup.sh."
 say "It runs automatically only when KPM-Update-All completes successfully."
-say "Manual launchers installed: native bridge export, USB screen inspection, KPM updater, rabbinic screensaver downloader, and plugin repair."
+say "Manual launchers installed: native bridge export, USB screen inspection, KPM updater, rabbinic screensaver copier, and plugin repair."
 say "The version-report helper is private; no version-report launcher is installed."
 if sh "$INTERNAL_DIR/version-info.sh"; then
   say "SUCCESS — Kindle-Version-Report.txt was regenerated."
