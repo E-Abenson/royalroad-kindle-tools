@@ -350,6 +350,34 @@ class NativeInspectorTests(unittest.TestCase):
 
 
 
+
+    def test_marker_string_extraction_prioritizes_specific_bridge_strings(self):
+        general = b"".join(
+            ("generic browser label {:03d}".format(index)).encode("ascii") + b"\x00"
+            for index in range(inspector.MAX_FINDINGS_PER_FILE + 20)
+        )
+        strong = b"getLastOpenPage\x00"
+        data = general + strong
+        layout = {
+            "sections": [
+                {
+                    "type": 1,
+                    "flags": 2,
+                    "addr": 0x2000,
+                    "offset": len(general),
+                    "size": len(strong),
+                    "name": ".rodata",
+                }
+            ]
+        }
+        found = inspector.extract_marker_strings(data, layout)
+        self.assertEqual("getLastOpenPage", found[0]["text"])
+        self.assertEqual(1, sum(
+            1 for item in found
+            if inspector.HIGH_SIGNAL_RE.search(item["text"])
+        ))
+        self.assertLessEqual(len(found), inspector.MAX_FINDINGS_PER_FILE)
+
     def test_targeted_scan_eta_accounts_for_both_arm_and_thumb_budgets(self):
         item = {
             "layout": {
@@ -429,7 +457,7 @@ class NativeInspectorTests(unittest.TestCase):
             self.assertEqual(2, scan.call_count)
             for call in scan.call_args_list:
                 self.assertEqual(
-                    inspector.MAX_TARGETED_CODE_BYTES_PER_FILE,
+                    inspector.MAX_TARGETED_CODE_BYTES_PER_MODE,
                     call.kwargs["max_code_bytes"],
                 )
 
