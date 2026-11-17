@@ -42,6 +42,7 @@ MAX_TARGETED_ANALYSIS_FILES = 12
 MAX_TARGETED_XREF_FILES = 8
 MAX_TARGETED_CODE_BYTES_PER_FILE = 4 * 1024 * 1024
 COMPATIBLE_CHECKPOINT_VERSIONS = {"0.1.111", INSPECTOR_VERSION}
+LEGACY_COMPLETED_CHECKPOINT_FORMATS = {"0.1.110": 1, "0.1.111": 2, INSPECTOR_VERSION: CHECKPOINT_FORMAT_VERSION}
 HIGH_SIGNAL_RE = re.compile(
     r"invokeAction|getLastOpenPage|getAllSettings|webViewURL|"
     r"navigateToKPPBrowser|redirectToWebView|BrowserDataProvider|"
@@ -1158,9 +1159,11 @@ def load_cached_file_result(cache_file: Path, archive_sha256: str, item):
         return None
     if not isinstance(payload, dict):
         return None
+    checkpoint_version = payload.get("inspector_version")
+    expected_format = LEGACY_COMPLETED_CHECKPOINT_FORMATS.get(checkpoint_version)
     if (
-        payload.get("inspector_version") not in COMPATIBLE_CHECKPOINT_VERSIONS
-        or payload.get("checkpoint_format") != CHECKPOINT_FORMAT_VERSION
+        expected_format is None
+        or payload.get("checkpoint_format") != expected_format
         or payload.get("archive_sha256") != archive_sha256
         or payload.get("elf_sha256") != item["sha256"]
         or payload.get("elf_name") != item["name"]
@@ -1922,10 +1925,20 @@ def main() -> int:
                     flush=True,
                 )
             else:
-                print(
-                    "No compatible prior checkpoint folder found; starting from the inventory pass.",
-                    flush=True,
+                legacy_checkpoint_dir = archive_path.with_name(
+                    "KPP-Native-Bridge-Checkpoint-{}".format(archive_sha256[:12])
                 )
+                if legacy_checkpoint_dir.is_dir():
+                    checkpoint_dir = legacy_checkpoint_dir
+                    print(
+                        "Found v0.1.110 checkpoints; completed ELF files will be reused. An interrupted in-progress file will restart.",
+                        flush=True,
+                    )
+                else:
+                    print(
+                        "No compatible prior checkpoint folder found; starting from the inventory pass.",
+                        flush=True,
+                    )
         else:
             print(
                 "Existing v0.1.112 checkpoints found; saved inventory and scan progress will be reused.",
