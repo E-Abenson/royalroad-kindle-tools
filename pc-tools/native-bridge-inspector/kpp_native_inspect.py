@@ -1483,7 +1483,6 @@ def build_report(
         "No binary was executed or modified. No LIPC request or browser action was sent.",
         "No network access, upload, paste service or external lookup was used.",
         "No process memory, page text, cookies, browser history, URLs, command lines or account data were collected.",
-        "Inventory time: {}.".format(_format_duration(inventory_elapsed)),
         "",
         "EXPORT MANIFEST",
         "-" * 78,
