@@ -2,7 +2,7 @@
 # Name: Inspect-USB-Screen
 # Build: 1.1
 # Read-only inventory of the stock USB-mode display assets.
-# Uploads only the text report to pasters.io with a one-week expiry.
+# Uploads only the text report to pasters.io with a one-day expiry.
 # The image files themselves remain in a local Documents archive.
 
 DOCS="/mnt/us/documents"
@@ -14,12 +14,14 @@ REPORT="$WORK/USB-Screen-Inspection.txt"
 LOCAL_REPORT="$DOCS/USB-Screen-Inspection.txt"
 PASTE_NOTE="$DOCS/USB-Screen-Inspection-Paste.txt"
 PASTE_NOTE_TEMP="$PASTE_NOTE.new.$$"
-ENDPOINT="https://pasters.io/?expires=1w"
+DELETE_FILE="$DOCS/.USB-Screen-Inspection-delete-url.txt"
+DELETE_TEMP="$DELETE_FILE.new.$$"
+ENDPOINT="https://pasters.io/?expires=1d"
 
 umask 077
 
 cleanup() {
-  rm -f "$ARCHIVE_TEMP" "$PASTE_NOTE_TEMP"
+  rm -f "$ARCHIVE_TEMP" "$PASTE_NOTE_TEMP" "$DELETE_TEMP"
   rm -rf "$WORK"
 }
 trap cleanup 0
@@ -33,7 +35,7 @@ if ! mkdir -m 700 "$WORK" 2>/dev/null; then
   printf '%s\n' "FAILURE: Could not create a private temporary directory."
   exit 1
 fi
-rm -f "$PASTE_NOTE" "$PASTE_NOTE_TEMP" "$LOCAL_REPORT"
+rm -f "$PASTE_NOTE" "$PASTE_NOTE_TEMP" "$LOCAL_REPORT" "$DELETE_FILE" "$DELETE_TEMP"
 : > "$REPORT"
 
 say() {
@@ -69,7 +71,6 @@ say ""
 say "DEVICE"
 say "Model: $(first_line /var/local/deviceType.txt)"
 say "Firmware: $(first_line /etc/prettyversion.txt)"
-say "Firmware identifier: $(first_line /etc/version.txt)"
 say "Architecture: $(uname -m 2>/dev/null || echo unavailable)"
 say ""
 say "DISPLAY INFORMATION"
@@ -141,7 +142,7 @@ say "SAFETY AND SHARING"
 say "This inspection only reads system metadata and files under $USB_DIR."
 say "It does not remount / read-write, replace images, change permissions, restart services, or alter the USB connection."
 say "Only this text report is uploaded to pasters.io. The image files are not uploaded."
-say "The paste is readable by anyone who obtains its link and is requested to expire after one week."
+say "The paste is readable by anyone who obtains its link and is requested to expire after one day."
 say ""
 say "NEXT STEP"
 say "Paste the PASTERS.IO link printed at the end of this run into the ChatGPT conversation."
@@ -173,7 +174,7 @@ BODY="$WORK/response-body.txt"
 CURL_ERROR="$WORK/curl-error.txt"
 
 say ""
-say "Uploading the text report to pasters.io (one-week expiry requested)..."
+say "Uploading the text report to pasters.io (one-day expiry requested)..."
 HTTP_CODE="$(curl -sS --connect-timeout 15 --max-time 90 \
   -D "$HEADERS" -o "$BODY" -w '%{http_code}' \
   --data-binary "@$REPORT" "$ENDPOINT" 2>"$CURL_ERROR")"
@@ -227,13 +228,39 @@ case "$PASTE_ID" in
 esac
 
 EXPIRES="$(awk 'tolower($1) == "x-paste-expires-in:" { sub(/\r$/, "", $2); print $2; exit }' "$HEADERS" 2>/dev/null)"
-[ -n "$EXPIRES" ] || EXPIRES="Not reported; one-week expiry was requested"
+[ -n "$EXPIRES" ] || EXPIRES="Not reported; one-day expiry was requested"
+
+# Save Pasters' per-paste deletion URL privately; never print or upload it.
+DELETE_URL="$(awk 'tolower($1) == "x-delete-url:" { sub(/\r$/, "", $2); print $2; exit }' "$HEADERS" 2>/dev/null)"
+DELETE_SAVED=0
+case "$DELETE_URL" in
+  https://pasters.io/d/*)
+    DELETE_PATH="${DELETE_URL#https://pasters.io/d/}"
+    case "$DELETE_PATH" in
+      ""|*[!A-Za-z0-9._~/?=\&%+-]*)
+        rm -f "$DELETE_TEMP"
+        ;;
+      *)
+        if printf '%s\n' "$DELETE_URL" > "$DELETE_TEMP" &&
+           chmod 600 "$DELETE_TEMP" 2>/dev/null &&
+           mv -f "$DELETE_TEMP" "$DELETE_FILE"; then
+          DELETE_SAVED=1
+        else
+          rm -f "$DELETE_TEMP" "$DELETE_FILE"
+        fi
+        ;;
+    esac
+    ;;
+  *)
+    rm -f "$DELETE_FILE" "$DELETE_TEMP"
+    ;;
+esac
 
 {
   printf 'PASTERS.IO SHARE LINK\n'
   printf '%s\n' "$PASTE_URL"
   printf 'Upload result: HTTP 201 (complete)\n'
-  printf 'Requested expiry: one week\n'
+  printf 'Requested expiry: one day\n'
   printf 'Server-reported remaining lifetime: %s\n' "$EXPIRES"
   printf 'Access: anyone who obtains this link can read the text report.\n'
   printf 'Only the text report was uploaded; the image files remain in the local archive.\n'
@@ -247,8 +274,13 @@ fi
 say ""
 say "SUCCESS: The complete text report was uploaded."
 say "PASTERS.IO LINK: $PASTE_URL"
-say "Requested expiry: one week. Server report: $EXPIRES"
+say "Requested expiry: one day. Server report: $EXPIRES"
 say "Paste link saved to: $PASTE_NOTE"
+if [ "$DELETE_SAVED" -eq 1 ]; then
+  say "Private early-deletion link saved with restricted permissions."
+else
+  say "Pasters did not return a private deletion link; the paste will expire as requested."
+fi
 say "Local text report: $LOCAL_REPORT"
 if [ "$ARCHIVE_OK" -eq 1 ]; then
   say "Local image archive: $ARCHIVE"

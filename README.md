@@ -16,14 +16,14 @@ An experimental KPM toolkit for investigating the jailbroken Kindle's built-in K
 
 - **KPP-Native-Bridge-Export** — the current single manual investigation launcher. It copies the running KPP executable and selected shared libraries mapped by KPPMainApp into a private USB-transfer archive. It collects no page URL, page text, cookie, account data, PID or command line, and does not upload any binary.
 - **KPM-Update-All** — manual KPM repository refresh and package upgrade. After a successful upgrade, it automatically runs the hidden cleanup helper and refreshes the version report.
-- **Inspect-USB-Screen** — one-run, read-only inventory of the stock USB display assets and screen dimensions; uploads its text report to Pasters.io for one week and keeps an archive of the image files locally without changing system files.
+- **Inspect-USB-Screen** — one-run, read-only inventory of the stock USB display assets and screen dimensions; uploads its text report to Pasters.io for one day and keeps an archive of the image files locally without changing system files. If returned, the private per-paste deletion URL is saved separately with restricted permissions.
 - **KindleBatchPrepareFix** — manual repair/reinstall tool for the KOReader Kindle Batch Preparation plugin.
 
 The prior comprehensive diagnostic, getLastOpenPage check, and Hermes bytecode exporter are completed and retired. Their launchers, reports, temporary files, saved paste-link files and package-cache copies are queued for removal by the automatic cleanup.
 
 ## USB display inspection
 
-The screen shown while the Kindle is connected to a computer is a separate system USB display, not the normal sleep screensaver. The Inspect-USB-Screen launcher records the stock assets' dimensions, permissions and checksums, then uploads the text report to Pasters.io with a one-week expiry. Paste the link printed by the Kindle into the ChatGPT conversation. The report is also saved as `USB-Screen-Inspection.txt`; the link is saved as `USB-Screen-Inspection-Paste.txt` in Documents. A separate `USB-Screen-Inspection.tar.gz` archive contains the actual image files and stays local because the Pasters upload is text-only. The diagnostic does not modify the system or the existing custom sleep screensavers.
+The screen shown while the Kindle is connected to a computer is a separate system USB display, not the normal sleep screensaver. The Inspect-USB-Screen launcher records the stock assets' dimensions, permissions and checksums, then uploads the text report to Pasters.io with a one-day expiry. Paste the link printed by the Kindle into the ChatGPT conversation. The report is also saved as `USB-Screen-Inspection.txt`; the link is saved as `USB-Screen-Inspection-Paste.txt` in Documents. If the server returns its per-paste deletion URL, the launcher saves it in the hidden file `.USB-Screen-Inspection-delete-url.txt` with permissions set to 600; that URL is a secret and must not be shared. Expired pastes can remain recoverable from Pasters.io for 21 days before permanent purging. The actual image files are kept in a separate local `USB-Screen-Inspection.tar.gz` archive and are not uploaded. The diagnostic does not modify the system or existing custom sleep screensavers.
 
 ## Native browser bridge investigation
 
