@@ -35,7 +35,8 @@ WINDOWS — ONE ANALYSIS
 4. Python 3.8+ must already be installed. No compiler or administrator rights
    are needed.
 5. The first pass inventories symbols, imports/exports, relocations and
-   relevant strings in EVERY exported ELF file.
+   relevant strings in EVERY exported ELF file. Specific bridge markers are
+   prioritised over generic words such as browser or navigation.
 6. The second pass selects at most 12 files with the strongest, specific
    browser/bridge evidence for named-function disassembly. Generic words such
    as "browser" alone do not qualify.
