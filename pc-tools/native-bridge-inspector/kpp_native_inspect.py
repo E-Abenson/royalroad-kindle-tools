@@ -40,7 +40,7 @@ MAX_DISASSEMBLY_CHUNK_BYTES = 256 * 1024
 MIN_DISASSEMBLY_CHUNK_BYTES = 4 * 1024
 MAX_TARGETED_ANALYSIS_FILES = 12
 MAX_TARGETED_XREF_FILES = 8
-MAX_TARGETED_CODE_BYTES_PER_FILE = 4 * 1024 * 1024
+MAX_TARGETED_CODE_BYTES_PER_MODE = 4 * 1024 * 1024
 COMPATIBLE_CHECKPOINT_VERSIONS = {"0.1.111", INSPECTOR_VERSION}
 LEGACY_COMPLETED_CHECKPOINT_FORMATS = {"0.1.110": 1, "0.1.111": 2, INSPECTOR_VERSION: CHECKPOINT_FORMAT_VERSION}
 HIGH_SIGNAL_RE = re.compile(
@@ -240,7 +240,8 @@ def section_for_address(layout, address: int):
 
 
 def extract_marker_strings(data: bytes, layout):
-    found = []
+    high_signal = []
+    general = []
     seen = set()
 
     def add(offset: int, raw: str):
@@ -253,25 +254,29 @@ def extract_marker_strings(data: bytes, layout):
         address = None
         if section is not None and (section["flags"] & 2):
             address = section["addr"] + offset - section["offset"]
+        is_high_signal = bool(HIGH_SIGNAL_RE.search(preview))
+        destination = high_signal if is_high_signal else general
+        if len(destination) >= MAX_FINDINGS_PER_FILE:
+            return
         key = (offset, preview)
         if key in seen:
             return
         seen.add(key)
-        found.append({
+        destination.append({
             "offset": offset, "text": preview, "address": address,
             "section": section["name"] if section else "?",
         })
 
     for match in re.finditer(rb"[\x20-\x7e]{5,}", data):
         add(match.start(), match.group(0).decode("utf-8", "replace"))
-        if len(found) >= MAX_FINDINGS_PER_FILE:
-            return found
+        if len(high_signal) >= MAX_FINDINGS_PER_FILE:
+            return high_signal
 
     for match in re.finditer(rb"(?:[\x20-\x7e]\x00){5,}", data):
         add(match.start(), match.group(0).decode("utf-16le", "replace"))
-        if len(found) >= MAX_FINDINGS_PER_FILE:
+        if len(high_signal) >= MAX_FINDINGS_PER_FILE:
             break
-    return found
+    return high_signal + general[:MAX_FINDINGS_PER_FILE - len(high_signal)]
 
 
 def parse_symbol_tables(data: bytes, layout):
@@ -577,9 +582,8 @@ def find_string_xrefs(
         if layout["machine"] == 183:
             page_targets[item["address"] & ~0xFFF].append(index)
 
-    # Exhaustively decode every supported executable section in every ELF.
-    # If this ELF has no marker string at an executable address, it is still
-    # scanned, but there can be no direct string-reference candidates.
+    # Decode supported executable sections in order, bounded by max_code_bytes
+    # for each ARM/Thumb mode. With no marker addresses, use the faster lite decoder.
     results = []
     seen = set()
     instructions_scanned = 0
@@ -1289,7 +1293,7 @@ def estimate_targeted_scan_budget(items):
             and 0 < section["size"] <= MAX_CODE_BYTES_PER_FILE
         )
         total += min(
-            available_per_mode, MAX_TARGETED_CODE_BYTES_PER_FILE
+            available_per_mode, MAX_TARGETED_CODE_BYTES_PER_MODE
         ) * passes
     return total
 
@@ -1442,7 +1446,7 @@ def build_report(
         "\nPASS 2/2 — TARGETED ANALYSIS: {} of {} ELF files selected; {} will "
         "receive bounded code-reference scans (up to {:,} bytes each).".format(
             len(deep_candidates), len(files), len(xref_candidates),
-            MAX_TARGETED_CODE_BYTES_PER_FILE
+            MAX_TARGETED_CODE_BYTES_PER_MODE
         ),
         flush=True,
     )
@@ -1483,7 +1487,7 @@ def build_report(
         "Inventory covers symbols, imports/exports, relocations and marker strings in every ELF.",
         "Expensive disassembly is limited to the highest-scoring browser/bridge candidates.",
         "Static reference scans are capped at {:,} code bytes per selected ELF.".format(
-            MAX_TARGETED_CODE_BYTES_PER_FILE
+            MAX_TARGETED_CODE_BYTES_PER_MODE
         ),
         "No binary was executed or modified. No LIPC request or browser action was sent.",
         "No network access, upload, paste service or external lookup was used.",
@@ -1656,7 +1660,7 @@ def build_report(
 
                 print(
                     "File {}/{}: bounded reference scan (maximum {:,} bytes)...".format(
-                        file_index + 1, len(files), MAX_TARGETED_CODE_BYTES_PER_FILE
+                        file_index + 1, len(files), MAX_TARGETED_CODE_BYTES_PER_MODE
                     ),
                     flush=True,
                 )
@@ -1670,7 +1674,7 @@ def build_report(
                     checkpoint_path=scan_checkpoint_path,
                     archive_sha256=archive_sha256,
                     elf_sha256=item["sha256"],
-                    max_code_bytes=MAX_TARGETED_CODE_BYTES_PER_FILE,
+                    max_code_bytes=MAX_TARGETED_CODE_BYTES_PER_MODE,
                 )
             else:
                 scan_note = (
@@ -1856,9 +1860,9 @@ def build_report(
         "-" * 78,
         "Every exported ELF is inventoried for symbols, imports/exports, relocations and marker strings.",
         "Only the highest-ranked files with specific browser/bridge evidence receive native disassembly.",
-        "Reference scans are limited to the selected candidates and a fixed per-file byte budget.",
-        "The previous exhaustive chunked scanner remains available in the analysis code, but this workflow",
-        "uses targeted limits to avoid hours of low-value scanning across unrelated shared libraries.",
+        "Reference scans are limited to selected candidates and a fixed byte budget per ARM/Thumb mode.",
+        "The existing 256 KB chunk decoder and adaptive memory-error splitting are retained.",
+        "The selective execution policy avoids spending hours scanning unrelated shared libraries.",
         "Cross-library links require an exact imported-symbol name to match a defined function symbol in another ELF.",
         "Static code references are candidates, not proof of calls or runtime data flow.",
         "Static analysis can miss indirect references, stripped functions, runtime-generated code,",
