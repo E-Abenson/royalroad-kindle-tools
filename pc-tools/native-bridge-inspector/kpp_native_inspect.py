@@ -637,16 +637,36 @@ def find_string_xrefs(
             0,
         )
 
-    if code_bytes_scanned >= max_code_bytes:
+    scan_modes = (False, True) if layout["machine"] == 40 else (False,)
+    total_file_budget = max_code_bytes * len(scan_modes)
+    if code_bytes_scanned >= total_file_budget:
         message = (
-            "Targeted scan byte budget already reached in the reusable checkpoint "
+            "Targeted scan budget already reached in the reusable checkpoint "
             "({:,}/{:,} bytes); no additional code was scanned."
-        ).format(code_bytes_scanned, max_code_bytes)
+        ).format(code_bytes_scanned, total_file_budget)
         _emit_scan_progress(progress_callback, message, code_bytes_scanned)
         return (
             results[:MAX_XREFS_PER_FILE], instructions_scanned,
             code_bytes_scanned, message, skipped_data
         )
+
+    # v0.1.111 checkpoints predate per-mode accounting. Reconstruct ARM/Thumb
+    # totals from the unchanged work-item ordering and saved chunk position.
+    saved_mode_bytes = state.get("mode_bytes_scanned") if state is not None else None
+    if isinstance(saved_mode_bytes, dict):
+        mode_bytes_scanned = {
+            "arm": int(saved_mode_bytes.get("arm", 0)),
+            "thumb": int(saved_mode_bytes.get("thumb", 0)),
+        }
+    else:
+        mode_bytes_scanned = {"arm": 0, "thumb": 0}
+        for prior_index, (_, prior_section, prior_thumb, _) in enumerate(work_items):
+            if prior_index >= start_work_index:
+                break
+            mode_bytes_scanned["thumb" if prior_thumb else "arm"] += prior_section["size"]
+        if start_work_index < len(work_items) and start_chunk_offset:
+            _, _, active_thumb, _ = work_items[start_work_index]
+            mode_bytes_scanned["thumb" if active_thumb else "arm"] += start_chunk_offset
 
     already_by_string = defaultdict(int)
     for old in results:
@@ -660,7 +680,16 @@ def find_string_xrefs(
         if chunk_offset >= section["size"]:
             chunk_offset = 0
         remaining_section_bytes = section["size"] - chunk_offset
-        if code_bytes_scanned + remaining_section_bytes > MAX_CODE_BYTES_TOTAL:
+        mode_key = "thumb" if thumb_mode else "arm"
+        remaining_mode_budget = max_code_bytes - mode_bytes_scanned[mode_key]
+        if remaining_mode_budget <= 0:
+            notes.append(
+                "{} targeted pass reached its {:,}-byte budget.".format(
+                    mode_label, max_code_bytes
+                )
+            )
+            continue
+        if code_bytes_scanned + min(remaining_section_bytes, remaining_mode_budget) > MAX_CODE_BYTES_TOTAL:
             notes.append(
                 "Further executable scans omitted at the {:,}-byte total scan safety limit.".format(
                     MAX_CODE_BYTES_TOTAL
@@ -694,21 +723,19 @@ def find_string_xrefs(
         ) // MAX_DISASSEMBLY_CHUNK_BYTES
         alignment = 4 if layout["machine"] == 40 and not thumb_mode else 2
 
-        budget_exhausted = False
         while chunk_offset < section["size"]:
-            remaining_budget = max_code_bytes - code_bytes_scanned
-            if remaining_budget <= 0:
+            remaining_mode_budget = max_code_bytes - mode_bytes_scanned[mode_key]
+            if remaining_mode_budget <= 0:
                 notes.append(
-                    "Targeted per-file scan budget reached at {:,} bytes.".format(
-                        code_bytes_scanned
+                    "{} targeted pass reached its {:,}-byte budget.".format(
+                        mode_label, max_code_bytes
                     )
                 )
-                budget_exhausted = True
                 break
             chunk_end = min(
                 section["size"],
                 chunk_offset + MAX_DISASSEMBLY_CHUNK_BYTES,
-                chunk_offset + remaining_budget,
+                chunk_offset + remaining_mode_budget,
             )
             code_start = section["offset"] + chunk_offset
             code_end = section["offset"] + chunk_end
@@ -777,6 +804,7 @@ def find_string_xrefs(
                 recent.append(line)
 
             code_bytes_scanned += len(code)
+            mode_bytes_scanned[mode_key] += len(code)
             chunk_offset = chunk_end
             chunk_number += 1
             section_percent = int(chunk_offset * 100 / section["size"])
@@ -798,6 +826,7 @@ def find_string_xrefs(
                 "seen": seen,
                 "instructions_scanned": instructions_scanned,
                 "code_bytes_scanned": code_bytes_scanned,
+                "mode_bytes_scanned": dict(mode_bytes_scanned),
                 "skipped_data": skipped_data,
                 "recent": list(recent),
                 "pending": pending,
@@ -829,14 +858,8 @@ def find_string_xrefs(
         recent_resume = []
         pending_resume = []
         start_chunk_offset = 0
-        if budget_exhausted or code_bytes_scanned >= max_code_bytes:
-            if not notes or "budget" not in notes[-1].lower():
-                notes.append(
-                    "Targeted per-file scan budget reached at {:,} bytes.".format(
-                        code_bytes_scanned
-                    )
-                )
-            break
+        # Continue to the other ARM/Thumb pass even when this pass reaches its
+        # own budget; each mode receives its own bounded share.
 
     note = (
         "; ".join(notes) if notes else
@@ -1887,6 +1910,28 @@ def main() -> int:
                 archive_sha256[:12], INSPECTOR_VERSION
             )
         )
+        if not checkpoint_dir.exists():
+            previous_checkpoint_dir = archive_path.with_name(
+                "KPP-Native-Bridge-Checkpoint-{}-0.1.111".format(
+                    archive_sha256[:12]
+                )
+            )
+            if previous_checkpoint_dir.is_dir():
+                checkpoint_dir = previous_checkpoint_dir
+                print(
+                    "Found compatible v0.1.111 checkpoints; completed files and matching chunk positions will be reused.",
+                    flush=True,
+                )
+            else:
+                print(
+                    "No compatible prior checkpoint folder found; starting from the inventory pass.",
+                    flush=True,
+                )
+        else:
+            print(
+                "Existing v0.1.112 checkpoints found; saved inventory and scan progress will be reused.",
+                flush=True,
+            )
         files, manifest_lines, manifest_note = inspect_archive(archive_path)
         print("Loading bundled Capstone disassembly engine...", flush=True)
         capstone = load_capstone(Path(__file__).resolve().parent)
