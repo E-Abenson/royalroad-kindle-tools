@@ -8,6 +8,7 @@ import json
 import re
 import struct
 import sys
+import time
 import tarfile
 import zipfile
 import shutil
@@ -31,10 +32,11 @@ MAX_FUNCTION_INSTRUCTIONS = 160
 MAX_XREFS_PER_FILE = 120
 MAX_XREFS_PER_STRING = 16
 MAX_REPORT_CHARS = 3_000_000
-INSPECTOR_VERSION = "0.1.110"
-CHECKPOINT_FORMAT_VERSION = 1
+INSPECTOR_VERSION = "0.1.111"
+CHECKPOINT_FORMAT_VERSION = 2
 DEFAULT_BATCH_SIZE = 8
-PROGRESS_INSTRUCTION_INTERVAL = 2_000_000
+MAX_DISASSEMBLY_CHUNK_BYTES = 256 * 1024
+MIN_DISASSEMBLY_CHUNK_BYTES = 4 * 1024
 
 MARKER_RE = re.compile(
     r"invokeAction|getLastOpenPage|getAllSettings|webViewURL|"
@@ -456,7 +458,99 @@ def instruction_references(insn, capstone, machine: int, thumb: bool = False):
 
 
 
-def find_string_xrefs(data: bytes, layout, strings, capstone, progress_callback=None):
+
+def decode_chunk_resilient(
+    engine, code: bytes, address: int, capstone, alignment: int = 4,
+    lite: bool = False,
+):
+    """Decode a bounded chunk; split it further if Capstone reports allocation failure."""
+    try:
+        decoder = engine.disasm_lite if lite else engine.disasm
+        return list(decoder(code, address))
+    except Exception as error:
+        if "mem" not in str(error).lower() or len(code) <= MIN_DISASSEMBLY_CHUNK_BYTES:
+            raise
+        split = len(code) // 2
+        split -= split % max(1, alignment)
+        if split <= 0 or split >= len(code):
+            raise
+        left = decode_chunk_resilient(
+            engine, code[:split], address, capstone, alignment, lite
+        )
+        right = decode_chunk_resilient(
+            engine, code[split:], address + split, capstone, alignment, lite
+        )
+        return left + right
+
+
+def _load_scan_checkpoint(path: Path | None, archive_sha256: str, elf_sha256: str):
+    if path is None or not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            return None
+        if (
+            payload.get("inspector_version") != INSPECTOR_VERSION
+            or payload.get("checkpoint_format") != CHECKPOINT_FORMAT_VERSION
+            or payload.get("archive_sha256") != archive_sha256
+            or payload.get("elf_sha256") != elf_sha256
+        ):
+            return None
+        state = payload.get("state")
+        if not isinstance(state, dict):
+            return None
+        for item in state.get("results", []):
+            item["key"] = tuple(item.get("key", ()))
+        for item in state.get("pending", []):
+            item["key"] = tuple(item.get("key", ()))
+        state["seen"] = {tuple(key) for key in state.get("seen", [])}
+        return state
+    except (OSError, ValueError, TypeError, KeyError):
+        return None
+
+
+def _save_scan_checkpoint(path: Path | None, archive_sha256: str, elf_sha256: str, state):
+    if path is None:
+        return
+    payload_state = dict(state)
+    payload_state["seen"] = [list(key) for key in state["seen"]]
+    payload_state["results"] = [
+        {**item, "key": list(item["key"])} for item in state["results"]
+    ]
+    payload_state["pending"] = [
+        {**item, "key": list(item["key"])} for item in state["pending"]
+    ]
+    payload = {
+        "inspector_version": INSPECTOR_VERSION,
+        "checkpoint_format": CHECKPOINT_FORMAT_VERSION,
+        "archive_sha256": archive_sha256,
+        "elf_sha256": elf_sha256,
+        "state": payload_state,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(payload, separators=(",", ":"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    temporary.replace(path)
+
+
+def _emit_scan_progress(callback, message: str, code_bytes_scanned: int):
+    if callback is None:
+        return
+    try:
+        callback(message, code_bytes_scanned)
+    except TypeError:
+        callback(message)
+
+
+def find_string_xrefs(
+    data: bytes, layout, strings, capstone, progress_callback=None,
+    checkpoint_path: Path | None = None,
+    archive_sha256: str = "", elf_sha256: str = "",
+):
     targets = defaultdict(list)
     page_targets = defaultdict(list)
     for index, item in enumerate(strings):
@@ -466,89 +560,132 @@ def find_string_xrefs(data: bytes, layout, strings, capstone, progress_callback=
         if layout["machine"] == 183:
             page_targets[item["address"] & ~0xFFF].append(index)
 
-    if not targets:
-        if progress_callback:
-            progress_callback(
-                "Skipping code scan: this ELF has no marker strings mapped to executable addresses."
-            )
-        return (
-            [], 0, 0,
-            "Code scan skipped because no mapped marker-string addresses were found.",
-            0,
-        )
-
+    # Exhaustively decode every supported executable section in every ELF.
+    # If this ELF has no marker string at an executable address, it is still
+    # scanned, but there can be no direct string-reference candidates.
     results = []
     seen = set()
     instructions_scanned = 0
     code_bytes_scanned = 0
     skipped_data = 0
     notes = []
-
     executable_sections = [
         section for section in layout["sections"]
         if (section["flags"] & 4) and section["type"] != 8 and section["size"] > 0
+        and section["offset"] + section["size"] <= len(data)
     ]
-    total_executable_sections = len(executable_sections)
+    work_items = []
     for section_number, section in enumerate(executable_sections, start=1):
-        if not (section["flags"] & 4) or section["type"] == 8 or section["size"] <= 0:
-            continue
-        if section["offset"] + section["size"] > len(data):
-            continue
         if section["size"] > MAX_CODE_BYTES_PER_FILE:
-            notes.append("{} skipped (executable section exceeds per-file scan limit)".format(section["name"]))
+            notes.append(
+                "{} skipped (executable section exceeds per-file scan limit)".format(
+                    section["name"]
+                )
+            )
             continue
-
-        # ARM Kindle executables can mix ARM and Thumb functions. Scan both
-        # instruction sets; other architectures have one applicable mode here.
-        scan_modes = (False, True) if layout["machine"] == 40 else (False,)
-        code = data[section["offset"]:section["offset"] + section["size"]]
-
-        for mode_number, thumb_mode in enumerate(scan_modes, start=1):
-            mode_label = "Thumb" if layout["machine"] == 40 and thumb_mode else (
-                "ARM" if layout["machine"] == 40 else machine_name(layout["machine"])
+        modes = (False, True) if layout["machine"] == 40 else (False,)
+        for thumb_mode in modes:
+            mode_label = (
+                "Thumb" if layout["machine"] == 40 and thumb_mode else
+                ("ARM" if layout["machine"] == 40 else machine_name(layout["machine"]))
             )
-            if progress_callback:
-                progress_callback(
-                    "Section {}/{} — {} pass ({} bytes)".format(
-                        section_number, total_executable_sections, mode_label, section["size"]
-                    )
-                )
-            last_progress_instructions = instructions_scanned
-            if code_bytes_scanned + section["size"] > MAX_CODE_BYTES_TOTAL:
-                notes.append("Further executable scans skipped at total code-scan limit.")
-                break
+            work_items.append((section_number, section, thumb_mode, mode_label))
 
-            engine = make_engine(
-                capstone, layout["machine"], layout["class"], layout["endian"],
-                thumb=thumb_mode
+    state = _load_scan_checkpoint(checkpoint_path, archive_sha256, elf_sha256)
+    if state is not None:
+        results = state["results"]
+        seen = state["seen"]
+        instructions_scanned = int(state.get("instructions_scanned", 0))
+        code_bytes_scanned = int(state.get("code_bytes_scanned", 0))
+        skipped_data = int(state.get("skipped_data", 0))
+        start_work_index = int(state.get("work_index", 0))
+        start_chunk_offset = int(state.get("chunk_offset", 0))
+        recent_resume = state.get("recent", [])
+        pending_resume = state.get("pending", [])
+        _emit_scan_progress(
+            progress_callback,
+            "Resuming this ELF at work item {}/{}; {:,} code bytes already scanned.".format(
+                min(start_work_index + 1, max(1, len(work_items))),
+                max(1, len(work_items)), code_bytes_scanned
+            ),
+            code_bytes_scanned,
+        )
+    else:
+        start_work_index = 0
+        start_chunk_offset = 0
+        recent_resume = []
+        pending_resume = []
+        _emit_scan_progress(
+            progress_callback,
+            "Beginning exhaustive executable-code scan (all supported sections and modes).",
+            0,
+        )
+
+    already_by_string = defaultdict(int)
+    for old in results:
+        already_by_string[old["string_index"]] += 1
+    for old in pending_resume:
+        already_by_string[old["string_index"]] += 1
+
+    for work_index in range(start_work_index, len(work_items)):
+        section_number, section, thumb_mode, mode_label = work_items[work_index]
+        chunk_offset = start_chunk_offset if work_index == start_work_index else 0
+        if chunk_offset >= section["size"]:
+            chunk_offset = 0
+        remaining_section_bytes = section["size"] - chunk_offset
+        if code_bytes_scanned + remaining_section_bytes > MAX_CODE_BYTES_TOTAL:
+            notes.append(
+                "Further executable scans omitted at the {:,}-byte total scan safety limit.".format(
+                    MAX_CODE_BYTES_TOTAL
+                )
             )
-            if engine is None:
-                return (
-                    results, instructions_scanned, code_bytes_scanned,
-                    "Architecture not supported by Capstone.", skipped_data
-                )
+            break
 
-            code_bytes_scanned += section["size"]
+        engine = make_engine(
+            capstone, layout["machine"], layout["class"], layout["endian"],
+            thumb=thumb_mode
+        )
+        if engine is None:
+            notes.append(
+                "{} code scan skipped (architecture unsupported by Capstone).".format(
+                    section["name"]
+                )
+            )
+            continue
+        engine.detail = bool(targets)
+
+        if work_index == start_work_index and chunk_offset > 0:
+            recent = deque(recent_resume, maxlen=4)
+            pending = pending_resume
+        else:
             recent = deque(maxlen=4)
             pending = []
-            for insn in engine.disasm(code, section["addr"]):
-                instructions_scanned += 1
-                if (
-                    progress_callback
-                    and instructions_scanned - last_progress_instructions
-                    >= PROGRESS_INSTRUCTION_INTERVAL
-                ):
-                    section_offset = max(0, min(section["size"], insn.address - section["addr"]))
-                    section_percent = int(section_offset * 100 / section["size"])
-                    progress_callback(
-                        "{} pass: {:,} instructions scanned; section approximately {}%".format(
-                            mode_label, instructions_scanned, section_percent
-                        )
-                    )
-                    last_progress_instructions = instructions_scanned
 
-                # Capstone skip-data records have id 0. Do not inspect op_str,
-                # operands, or any detail fields on these pseudo-instructions.
+        chunk_number = chunk_offset // MAX_DISASSEMBLY_CHUNK_BYTES + 1
+        total_chunks = (
+            section["size"] + MAX_DISASSEMBLY_CHUNK_BYTES - 1
+        ) // MAX_DISASSEMBLY_CHUNK_BYTES
+        alignment = 4 if layout["machine"] == 40 and not thumb_mode else 2
+
+        while chunk_offset < section["size"]:
+            chunk_end = min(
+                section["size"], chunk_offset + MAX_DISASSEMBLY_CHUNK_BYTES
+            )
+            code_start = section["offset"] + chunk_offset
+            code_end = section["offset"] + chunk_end
+            code = data[code_start:code_end]
+            instructions = decode_chunk_resilient(
+                engine, code, section["addr"] + chunk_offset, capstone,
+                alignment=alignment, lite=not bool(targets),
+            )
+
+            for insn in instructions:
+                instructions_scanned += 1
+                if not targets:
+                    # disasm_lite returns (address, size, mnemonic, op_str).
+                    if len(insn) >= 3 and insn[2] in (".byte", ".short", ".word"):
+                        skipped_data += 1
+                    continue
                 if getattr(insn, "id", 0) == 0:
                     skipped_data += 1
                     continue
@@ -577,21 +714,14 @@ def find_string_xrefs(data: bytes, layout, strings, capstone, progress_callback=
 
                 for string_index in sorted(matched):
                     key = (string_index, insn.address, thumb_mode)
-                    already = sum(
-                        1 for old in results
-                        if old["key"][0] == string_index
-                    )
-                    already += sum(
-                        1 for old in pending
-                        if old["key"][0] == string_index
-                    )
-                    if key in seen or already >= MAX_XREFS_PER_STRING:
+                    if (
+                        key in seen
+                        or already_by_string[string_index] >= MAX_XREFS_PER_STRING
+                        or len(results) + len(pending) >= MAX_XREFS_PER_FILE
+                    ):
                         continue
                     seen.add(key)
-                    if layout["machine"] == 40:
-                        mode_label = "Thumb" if thumb_mode else "ARM"
-                    else:
-                        mode_label = machine_name(layout["machine"])
+                    already_by_string[string_index] += 1
                     pending.append({
                         "key": key,
                         "string_index": string_index,
@@ -605,30 +735,100 @@ def find_string_xrefs(data: bytes, layout, strings, capstone, progress_callback=
                             else "{} direct address-reference candidate".format(mode_label)
                         ),
                     })
-                    if len(results) + len(pending) >= MAX_XREFS_PER_FILE:
-                        break
-
                 recent.append(line)
-                if len(results) + len(pending) >= MAX_XREFS_PER_FILE:
-                    break
 
-            results.extend(pending)
-            if len(results) >= MAX_XREFS_PER_FILE:
-                results = results[:MAX_XREFS_PER_FILE]
-                notes.append("Cross-reference cap reached; further sites were omitted.")
-                break
-        if len(results) >= MAX_XREFS_PER_FILE:
-            break
+            code_bytes_scanned += len(code)
+            chunk_offset = chunk_end
+            chunk_number += 1
+            section_percent = int(chunk_offset * 100 / section["size"])
 
-    note = "; ".join(notes) if notes else "All executable sections scanned in supported instruction modes."
-    if progress_callback:
-        progress_callback(
-            "Code-reference scan finished: {:,} instructions; {:,} executable bytes.".format(
-                instructions_scanned, code_bytes_scanned
+            if chunk_offset >= section["size"]:
+                results.extend(pending)
+                pending = []
+                recent = deque(maxlen=4)
+                next_work_index = work_index + 1
+                next_chunk_offset = 0
+            else:
+                next_work_index = work_index
+                next_chunk_offset = chunk_offset
+
+            state_to_save = {
+                "work_index": next_work_index,
+                "chunk_offset": next_chunk_offset,
+                "results": results,
+                "seen": seen,
+                "instructions_scanned": instructions_scanned,
+                "code_bytes_scanned": code_bytes_scanned,
+                "skipped_data": skipped_data,
+                "recent": list(recent),
+                "pending": pending,
+            }
+            try:
+                _save_scan_checkpoint(
+                    checkpoint_path, archive_sha256, elf_sha256, state_to_save
+                )
+            except OSError as error:
+                _emit_scan_progress(
+                    progress_callback,
+                    "WARNING: could not save this chunk checkpoint ({}).".format(
+                        type(error).__name__
+                    ),
+                    code_bytes_scanned,
+                )
+
+            _emit_scan_progress(
+                progress_callback,
+                "Section {}/{} {} pass: chunk {}/{}; {}% in section; "
+                "{:,} instructions decoded; {:,} code bytes scanned in this ELF.".format(
+                    section_number, len(executable_sections), mode_label,
+                    chunk_number - 1, total_chunks, section_percent,
+                    instructions_scanned, code_bytes_scanned,
+                ),
+                code_bytes_scanned,
             )
-        )
-    return results, instructions_scanned, code_bytes_scanned, note, skipped_data
 
+        recent_resume = []
+        pending_resume = []
+        start_chunk_offset = 0
+
+    note = (
+        "; ".join(notes) if notes else
+        "All supported executable sections were scanned in every applicable instruction mode."
+    )
+    if not targets:
+        note += " No marker strings had executable addresses, so no direct string xrefs could be formed."
+    _emit_scan_progress(
+        progress_callback,
+        "Code scan finished: {:,} instructions; {:,} executable bytes; {} reference candidates.".format(
+            instructions_scanned, code_bytes_scanned, len(results)
+        ),
+        code_bytes_scanned,
+    )
+    return results[:MAX_XREFS_PER_FILE], instructions_scanned, code_bytes_scanned, note, skipped_data
+
+
+def estimate_code_scan_budget(files) -> int:
+    total = 0
+    supported = {3, 40, 62, 183}
+    for item in files:
+        layout = item["layout"]
+        if layout["machine"] not in supported:
+            continue
+        passes = 2 if layout["machine"] == 40 else 1
+        for section in layout["sections"]:
+            if (
+                (section["flags"] & 4) and section["type"] != 8
+                and 0 < section["size"] <= MAX_CODE_BYTES_PER_FILE
+            ):
+                total += section["size"] * passes
+    return min(total, MAX_CODE_BYTES_TOTAL)
+
+
+def _format_duration(seconds: float) -> str:
+    value = max(0, int(seconds))
+    return "{:02d}:{:02d}:{:02d}".format(
+        value // 3600, (value % 3600) // 60, value % 60
+    )
 
 
 
@@ -910,7 +1110,9 @@ def build_report(
         archive_sha256 = sha256_file(archive_path)
     if checkpoint_dir is None:
         checkpoint_dir = archive_path.with_name(
-            "KPP-Native-Bridge-Checkpoint-" + archive_sha256[:12]
+            "KPP-Native-Bridge-Checkpoint-{}-{}".format(
+                archive_sha256[:12], INSPECTOR_VERSION
+            )
         )
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     if batch_size < 1:
@@ -922,7 +1124,7 @@ def build_report(
         ),
         flush=True,
     )
-    print("Completed-file checkpoints: {}".format(checkpoint_dir), flush=True)
+    print("Completed-file and within-file chunk checkpoints: {}".format(checkpoint_dir), flush=True)
     lines = [
         "KPP NATIVE BRIDGE — COMPREHENSIVE OFFLINE STATIC ANALYSIS",
         "=" * 78,
@@ -930,8 +1132,8 @@ def build_report(
         "ELF files fully inspected: {}".format(len(files)),
         "Disassembly backend: Capstone {}".format(backend_version),
         "Coverage: ELF sections, symbols/imports/exports, relocations, selected strings,",
-        "ARM and Thumb code, browser/bridge function disassembly, static string references,",
-        "and exact cross-library symbol links.",
+        "ARM and Thumb code across all supported executable sections, browser/bridge function",
+        "disassembly, static string references, and exact cross-library symbol links.",
         "No binary was executed or modified. No LIPC request or browser action was sent.",
         "No network access, upload, paste service or external lookup was used.",
         "No process memory, page text, cookies, browser history, URLs, command lines or account data were collected.",
@@ -979,6 +1181,19 @@ def build_report(
 
     total_symbols = total_strings = total_relocations = total_functions = total_xrefs = 0
     total_instructions = total_code_scanned = total_skipdata = 0
+    code_scan_budget = estimate_code_scan_budget(files)
+    analysis_started = time.monotonic()
+    print(
+        "EXHAUSTIVE SCOPE: all {} ELF files; all supported executable sections; "
+        "ARM and Thumb passes where applicable.".format(len(files)),
+        flush=True,
+    )
+    print(
+        "Estimated executable scan volume: {:,} bytes (subject to documented safety caps).".format(
+            code_scan_budget
+        ),
+        flush=True,
+    )
 
     for file_index, item in enumerate(files):
         data, layout = item["data"], item["layout"]
@@ -1034,17 +1249,43 @@ def build_report(
             )
 
             print(
-                "File {}/{}: scanning code for string references...".format(
+                "File {}/{}: exhaustive code scan across its executable sections...".format(
                     file_index + 1, len(files)
                 ),
                 flush=True,
             )
-            def report_xref_progress(message):
-                print("    " + message, flush=True)
+            scan_base_bytes = total_code_scanned
+            analysis_elapsed_start = analysis_started
 
+            def report_xref_progress(message, local_scanned_bytes=0):
+                overall_done = min(
+                    code_scan_budget, scan_base_bytes + local_scanned_bytes
+                )
+                elapsed = max(0.1, time.monotonic() - analysis_elapsed_start)
+                eta_threshold = min(code_scan_budget, 1024 * 1024)
+                if code_scan_budget > 0 and overall_done >= eta_threshold and elapsed >= 2.0:
+                    fraction = min(1.0, overall_done / code_scan_budget)
+                    rate = overall_done / elapsed
+                    remaining = max(0, code_scan_budget - overall_done)
+                    eta = _format_duration(remaining / rate) if rate > 0 else "unknown"
+                    progress = "{:.1f}% overall; ETA {}".format(fraction * 100, eta)
+                else:
+                    fraction = (
+                        min(1.0, overall_done / code_scan_budget)
+                        if code_scan_budget else 0.0
+                    )
+                    progress = "{:.1f}% overall; ETA calculating".format(
+                        fraction * 100
+                    )
+                print("    {} | {}".format(message, progress), flush=True)
+
+            scan_checkpoint_path = checkpoint_dir / (item["sha256"] + ".scan.json")
             xrefs, instruction_count, code_bytes, scan_note, skipped_data = find_string_xrefs(
                 data, layout, strings, capstone,
                 progress_callback=report_xref_progress,
+                checkpoint_path=scan_checkpoint_path,
+                archive_sha256=archive_sha256,
+                elf_sha256=item["sha256"],
             )
 
             cached_result = {
@@ -1219,10 +1460,12 @@ def build_report(
         "",
         "HOW TO READ THE RESULTS",
         "-" * 78,
-        "ARM32 executable sections are scanned in both ARM and Thumb modes because one ELF can mix them.",
+        "Every supported executable section in every exported ELF is scanned. ARM32 sections are",
+        "scanned in both ARM and Thumb modes because one ELF can mix them.",
         "Named functions are disassembled only when a function symbol can be resolved to executable code.",
         "Cross-library links require an exact imported-symbol name to match a defined function symbol in another ELF.",
         "Code-reference matches are static address candidates, not proof of calls or runtime data flow.",
+        "The exhaustive scan uses bounded 256 KB chunks, automatically split further if Capstone reports memory pressure.",
         "Static analysis can miss indirect references, stripped functions, runtime-generated code,",
         "and data flow spanning multiple instructions or libraries. A lead is not proof of a usable API.",
         "No function was called and no live browser test was attempted.",
@@ -1268,7 +1511,9 @@ def main() -> int:
         print("Calculating archive checksum...", flush=True)
         archive_sha256 = sha256_file(archive_path)
         checkpoint_dir = archive_path.with_name(
-            "KPP-Native-Bridge-Checkpoint-" + archive_sha256[:12]
+            "KPP-Native-Bridge-Checkpoint-{}-{}".format(
+                archive_sha256[:12], INSPECTOR_VERSION
+            )
         )
         files, manifest_lines, manifest_note = inspect_archive(archive_path)
         print("Loading bundled Capstone disassembly engine...", flush=True)
@@ -1294,7 +1539,7 @@ def main() -> int:
         if checkpoint_dir is not None:
             print("Checkpoint folder: {}".format(checkpoint_dir), flush=True)
         return 130
-    except (OSError, tarfile.TarError, ValueError, struct.error, zipfile.BadZipFile, RuntimeError, ImportError) as error:
+    except Exception as error:
         print("FAILURE: Could not complete the native inspection ({}).".format(type(error).__name__))
         print(str(error))
         if checkpoint_dir is not None and checkpoint_dir.exists():
