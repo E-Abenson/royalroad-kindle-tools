@@ -1,11 +1,10 @@
-KPP NATIVE BRIDGE — COMPREHENSIVE OFFLINE INSPECTION
-=====================================================
+KPP NATIVE BRIDGE — SELECTIVE OFFLINE INSPECTION
+==================================================
 
 PURPOSE
 -------
-This is one comprehensive, read-only collection and static-analysis pass of
-the native code currently mapped by the Kindle's running KPP browser process.
-It is designed to avoid a long series of small device tests.
+This is one read-only inspection of the Kindle's exported KPP browser native
+code. It avoids spending hours disassembling unrelated system libraries.
 
 KINDLE — ONE EXPORT
 -------------------
@@ -35,43 +34,48 @@ WINDOWS — ONE ANALYSIS
 3. Drag the archive onto Run-KPP-Native-Inspection.bat.
 4. Python 3.8+ must already be installed. No compiler or administrator rights
    are needed.
-5. The inspector processes the full exported set (up to 128 ELF files), not a
-   selected shortlist. It scans all supported executable sections in all
-   files, including both ARM and Thumb passes for ARM32 files.
-6. Disassembly is performed in bounded 256 KB chunks. If Capstone reports
-   memory pressure, the affected chunk is split and retried at smaller sizes.
-   Progress shows the current file, section, instruction mode, chunk, overall
-   percentage, elapsed time and estimated remaining time.
-7. Checkpoints are saved after every completed chunk and every completed ELF.
-   If interrupted, run the same BAT with the same archive to resume. The new
-   inspector version uses a new checkpoint folder and deliberately ignores
-   checkpoint data from older inspector versions. The active checkpoint folder
-   is removed after the final report is successfully written.
-8. The verified Capstone wheel is bundled. The helper accepts compatible
-   Capstone 5.x patch versions, including 5.0.7 and 5.0.9, and records the
-   version actually used. No PyPI download or pip installation is required.
-9. Attach KPP-Native-Bridge-Findings.txt here. Also attach
-   KPP-Native-Bridge-Export.txt if the report still lists only one ELF or
-   reports skipped files.
+5. The first pass inventories symbols, imports/exports, relocations and
+   relevant strings in EVERY exported ELF file.
+6. The second pass selects at most 12 files with the strongest, specific
+   browser/bridge evidence for named-function disassembly. Generic words such
+   as "browser" alone do not qualify.
+7. Static code-reference scans run on at most 8 selected files and are capped
+   at 4 MB per file. The underlying disassembler still uses bounded 256 KB
+   chunks and can split a chunk further if Capstone reports memory pressure.
+8. The command window shows the inventory count, candidate selection, current
+   file, chunk progress, elapsed time and estimated remaining time.
+9. Inventory is checkpointed after each ELF; code-reference scans are
+   checkpointed after each chunk; completed per-file results are also saved.
+   If interrupted, run the same BAT again with the same archive. Completed
+   results and compatible prior scan checkpoints are reused automatically.
+10. Version 0.1.112 can reuse compatible v0.1.111 per-file and within-file
+    chunk checkpoints for the same archive SHA256. If none exist, it begins
+    with the inventory pass and creates checkpoints as it proceeds.
+11. The verified Capstone wheel is bundled. No PyPI download or pip
+    installation is required.
+12. Attach KPP-Native-Bridge-Findings.txt here. Also attach
+    KPP-Native-Bridge-Export.txt if the exporter reports skipped files.
 
 OUTPUT
 ------
-One findings report: KPP-Native-Bridge-Findings.txt
-Temporary resume data: KPP-Native-Bridge-Checkpoint-<archive-sha-prefix>-<inspector-version>
-(Older-version checkpoints are not reused. The active folder is removed after
-the final report is saved.)
+Findings report: KPP-Native-Bridge-Findings.txt
+Checkpoint folder:
+KPP-Native-Bridge-Checkpoint-<archive-sha-prefix>-<inspector-version>
+(or a compatible older-version folder while resuming)
+
+The checkpoint folder is removed only after the final report is written
+successfully.
 
 The report includes:
-- ELF architecture, section, symbol, import/export and relocation inventories;
-- prioritized browser, navigation, WebView, JavaScript and LIPC symbols/strings;
-- disassembly of named browser/bridge functions where usable symbols exist;
-- exhaustive bounded-chunk ARM32 scans in both ARM and Thumb modes;
-- static string-reference candidates and nearby instructions;
-- exact browser/bridge import-to-definition matches across the supplied ELF
-  files, showing which library defines a method imported by another file.
+- architecture, executable-section and ELF inventory for every exported file;
+- relevant symbols, imports/exports, relocations and marker strings;
+- exact browser/bridge import-to-definition matches across the ELF files;
+- named-function disassembly for the strongest candidates;
+- bounded static address-reference candidates and nearby instructions.
 
-The complete binaries and all unfiltered content remain on the PC. The helper
-makes no network connections and saves only the local text findings report.
+The report explicitly lists how many files were inventoried, selected for
+focused analysis and scanned for code references. Files not selected for
+expensive disassembly remain represented in the inventory.
 
 INTERPRETATION
 --------------
@@ -80,10 +84,13 @@ to executable code. A cross-library link requires an exact symbol-name match
 between an import and a definition. Static address references are candidates,
 not proof of runtime calls or data flow.
 
-Static analysis can miss indirect references, stripped functions, runtime-
-generated code, and data flow spanning several instructions or libraries.
-A string or symbol is not proof that an external method is callable, that its
-argument format is known, or that invoking it would be read-only.
+This is intentionally a selective analysis. It can miss code references in
+later portions of a large executable section, stripped functions, indirect
+references and runtime-generated code. The inventory still covers all
+exported ELF files, but native disassembly is limited to the highest-scoring
+candidates. If the report does not identify the relevant code, a subsequent
+analysis can expand the selected set or increase the bounded scan budget using
+the already-exported archive.
 
 SAFETY / PRIVACY
 ----------------
