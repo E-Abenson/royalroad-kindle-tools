@@ -13,13 +13,15 @@ ARCHIVE_TEMP="$ARCHIVE.new.$$"
 REPORT="$WORK/USB-Screen-Inspection.txt"
 LOCAL_REPORT="$DOCS/USB-Screen-Inspection.txt"
 PASTE_NOTE="$DOCS/USB-Screen-Inspection-Paste.txt"
-PASTE_NOTE_TEMP="$PASTE_NOTE.new.$$"
+PASTE_NOTE_TEMP="$PASTE_NOTE.new.$"
+DELETE_FILE="$DOCS/.USB-Screen-Inspection-delete-url.txt"
+DELETE_TEMP="$DELETE_FILE.new.$"
 ENDPOINT="https://pasters.io/?expires=1d"
 
 umask 077
 
 cleanup() {
-  rm -f "$ARCHIVE_TEMP" "$PASTE_NOTE_TEMP"
+  rm -f "$ARCHIVE_TEMP" "$PASTE_NOTE_TEMP" "$DELETE_TEMP"
   rm -rf "$WORK"
 }
 trap cleanup 0
@@ -33,7 +35,7 @@ if ! mkdir -m 700 "$WORK" 2>/dev/null; then
   printf '%s\n' "FAILURE: Could not create a private temporary directory."
   exit 1
 fi
-rm -f "$PASTE_NOTE" "$PASTE_NOTE_TEMP" "$LOCAL_REPORT"
+rm -f "$PASTE_NOTE" "$PASTE_NOTE_TEMP" "$LOCAL_REPORT" "$DELETE_FILE" "$DELETE_TEMP"
 : > "$REPORT"
 
 say() {
@@ -228,6 +230,32 @@ esac
 EXPIRES="$(awk 'tolower($1) == "x-paste-expires-in:" { sub(/\r$/, "", $2); print $2; exit }' "$HEADERS" 2>/dev/null)"
 [ -n "$EXPIRES" ] || EXPIRES="Not reported; one-day expiry was requested"
 
+# Save Pasters' per-paste deletion URL privately; never print or upload it.
+DELETE_URL="$(awk 'tolower($1) == "x-delete-url:" { sub(/\r$/, "", $2); print $2; exit }' "$HEADERS" 2>/dev/null)"
+DELETE_SAVED=0
+case "$DELETE_URL" in
+  https://pasters.io/d/*)
+    DELETE_PATH="${DELETE_URL#https://pasters.io/d/}"
+    case "$DELETE_PATH" in
+      ""|*[!A-Za-z0-9._~/?=\&%+-]*)
+        rm -f "$DELETE_TEMP"
+        ;;
+      *)
+        if printf '%s\\n' "$DELETE_URL" > "$DELETE_TEMP" &&
+           chmod 600 "$DELETE_TEMP" 2>/dev/null &&
+           mv -f "$DELETE_TEMP" "$DELETE_FILE"; then
+          DELETE_SAVED=1
+        else
+          rm -f "$DELETE_TEMP" "$DELETE_FILE"
+        fi
+        ;;
+    esac
+    ;;
+  *)
+    rm -f "$DELETE_FILE" "$DELETE_TEMP"
+    ;;
+esac
+
 {
   printf 'PASTERS.IO SHARE LINK\n'
   printf '%s\n' "$PASTE_URL"
@@ -248,6 +276,11 @@ say "SUCCESS: The complete text report was uploaded."
 say "PASTERS.IO LINK: $PASTE_URL"
 say "Requested expiry: one day. Server report: $EXPIRES"
 say "Paste link saved to: $PASTE_NOTE"
+if [ "$DELETE_SAVED" -eq 1 ]; then
+  say "Private early-deletion link saved with restricted permissions."
+else
+  say "Pasters did not return a private deletion link; the paste will expire as requested."
+fi
 say "Local text report: $LOCAL_REPORT"
 if [ "$ARCHIVE_OK" -eq 1 ]; then
   say "Local image archive: $ARCHIVE"
