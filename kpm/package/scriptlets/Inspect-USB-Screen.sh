@@ -33,6 +33,7 @@ if ! mkdir -m 700 "$WORK" 2>/dev/null; then
   printf '%s\n' "FAILURE: Could not create a private temporary directory."
   exit 1
 fi
+rm -f "$PASTE_NOTE" "$PASTE_NOTE_TEMP" "$LOCAL_REPORT"
 : > "$REPORT"
 
 say() {
