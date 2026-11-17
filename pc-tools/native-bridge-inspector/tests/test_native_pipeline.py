@@ -183,10 +183,15 @@ class NativeInspectorTests(unittest.TestCase):
             def __init__(self):
                 self.seen_sizes = []
 
+            def __init__(self):
+                self.seen_sizes = []
+                self.successful_sizes = []
+
             def disasm(self, code, address):
                 self.seen_sizes.append(len(code))
                 if len(code) > 4096:
                     raise FakeCsError("Out of memory (CS_ERR_MEM)")
+                self.successful_sizes.append(len(code))
                 return list(range(len(code)))
 
         engine = LimitedEngine()
@@ -195,7 +200,7 @@ class NativeInspectorTests(unittest.TestCase):
         )
         self.assertEqual(16384, len(decoded))
         self.assertGreater(len(engine.seen_sizes), 1)
-        self.assertLessEqual(max(size for size in engine.seen_sizes if size <= 4096), 4096)
+        self.assertLessEqual(max(engine.successful_sizes), 4096)
 
     def test_scan_checkpoint_resumes_inside_an_elf(self):
         data = make_elf32_arm(
