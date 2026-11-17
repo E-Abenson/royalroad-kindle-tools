@@ -459,10 +459,14 @@ def instruction_references(insn, capstone, machine: int, thumb: bool = False):
 
 
 
-def decode_chunk_resilient(engine, code: bytes, address: int, capstone, alignment: int = 4):
+def decode_chunk_resilient(
+    engine, code: bytes, address: int, capstone, alignment: int = 4,
+    lite: bool = False,
+):
     """Decode a bounded chunk; split it further if Capstone reports allocation failure."""
     try:
-        return list(engine.disasm(code, address))
+        decoder = engine.disasm_lite if lite else engine.disasm
+        return list(decoder(code, address))
     except Exception as error:
         if "mem" not in str(error).lower() or len(code) <= MIN_DISASSEMBLY_CHUNK_BYTES:
             raise
@@ -470,9 +474,11 @@ def decode_chunk_resilient(engine, code: bytes, address: int, capstone, alignmen
         split -= split % max(1, alignment)
         if split <= 0 or split >= len(code):
             raise
-        left = decode_chunk_resilient(engine, code[:split], address, capstone, alignment)
+        left = decode_chunk_resilient(
+            engine, code[:split], address, capstone, alignment, lite
+        )
         right = decode_chunk_resilient(
-            engine, code[split:], address + split, capstone, alignment
+            engine, code[split:], address + split, capstone, alignment, lite
         )
         return left + right
 
@@ -670,15 +676,18 @@ def find_string_xrefs(
             code = data[code_start:code_end]
             instructions = decode_chunk_resilient(
                 engine, code, section["addr"] + chunk_offset, capstone,
-                alignment=alignment,
+                alignment=alignment, lite=not bool(targets),
             )
 
             for insn in instructions:
                 instructions_scanned += 1
+                if not targets:
+                    # disasm_lite returns (address, size, mnemonic, op_str).
+                    if len(insn) >= 3 and insn[2] in (".byte", ".short", ".word"):
+                        skipped_data += 1
+                    continue
                 if getattr(insn, "id", 0) == 0:
                     skipped_data += 1
-                    continue
-                if not targets:
                     continue
 
                 line = instruction_text(insn)
@@ -1253,14 +1262,21 @@ def build_report(
                     code_scan_budget, scan_base_bytes + local_scanned_bytes
                 )
                 elapsed = max(0.1, time.monotonic() - analysis_elapsed_start)
-                if code_scan_budget > 0 and overall_done > 0:
+                eta_threshold = min(code_scan_budget, 1024 * 1024)
+                if code_scan_budget > 0 and overall_done >= eta_threshold and elapsed >= 2.0:
                     fraction = min(1.0, overall_done / code_scan_budget)
                     rate = overall_done / elapsed
                     remaining = max(0, code_scan_budget - overall_done)
                     eta = _format_duration(remaining / rate) if rate > 0 else "unknown"
                     progress = "{:.1f}% overall; ETA {}".format(fraction * 100, eta)
                 else:
-                    progress = "overall ETA calculating"
+                    fraction = (
+                        min(1.0, overall_done / code_scan_budget)
+                        if code_scan_budget else 0.0
+                    )
+                    progress = "{:.1f}% overall; ETA calculating".format(
+                        fraction * 100
+                    )
                 print("    {} | {}".format(message, progress), flush=True)
 
             scan_checkpoint_path = checkpoint_dir / (item["sha256"] + ".scan.json")
