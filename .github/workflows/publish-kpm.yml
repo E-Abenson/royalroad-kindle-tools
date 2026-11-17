@@ -155,6 +155,7 @@ jobs:
           test -s kpm/package/scriptlets/Install-Rabbinic-Screensavers.sh
           test -s kpm/package/scriptlets/Inspect-USB-Screen.sh
           grep -Fq 'ENDPOINT="https://pasters.io/?expires=1d"' kpm/package/scriptlets/Inspect-USB-Screen.sh
+          grep -Fq 'X-Delete-Url:' kpm/package/scriptlets/Inspect-USB-Screen.sh
           test -s kpm/package/files/koreader-screensavers-inverted/01_Rav_Zvi_Kushelevsky.png
           test -s kpm/package/files/koreader-screensavers-inverted/02_Rav_Osher_Arieli.png
           test -s kpm/package/files/koreader-screensavers-inverted/03_Chofetz_Chaim.jpg
