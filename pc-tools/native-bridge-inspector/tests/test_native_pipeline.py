@@ -269,6 +269,7 @@ class NativeInspectorTests(unittest.TestCase):
             completed_file_caches = [
                 path for path in checkpoint_dir.glob("*.json")
                 if not path.name.endswith(".scan.json")
+                and not path.name.endswith(".inventory.json")
             ]
             self.assertEqual(2, len(completed_file_caches))
 
@@ -283,6 +284,182 @@ class NativeInspectorTests(unittest.TestCase):
                 )
             self.assertEqual(first_report, resumed_report)
 
+
+
+    def test_targeted_code_scan_stops_at_its_budget_and_reuses_checkpoint(self):
+        data = make_elf32_arm(
+            "_ZN13KPPNavigation15getLastOpenPageEv", code_size=300_000
+        )
+        layout = inspector.elf_layout(data)
+        capstone = inspector.load_capstone(INSPECTOR_DIR)
+        with tempfile.TemporaryDirectory() as temp:
+            checkpoint = Path(temp) / "bounded.scan.json"
+            first = inspector.find_string_xrefs(
+                data, layout, [], capstone,
+                checkpoint_path=checkpoint,
+                archive_sha256="archive-budget",
+                elf_sha256="elf-budget",
+                max_code_bytes=64 * 1024,
+            )
+            # The fixed budget applies separately to ARM and Thumb passes.
+            self.assertEqual(128 * 1024, first[2])
+            self.assertTrue(checkpoint.is_file())
+            self.assertEqual(
+                2 * 64 * 1024,
+                first[2],
+                "ARM and Thumb must each receive the requested per-mode budget",
+            )
+            resumed = inspector.find_string_xrefs(
+                data, layout, [], capstone,
+                checkpoint_path=checkpoint,
+                archive_sha256="archive-budget",
+                elf_sha256="elf-budget",
+                max_code_bytes=64 * 1024,
+            )
+            self.assertEqual(first[2], resumed[2])
+            self.assertEqual(first[1], resumed[1])
+            self.assertIn("budget", resumed[3].lower())
+
+    def test_0111_scan_checkpoint_is_compatible_with_new_inspector(self):
+        with tempfile.TemporaryDirectory() as temp:
+            checkpoint = Path(temp) / "previous.scan.json"
+            state = {
+                "work_index": 0,
+                "chunk_offset": 0,
+                "results": [],
+                "seen": [],
+                "instructions_scanned": 0,
+                "code_bytes_scanned": 0,
+                "skipped_data": 0,
+                "recent": [],
+                "pending": [],
+            }
+            payload = {
+                "inspector_version": "0.1.111",
+                "checkpoint_format": 2,
+                "archive_sha256": "archive-old",
+                "elf_sha256": "elf-old",
+                "state": state,
+            }
+            checkpoint.write_text(__import__("json").dumps(payload), encoding="utf-8")
+            loaded = inspector._load_scan_checkpoint(
+                checkpoint, "archive-old", "elf-old"
+            )
+            self.assertIsNotNone(loaded)
+            self.assertEqual(0, loaded["work_index"])
+
+
+
+
+    def test_marker_string_extraction_prioritizes_specific_bridge_strings(self):
+        general = b"".join(
+            ("generic browser label {:03d}".format(index)).encode("ascii") + b"\x00"
+            for index in range(inspector.MAX_FINDINGS_PER_FILE + 20)
+        )
+        strong = b"getLastOpenPage\x00"
+        data = general + strong
+        layout = {
+            "sections": [
+                {
+                    "type": 1,
+                    "flags": 2,
+                    "addr": 0x2000,
+                    "offset": len(general),
+                    "size": len(strong),
+                    "name": ".rodata",
+                }
+            ]
+        }
+        found = inspector.extract_marker_strings(data, layout)
+        self.assertEqual("getLastOpenPage", found[0]["text"])
+        self.assertEqual(1, sum(
+            1 for item in found
+            if inspector.HIGH_SIGNAL_RE.search(item["text"])
+        ))
+        self.assertLessEqual(len(found), inspector.MAX_FINDINGS_PER_FILE)
+
+    def test_targeted_scan_eta_accounts_for_both_arm_and_thumb_budgets(self):
+        item = {
+            "layout": {
+                "machine": 40,
+                "sections": [
+                    {"flags": 4, "type": 1, "size": 10 * 1024 * 1024},
+                ],
+            }
+        }
+        self.assertEqual(
+            8 * 1024 * 1024,
+            inspector.estimate_targeted_scan_budget([item]),
+        )
+
+    def test_v0110_completed_file_checkpoint_is_reused(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            checkpoint = root / "legacy.json"
+            item = {"name": "libbrowser.so.elf", "sha256": "elf-sha"}
+            result = {
+                "symbols": [], "strings": [], "relocations": [],
+                "functions": [], "function_count": 0,
+                "function_instruction_count": 0, "xrefs": [],
+                "instruction_count": 0, "code_bytes": 0,
+                "scan_note": "legacy completed file",
+                "skipped_data": 0,
+            }
+            payload = {
+                "inspector_version": "0.1.110",
+                "checkpoint_format": 1,
+                "archive_sha256": "archive-sha",
+                "elf_sha256": "elf-sha",
+                "elf_name": "libbrowser.so.elf",
+                "result": result,
+            }
+            checkpoint.write_text(
+                __import__("json").dumps(payload), encoding="utf-8"
+            )
+            loaded = inspector.load_cached_file_result(
+                checkpoint, "archive-sha", item
+            )
+            self.assertEqual(result, loaded)
+            self.assertIsNone(
+                inspector.load_cached_file_result(
+                    checkpoint, "different-archive", item
+                )
+            )
+
+    def test_build_report_selects_only_high_signal_candidates(self):
+        main_app = make_elf32_arm("_ZN13KPPNavigation15getLastOpenPageEv")
+        bridge = make_elf32_arm("_ZN13KPPBrowser16getAllSettingsEv", thumb=True)
+        noise = make_elf32_arm("OrdinaryFunction").replace(
+            b"getLastOpenPage", b"ordinaryMarker!"
+        )
+        self.assertEqual(len(b"getLastOpenPage"), len(b"ordinaryMarker!"))
+        with tempfile.TemporaryDirectory() as temp:
+            archive_path = Path(temp) / "KPP-Native-Bridge-Binaries.tar.gz"
+            with tarfile.open(archive_path, "w:gz") as archive:
+                tar_add_bytes(archive, "files/KPPMainAppV2.elf", main_app)
+                tar_add_bytes(archive, "files/libbridge.so.elf", bridge)
+                tar_add_bytes(archive, "files/libnoise-a.so.elf", noise)
+                tar_add_bytes(archive, "files/libnoise-b.so.elf", noise)
+            files, manifest, _ = inspector.inspect_archive(archive_path)
+            capstone = inspector.load_capstone(INSPECTOR_DIR)
+            with patch.object(
+                inspector, "find_string_xrefs",
+                wraps=inspector.find_string_xrefs,
+            ) as scan:
+                report = inspector.build_report(
+                    files, str(archive_path), manifest, capstone,
+                    archive_sha256=inspector.sha256_file(archive_path),
+                )
+            self.assertIn("ELF files inventoried: 4", report)
+            self.assertIn("ELF files selected for focused analysis: 2", report)
+            self.assertIn("libnoise-a.so.elf", report)
+            self.assertIn("not selected for expensive code analysis", report)
+            self.assertEqual(2, scan.call_count)
+            for call in scan.call_args_list:
+                self.assertEqual(
+                    inspector.MAX_TARGETED_CODE_BYTES_PER_MODE,
+                    call.kwargs["max_code_bytes"],
+                )
 
     def test_exporter_captures_every_executable_mapped_elf_not_just_named_libraries(self):
         with tempfile.TemporaryDirectory() as temp:
