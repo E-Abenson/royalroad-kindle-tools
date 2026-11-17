@@ -301,8 +301,14 @@ class NativeInspectorTests(unittest.TestCase):
                 elf_sha256="elf-budget",
                 max_code_bytes=64 * 1024,
             )
-            self.assertEqual(64 * 1024, first[2])
+            # The fixed budget applies separately to ARM and Thumb passes.
+            self.assertEqual(128 * 1024, first[2])
             self.assertTrue(checkpoint.is_file())
+            self.assertEqual(
+                2 * 64 * 1024,
+                first[2],
+                "ARM and Thumb must each receive the requested per-mode budget",
+            )
             resumed = inspector.find_string_xrefs(
                 data, layout, [], capstone,
                 checkpoint_path=checkpoint,
