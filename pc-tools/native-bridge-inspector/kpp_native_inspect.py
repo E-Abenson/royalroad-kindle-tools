@@ -1547,7 +1547,11 @@ def build_report(
             code_bytes = cached_result["code_bytes"]
             scan_note = cached_result["scan_note"]
             skipped_data = cached_result["skipped_data"]
-            selection_note = "reused previously completed per-ELF checkpoint"
+            selection_note = (
+                "selected by high-signal marker evidence"
+                if item["sha256"] in deep_ids
+                else "not selected for expensive code analysis"
+            )
             print(
                 "File {}/{}: {} — completed checkpoint reused.".format(
                     file_index + 1, len(files), item["name"]
