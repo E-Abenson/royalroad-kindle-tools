@@ -35,11 +35,17 @@ WINDOWS — ONE ANALYSIS
 3. Drag the archive onto Run-KPP-Native-Inspection.bat.
 4. Python 3.8+ must already be installed. No compiler or administrator rights
    are needed.
-5. Progress is printed live: archive loading, batch number, current ELF file,
-   named-function disassembly, and ARM/Thumb reference-scan progress.
-6. Results are checkpointed after each completed ELF. If the command window is
-   closed or the run is interrupted, launch the same BAT again with the same
-   archive; completed files are reused automatically. The checkpoint folder
+5. The inspector processes the full exported set (up to 128 ELF files), not a
+   selected shortlist. It scans all supported executable sections in all
+   files, including both ARM and Thumb passes for ARM32 files.
+6. Disassembly is performed in bounded 256 KB chunks. If Capstone reports
+   memory pressure, the affected chunk is split and retried at smaller sizes.
+   Progress shows the current file, section, instruction mode, chunk, overall
+   percentage, elapsed time and estimated remaining time.
+7. Checkpoints are saved after every completed chunk and every completed ELF.
+   If interrupted, run the same BAT with the same archive to resume. The new
+   inspector version uses a new checkpoint folder and deliberately ignores
+   checkpoint data from older inspector versions. The active checkpoint folder
    is removed after the final report is successfully written.
 7. The verified Capstone wheel is bundled. The helper accepts compatible
    Capstone 5.x patch versions, including 5.0.7 and 5.0.9, and records the
@@ -51,14 +57,15 @@ WINDOWS — ONE ANALYSIS
 OUTPUT
 ------
 One findings report: KPP-Native-Bridge-Findings.txt
-Temporary resume data: KPP-Native-Bridge-Checkpoint-<archive-sha-prefix>
-(The checkpoint folder is automatically removed when the final report is saved.)
+Temporary resume data: KPP-Native-Bridge-Checkpoint-<archive-sha-prefix>-<inspector-version>
+(Older-version checkpoints are not reused. The active folder is removed after
+the final report is saved.)
 
 The report includes:
 - ELF architecture, section, symbol, import/export and relocation inventories;
 - prioritized browser, navigation, WebView, JavaScript and LIPC symbols/strings;
 - disassembly of named browser/bridge functions where usable symbols exist;
-- ARM32 scans in both ARM and Thumb modes;
+- exhaustive bounded-chunk ARM32 scans in both ARM and Thumb modes;
 - static string-reference candidates and nearby instructions;
 - exact browser/bridge import-to-definition matches across the supplied ELF
   files, showing which library defines a method imported by another file.
