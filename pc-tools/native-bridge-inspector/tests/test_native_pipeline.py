@@ -28,10 +28,16 @@ def align(value: int, boundary: int = 4) -> int:
     return (value + boundary - 1) & ~(boundary - 1)
 
 
-def make_elf32_arm(symbol_name: str, *, defined: bool = True, thumb: bool = False) -> bytes:
-    """Make a small valid ELF32 ARM image with one named function and a marker string."""
+def make_elf32_arm(
+    symbol_name: str, *, defined: bool = True, thumb: bool = False,
+    code_size: int | None = None,
+) -> bytes:
+    """Make a valid ELF32 ARM image with one named function and a marker string."""
     instruction_bytes = bytes.fromhex("7047") if thumb else bytes.fromhex("1eff2fe1")
-    code = instruction_bytes + b"\xff"  # trailing byte exercises safe skip-data handling
+    if code_size is None:
+        code = instruction_bytes + b"\xff"  # trailing byte exercises safe skip-data handling
+    else:
+        code = instruction_bytes + bytes(max(0, code_size - len(instruction_bytes)))
     rodata = b"getLastOpenPage\x00"
 
     ident = b"\x7fELF" + bytes((1, 1, 1, 0)) + bytes(8)
@@ -152,18 +158,84 @@ class NativeInspectorTests(unittest.TestCase):
             self.assertIn("Skip-data pseudo-instructions safely skipped:", report)
             self.assertIn("Capstone 5.", report)
 
-    def test_xref_scan_skips_code_when_no_mapped_marker_strings_exist(self):
+    def test_no_marker_strings_still_scans_arm_and_thumb_code(self):
         data = make_elf32_arm("_ZN13KPPNavigation15getLastOpenPageEv")
         layout = inspector.elf_layout(data)
         progress = []
+        capstone = inspector.load_capstone(INSPECTOR_DIR)
         results = inspector.find_string_xrefs(
-            data, layout, [], object(), progress_callback=progress.append
+            data, layout, [], capstone, progress_callback=progress.append
         )
         self.assertEqual([], results[0])
-        self.assertEqual(0, results[1])
-        self.assertEqual(0, results[2])
-        self.assertIn("skipped", results[3].lower())
-        self.assertTrue(any("Skipping code scan" in line for line in progress))
+        self.assertGreater(results[1], 0)
+        self.assertEqual(len(data[layout["sections"][1]["offset"]:
+                                  layout["sections"][1]["offset"] + layout["sections"][1]["size"]]) * 2,
+                         results[2])
+        self.assertIn("no marker strings", results[3].lower())
+        self.assertTrue(any("ARM pass" in line for line in progress))
+        self.assertTrue(any("Thumb pass" in line for line in progress))
+
+    def test_capstone_memory_failure_retries_with_smaller_chunks(self):
+        class FakeCsError(Exception):
+            pass
+
+        class LimitedEngine:
+            def __init__(self):
+                self.seen_sizes = []
+
+            def disasm(self, code, address):
+                self.seen_sizes.append(len(code))
+                if len(code) > 4096:
+                    raise FakeCsError("Out of memory (CS_ERR_MEM)")
+                return list(range(len(code)))
+
+        engine = LimitedEngine()
+        decoded = inspector.decode_chunk_resilient(
+            engine, b"X" * 16384, 0x1000, object(), alignment=4
+        )
+        self.assertEqual(16384, len(decoded))
+        self.assertGreater(len(engine.seen_sizes), 1)
+        self.assertLessEqual(max(size for size in engine.seen_sizes if size <= 4096), 4096)
+
+    def test_scan_checkpoint_resumes_inside_an_elf(self):
+        data = make_elf32_arm(
+            "_ZN13KPPNavigation15getLastOpenPageEv", code_size=300_000
+        )
+        layout = inspector.elf_layout(data)
+        capstone = inspector.load_capstone(INSPECTOR_DIR)
+        with tempfile.TemporaryDirectory() as temp:
+            checkpoint = Path(temp) / "one-file.scan.json"
+            original_decode = inspector.decode_chunk_resilient
+            calls = {"count": 0}
+
+            def interrupt_after_first_chunk(engine, code, address, backend, alignment=4):
+                calls["count"] += 1
+                if calls["count"] == 2:
+                    raise KeyboardInterrupt()
+                return original_decode(engine, code, address, backend, alignment)
+
+            with patch.object(
+                inspector, "decode_chunk_resilient",
+                side_effect=interrupt_after_first_chunk,
+            ):
+                with self.assertRaises(KeyboardInterrupt):
+                    inspector.find_string_xrefs(
+                        data, layout, [], capstone,
+                        checkpoint_path=checkpoint,
+                        archive_sha256="archive-test",
+                        elf_sha256="elf-test",
+                    )
+
+            self.assertTrue(checkpoint.is_file())
+            resumed = inspector.find_string_xrefs(
+                data, layout, [], capstone,
+                checkpoint_path=checkpoint,
+                archive_sha256="archive-test",
+                elf_sha256="elf-test",
+            )
+            expected_bytes = layout["sections"][1]["size"] * 2
+            self.assertEqual(expected_bytes, resumed[2])
+            self.assertGreater(resumed[1], 0)
 
     def test_build_report_resumes_completed_elf_checkpoints(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -184,7 +256,11 @@ class NativeInspectorTests(unittest.TestCase):
                 checkpoint_dir=checkpoint_dir, archive_sha256=archive_sha,
                 batch_size=1,
             )
-            self.assertEqual(2, len(list(checkpoint_dir.glob("*.json"))))
+            completed_file_caches = [
+                path for path in checkpoint_dir.glob("*.json")
+                if not path.name.endswith(".scan.json")
+            ]
+            self.assertEqual(2, len(completed_file_caches))
 
             with patch.object(
                 inspector, "find_string_xrefs",
