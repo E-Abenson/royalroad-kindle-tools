@@ -47,10 +47,10 @@ WINDOWS — ONE ANALYSIS
    inspector version uses a new checkpoint folder and deliberately ignores
    checkpoint data from older inspector versions. The active checkpoint folder
    is removed after the final report is successfully written.
-7. The verified Capstone wheel is bundled. The helper accepts compatible
+8. The verified Capstone wheel is bundled. The helper accepts compatible
    Capstone 5.x patch versions, including 5.0.7 and 5.0.9, and records the
    version actually used. No PyPI download or pip installation is required.
-8. Attach KPP-Native-Bridge-Findings.txt here. Also attach
+9. Attach KPP-Native-Bridge-Findings.txt here. Also attach
    KPP-Native-Bridge-Export.txt if the report still lists only one ELF or
    reports skipped files.
 
