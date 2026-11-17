@@ -1,27 +1,39 @@
 #!/bin/sh
 # Name: Inspect-USB-Screen
-# Build: 1.0
+# Build: 1.1
 # Read-only inventory of the stock USB-mode display assets.
-# It does not remount the root filesystem or change any Kindle system files.
+# Uploads only the text report to pasters.io with a one-week expiry.
+# The image files themselves remain in a local Documents archive.
 
 DOCS="/mnt/us/documents"
 USB_DIR="/usr/share/blanket/usb"
 WORK="$DOCS/.usb-screen-inspection.$$"
 ARCHIVE="$DOCS/USB-Screen-Inspection.tar.gz"
-TEMP="$ARCHIVE.new.$$"
+ARCHIVE_TEMP="$ARCHIVE.new.$$"
 REPORT="$WORK/USB-Screen-Inspection.txt"
+LOCAL_REPORT="$DOCS/USB-Screen-Inspection.txt"
+PASTE_NOTE="$DOCS/USB-Screen-Inspection-Paste.txt"
+PASTE_NOTE_TEMP="$PASTE_NOTE.new.$$"
+ENDPOINT="https://pasters.io/?expires=1w"
+
+umask 077
 
 cleanup() {
-  rm -f "$TEMP"
+  rm -f "$ARCHIVE_TEMP" "$PASTE_NOTE_TEMP"
   rm -rf "$WORK"
 }
 trap cleanup 0
 trap 'exit 1' HUP INT TERM
 
-mkdir -p "$DOCS" "$WORK" || {
-  printf '%s\n' "FAILURE: Could not create the inspection workspace in Documents."
+mkdir -p "$DOCS" || {
+  printf '%s\n' "FAILURE: Could not create the Documents folder."
   exit 1
 }
+if ! mkdir -m 700 "$WORK" 2>/dev/null; then
+  printf '%s\n' "FAILURE: Could not create a private temporary directory."
+  exit 1
+fi
+rm -f "$PASTE_NOTE" "$PASTE_NOTE_TEMP" "$LOCAL_REPORT"
 : > "$REPORT"
 
 say() {
@@ -115,7 +127,7 @@ if [ -d "$USB_DIR" ]; then
     say "find is unavailable; recursive file inventory could not be produced."
   fi
   if cp -pR "$USB_DIR" "$WORK/" 2>/dev/null; then
-    say "A copy of the complete USB asset folder is included in this report archive."
+    say "A copy of the complete USB asset folder is included in the local archive."
   else
     say "WARNING: The USB folder could not be copied in full. The report still contains the accessible listing."
   fi
@@ -125,29 +137,124 @@ else
 fi
 
 say ""
-say "SAFETY"
+say "SAFETY AND SHARING"
 say "This inspection only reads system metadata and files under $USB_DIR."
 say "It does not remount / read-write, replace images, change permissions, restart services, or alter the USB connection."
-say "The archive contains the USB display asset folder and this report only."
+say "Only this text report is uploaded to pasters.io. The image files are not uploaded."
+say "The paste is readable by anyone who obtains its link and is requested to expire after one week."
 say ""
 say "NEXT STEP"
-say "Copy USB-Screen-Inspection.tar.gz from Kindle Documents to the PC and attach it in the ChatGPT conversation."
+say "Paste the PASTERS.IO link printed at the end of this run into the ChatGPT conversation."
 
-if command -v tar >/dev/null 2>&1 && tar -czf "$TEMP" -C "$WORK" . 2>/dev/null &&
-   tar -tzf "$TEMP" >/dev/null 2>&1 && mv -f "$TEMP" "$ARCHIVE"; then
-  sync 2>/dev/null || true
-  printf '%s\n' "" "SUCCESS: Created $ARCHIVE"
+ARCHIVE_OK=0
+if command -v tar >/dev/null 2>&1 &&
+   tar -czf "$ARCHIVE_TEMP" -C "$WORK" . 2>/dev/null &&
+   tar -tzf "$ARCHIVE_TEMP" >/dev/null 2>&1 &&
+   mv -f "$ARCHIVE_TEMP" "$ARCHIVE"; then
+  ARCHIVE_OK=1
+  say ""
+  say "Local image archive: $ARCHIVE"
   if command -v sha256sum >/dev/null 2>&1; then
-    printf 'Archive SHA256: %s\n' "$(sha256sum "$ARCHIVE" | awk '{print $1}')"
+    say "Archive SHA256: $(sha256sum "$ARCHIVE" | awk '{print $1}')"
   fi
-  exit 0
+else
+  say "WARNING: The local tar.gz archive could not be created."
 fi
 
-FALLBACK="$DOCS/USB-Screen-Inspection"
-rm -rf "$FALLBACK"
-if cp -pR "$WORK" "$FALLBACK" 2>/dev/null; then
-  printf '%s\n' "WARNING: Could not create a tar.gz archive. The inspection files were left in $FALLBACK instead."
-  exit 0
+if ! command -v curl >/dev/null 2>&1; then
+  cp "$REPORT" "$LOCAL_REPORT" 2>/dev/null || true
+  chmod 600 "$LOCAL_REPORT" 2>/dev/null || true
+  printf '%s\n' "UPLOAD FAILURE: curl is unavailable; the report remains in Documents."
+  exit 1
 fi
-printf '%s\n' "FAILURE: Could not create the archive or copy the inspection folder."
-exit 1
+
+HEADERS="$WORK/response-headers.txt"
+BODY="$WORK/response-body.txt"
+CURL_ERROR="$WORK/curl-error.txt"
+
+say ""
+say "Uploading the text report to pasters.io (one-week expiry requested)..."
+HTTP_CODE="$(curl -sS --connect-timeout 15 --max-time 90 \
+  -D "$HEADERS" -o "$BODY" -w '%{http_code}' \
+  --data-binary "@$REPORT" "$ENDPOINT" 2>"$CURL_ERROR")"
+CURL_STATUS=$?
+
+if [ "$CURL_STATUS" -ne 0 ]; then
+  cp "$REPORT" "$LOCAL_REPORT" 2>/dev/null || true
+  chmod 600 "$LOCAL_REPORT" 2>/dev/null || true
+  printf '%s\n' "UPLOAD FAILURE: curl returned exit code $CURL_STATUS."
+  if [ -s "$CURL_ERROR" ]; then cat "$CURL_ERROR"; fi
+  printf '%s\n' "Local report: $LOCAL_REPORT"
+  [ "$ARCHIVE_OK" -eq 1 ] && printf '%s\n' "Local image archive: $ARCHIVE"
+  exit 1
+fi
+
+if [ "$HTTP_CODE" = "206" ]; then
+  cp "$REPORT" "$LOCAL_REPORT" 2>/dev/null || true
+  chmod 600 "$LOCAL_REPORT" 2>/dev/null || true
+  printf '%s\n' "UPLOAD FAILURE: pasters.io returned HTTP 206; the paste was truncated."
+  [ -s "$BODY" ] && cat "$BODY"
+  exit 1
+fi
+if [ "$HTTP_CODE" != "201" ]; then
+  cp "$REPORT" "$LOCAL_REPORT" 2>/dev/null || true
+  chmod 600 "$LOCAL_REPORT" 2>/dev/null || true
+  printf '%s\n' "UPLOAD FAILURE: pasters.io returned HTTP $HTTP_CODE; a complete upload was not confirmed."
+  [ -s "$BODY" ] && cat "$BODY"
+  printf '%s\n' "Local report: $LOCAL_REPORT"
+  [ "$ARCHIVE_OK" -eq 1 ] && printf '%s\n' "Local image archive: $ARCHIVE"
+  exit 1
+fi
+
+PASTE_URL="$(sed -n '1p' "$BODY" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+case "$PASTE_URL" in
+  https://pasters.io/*) PASTE_ID="$(printf '%s\n' "$PASTE_URL" | sed 's#^https://pasters.io/##')" ;;
+  *)
+    cp "$REPORT" "$LOCAL_REPORT" 2>/dev/null || true
+    chmod 600 "$LOCAL_REPORT" 2>/dev/null || true
+    printf '%s\n' "UPLOAD FAILURE: HTTP 201 was returned, but no recognised pasters.io link was received."
+    printf '%s\n' "The local report remains at $LOCAL_REPORT"
+    exit 1
+    ;;
+esac
+case "$PASTE_ID" in
+  ""|*/*|*[!A-Za-z0-9_-]*)
+    cp "$REPORT" "$LOCAL_REPORT" 2>/dev/null || true
+    chmod 600 "$LOCAL_REPORT" 2>/dev/null || true
+    printf '%s\n' "UPLOAD FAILURE: The returned paste link had an unexpected format."
+    exit 1
+    ;;
+esac
+
+EXPIRES="$(awk 'tolower($1) == "x-paste-expires-in:" { sub(/\r$/, "", $2); print $2; exit }' "$HEADERS" 2>/dev/null)"
+[ -n "$EXPIRES" ] || EXPIRES="Not reported; one-week expiry was requested"
+
+{
+  printf 'PASTERS.IO SHARE LINK\n'
+  printf '%s\n' "$PASTE_URL"
+  printf 'Upload result: HTTP 201 (complete)\n'
+  printf 'Requested expiry: one week\n'
+  printf 'Server-reported remaining lifetime: %s\n' "$EXPIRES"
+  printf 'Access: anyone who obtains this link can read the text report.\n'
+  printf 'Only the text report was uploaded; the image files remain in the local archive.\n'
+} > "$PASTE_NOTE_TEMP"
+
+if ! chmod 600 "$PASTE_NOTE_TEMP" 2>/dev/null ||
+   ! mv -f "$PASTE_NOTE_TEMP" "$PASTE_NOTE"; then
+  printf '%s\n' "WARNING: The paste was created, but its link could not be saved locally."
+fi
+
+say ""
+say "SUCCESS: The complete text report was uploaded."
+say "PASTERS.IO LINK: $PASTE_URL"
+say "Requested expiry: one week. Server report: $EXPIRES"
+say "Paste link saved to: $PASTE_NOTE"
+say "Local text report: $LOCAL_REPORT"
+if [ "$ARCHIVE_OK" -eq 1 ]; then
+  say "Local image archive: $ARCHIVE"
+fi
+
+cp "$REPORT" "$LOCAL_REPORT" 2>/dev/null || true
+chmod 600 "$LOCAL_REPORT" 2>/dev/null || true
+sync 2>/dev/null || true
+exit 0

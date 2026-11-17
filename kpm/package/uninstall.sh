@@ -12,7 +12,8 @@ for ITEM in Kindle-Version-Report.txt .RoyalRoadTools-installed-version.txt \
   RR-LIPC-READONLY-PROBE.log RR-LIPC-READONLY-UPLOAD-URL.txt \
   KPP-Bytecode-Export.txt \
   .RR-KPP-Interface-Inspector-delete-url.txt \
-  KPM-Update-All.log KindleBatchPrepareFix.log KindleBatchPrepare-main.lua.gz USB-Screen-Inspection.tar.gz; do
+  KPM-Update-All.log KindleBatchPrepareFix.log KindleBatchPrepare-main.lua.gz \
+  USB-Screen-Inspection.tar.gz USB-Screen-Inspection.txt USB-Screen-Inspection-Paste.txt; do
   rm -f "$DOCS/$ITEM"
 done
 rm -f "$DOCS/.royalroadtools/version-info.sh" \
