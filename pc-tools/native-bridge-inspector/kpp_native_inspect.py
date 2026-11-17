@@ -32,11 +32,26 @@ MAX_FUNCTION_INSTRUCTIONS = 160
 MAX_XREFS_PER_FILE = 120
 MAX_XREFS_PER_STRING = 16
 MAX_REPORT_CHARS = 3_000_000
-INSPECTOR_VERSION = "0.1.111"
+INSPECTOR_VERSION = "0.1.112"
 CHECKPOINT_FORMAT_VERSION = 2
+INVENTORY_CHECKPOINT_FORMAT_VERSION = 3
 DEFAULT_BATCH_SIZE = 8
 MAX_DISASSEMBLY_CHUNK_BYTES = 256 * 1024
 MIN_DISASSEMBLY_CHUNK_BYTES = 4 * 1024
+MAX_TARGETED_ANALYSIS_FILES = 12
+MAX_TARGETED_XREF_FILES = 8
+MAX_TARGETED_CODE_BYTES_PER_FILE = 4 * 1024 * 1024
+COMPATIBLE_CHECKPOINT_VERSIONS = {"0.1.111", INSPECTOR_VERSION}
+HIGH_SIGNAL_RE = re.compile(
+    r"invokeAction|getLastOpenPage|getAllSettings|webViewURL|"
+    r"navigateToKPPBrowser|redirectToWebView|BrowserDataProvider|"
+    r"ApplicationLipcProvider|NavigationInterface|KPPBrowser|"
+    r"KPPNavigation|WebViewURLRedirectActionHandler|"
+    r"evaluateJavaScript|executeJavaScript|WKWebView|WebKit|"
+    r"JavaScriptCore|JSContext|LIPC|getStringProperty|"
+    r"setStringProperty|getIntProperty|setIntProperty",
+    re.IGNORECASE,
+)
 
 MARKER_RE = re.compile(
     r"invokeAction|getLastOpenPage|getAllSettings|webViewURL|"
@@ -491,7 +506,7 @@ def _load_scan_checkpoint(path: Path | None, archive_sha256: str, elf_sha256: st
         if not isinstance(payload, dict):
             return None
         if (
-            payload.get("inspector_version") != INSPECTOR_VERSION
+            payload.get("inspector_version") not in COMPATIBLE_CHECKPOINT_VERSIONS
             or payload.get("checkpoint_format") != CHECKPOINT_FORMAT_VERSION
             or payload.get("archive_sha256") != archive_sha256
             or payload.get("elf_sha256") != elf_sha256
@@ -550,6 +565,7 @@ def find_string_xrefs(
     data: bytes, layout, strings, capstone, progress_callback=None,
     checkpoint_path: Path | None = None,
     archive_sha256: str = "", elf_sha256: str = "",
+    max_code_bytes: int = MAX_CODE_BYTES_TOTAL,
 ):
     targets = defaultdict(list)
     page_targets = defaultdict(list)
@@ -621,6 +637,17 @@ def find_string_xrefs(
             0,
         )
 
+    if code_bytes_scanned >= max_code_bytes:
+        message = (
+            "Targeted scan byte budget already reached in the reusable checkpoint "
+            "({:,}/{:,} bytes); no additional code was scanned."
+        ).format(code_bytes_scanned, max_code_bytes)
+        _emit_scan_progress(progress_callback, message, code_bytes_scanned)
+        return (
+            results[:MAX_XREFS_PER_FILE], instructions_scanned,
+            code_bytes_scanned, message, skipped_data
+        )
+
     already_by_string = defaultdict(int)
     for old in results:
         already_by_string[old["string_index"]] += 1
@@ -667,9 +694,21 @@ def find_string_xrefs(
         ) // MAX_DISASSEMBLY_CHUNK_BYTES
         alignment = 4 if layout["machine"] == 40 and not thumb_mode else 2
 
+        budget_exhausted = False
         while chunk_offset < section["size"]:
+            remaining_budget = max_code_bytes - code_bytes_scanned
+            if remaining_budget <= 0:
+                notes.append(
+                    "Targeted per-file scan budget reached at {:,} bytes.".format(
+                        code_bytes_scanned
+                    )
+                )
+                budget_exhausted = True
+                break
             chunk_end = min(
-                section["size"], chunk_offset + MAX_DISASSEMBLY_CHUNK_BYTES
+                section["size"],
+                chunk_offset + MAX_DISASSEMBLY_CHUNK_BYTES,
+                chunk_offset + remaining_budget,
             )
             code_start = section["offset"] + chunk_offset
             code_end = section["offset"] + chunk_end
@@ -790,6 +829,14 @@ def find_string_xrefs(
         recent_resume = []
         pending_resume = []
         start_chunk_offset = 0
+        if budget_exhausted or code_bytes_scanned >= max_code_bytes:
+            if not notes or "budget" not in notes[-1].lower():
+                notes.append(
+                    "Targeted per-file scan budget reached at {:,} bytes.".format(
+                        code_bytes_scanned
+                    )
+                )
+            break
 
     note = (
         "; ".join(notes) if notes else
@@ -1026,36 +1073,56 @@ def inspect_archive(path: Path):
     return files, manifest_lines, skipped_note
 
 
+def focused_symbol_records(symbol_tables):
+    """Keep only safe, relevant symbol names for exact cross-library matching."""
+    records = set()
+    for table_symbols in symbol_tables.values():
+        for symbol in table_symbols:
+            name = symbol.get("name", "")
+            if not name or not MARKER_RE.search(name):
+                continue
+            preview = safe_preview(name)
+            if preview:
+                records.add((preview, int(symbol["section_index"]), int(symbol["type"])))
+    return [
+        {"name": name, "section_index": section_index, "type": symbol_type}
+        for name, section_index, symbol_type in sorted(records)
+    ]
+
+
 def cross_file_symbol_links(files):
-    """Match browser/bridge imports in one ELF to exact definitions in another."""
+    """Match focused imports to exact definitions across the inventory."""
     exports = defaultdict(set)
     imports = []
     for item in files:
-        _, tables = parse_symbol_tables(item["data"], item["layout"])
+        records = item.get("cross_symbols")
+        if records is None:
+            _, tables = parse_symbol_tables(item["data"], item["layout"])
+            records = focused_symbol_records(tables)
         seen = set()
-        for table_symbols in tables.values():
-            for symbol in table_symbols:
-                name = symbol["name"]
-                if not name or not MARKER_RE.search(name):
-                    continue
-                key = (name, symbol["section_index"], symbol["type"])
-                if key in seen:
-                    continue
-                seen.add(key)
-                if symbol["section_index"] == 0:
-                    imports.append((item["name"], name))
-                elif symbol["type"] == 2:
-                    exports[name].add(item["name"])
+        for symbol in records:
+            name = symbol["name"]
+            if not name or not MARKER_RE.search(name):
+                continue
+            section_index = int(symbol["section_index"])
+            symbol_type = int(symbol["type"])
+            key = (name, section_index, symbol_type)
+            if key in seen:
+                continue
+            seen.add(key)
+            if section_index == 0:
+                imports.append((item["name"], name))
+            elif symbol_type == 2:
+                exports[name].add(item["name"])
 
     links = []
     for importer, name in imports:
-        providers = sorted(provider for provider in exports.get(name, set()) if provider != importer)
-        for provider in providers:
-            preview = safe_preview(name)
-            if preview:
-                links.append((importer, provider, preview))
-    links.sort()
-    return links
+        for provider in sorted(exports.get(name, set())):
+            if provider != importer:
+                preview = safe_preview(name)
+                if preview:
+                    links.append((importer, provider, preview))
+    return sorted(set(links))
 
 
 def load_cached_file_result(cache_file: Path, archive_sha256: str, item):
@@ -1069,7 +1136,7 @@ def load_cached_file_result(cache_file: Path, archive_sha256: str, item):
     if not isinstance(payload, dict):
         return None
     if (
-        payload.get("inspector_version") != INSPECTOR_VERSION
+        payload.get("inspector_version") not in COMPATIBLE_CHECKPOINT_VERSIONS
         or payload.get("checkpoint_format") != CHECKPOINT_FORMAT_VERSION
         or payload.get("archive_sha256") != archive_sha256
         or payload.get("elf_sha256") != item["sha256"]
@@ -1099,6 +1166,106 @@ def save_cached_file_result(cache_file: Path, archive_sha256: str, item, result)
     temporary.replace(cache_file)
 
 
+def load_inventory_checkpoint(path: Path, archive_sha256: str, item):
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict) or (
+        payload.get("inspector_version") != INSPECTOR_VERSION
+        or payload.get("checkpoint_format") != INVENTORY_CHECKPOINT_FORMAT_VERSION
+        or payload.get("archive_sha256") != archive_sha256
+        or payload.get("elf_sha256") != item["sha256"]
+        or payload.get("elf_name") != item["name"]
+    ):
+        return None
+    inventory = payload.get("inventory")
+    if not isinstance(inventory, dict):
+        return None
+    required = ("symbols", "strings", "relocations", "cross_symbols")
+    return inventory if all(key in inventory for key in required) else None
+
+
+def save_inventory_checkpoint(path: Path, archive_sha256: str, item, inventory):
+    payload = {
+        "inspector_version": INSPECTOR_VERSION,
+        "checkpoint_format": INVENTORY_CHECKPOINT_FORMAT_VERSION,
+        "archive_sha256": archive_sha256,
+        "elf_sha256": item["sha256"],
+        "elf_name": item["name"],
+        "inventory": inventory,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(payload, separators=(",", ":"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    temporary.replace(path)
+
+
+def candidate_score(item, inventory):
+    """Score only specific browser/bridge evidence, not generic 'browser' text."""
+    symbols = inventory["symbols"]
+    strings = inventory["strings"]
+    relocations = inventory["relocations"]
+    strong_symbols = sum(
+        1 for symbol in symbols
+        if HIGH_SIGNAL_RE.search(symbol.get("preview", ""))
+    )
+    defined_functions = sum(
+        1 for symbol in symbols
+        if symbol.get("type") == 2
+        and symbol.get("section_index", 0) != 0
+        and HIGH_SIGNAL_RE.search(symbol.get("preview", ""))
+    )
+    strong_strings = sum(
+        1 for entry in strings
+        if HIGH_SIGNAL_RE.search(entry.get("text", ""))
+    )
+    strong_relocations = sum(
+        1 for entry in relocations
+        if HIGH_SIGNAL_RE.search(entry.get("symbol", ""))
+    )
+    main_app = "kppmainapp" in item["name"].lower()
+    score = (
+        defined_functions * 30
+        + strong_symbols * 12
+        + strong_relocations * 8
+        + strong_strings * 4
+        + (500 if main_app else 0)
+    )
+    reasons = {
+        "defined_functions": defined_functions,
+        "strong_symbols": strong_symbols,
+        "strong_strings": strong_strings,
+        "strong_relocations": strong_relocations,
+        "main_app": main_app,
+    }
+    return score, reasons
+
+
+def estimate_targeted_scan_budget(items):
+    total = 0
+    supported = {3, 40, 62, 183}
+    for item in items:
+        layout = item["layout"]
+        if layout["machine"] not in supported:
+            continue
+        passes = 2 if layout["machine"] == 40 else 1
+        available = sum(
+            section["size"] * passes
+            for section in layout["sections"]
+            if (section["flags"] & 4)
+            and section["type"] != 8
+            and 0 < section["size"] <= MAX_CODE_BYTES_PER_FILE
+        )
+        total += min(available, MAX_TARGETED_CODE_BYTES_PER_FILE)
+    return total
+
+
 def build_report(
     files, archive_name: str, manifest_lines, capstone,
     checkpoint_dir: Path | None = None, archive_sha256: str | None = None,
@@ -1114,29 +1281,186 @@ def build_report(
                 archive_sha256[:12], INSPECTOR_VERSION
             )
         )
+        if not checkpoint_dir.exists():
+            prior = archive_path.with_name(
+                "KPP-Native-Bridge-Checkpoint-{}-0.1.111".format(archive_sha256[:12])
+            )
+            if prior.is_dir():
+                checkpoint_dir = prior
+                print(
+                    "Found v0.1.111 checkpoints; compatible completed-file and chunk checkpoints will be reused.",
+                    flush=True,
+                )
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
     if batch_size < 1:
         batch_size = DEFAULT_BATCH_SIZE
-    total_batches = (len(files) + batch_size - 1) // batch_size
+
+    inventory_started = time.monotonic()
+    inventories = {}
+    completed_caches = {}
     print(
-        "Starting analysis: {} ELF files, {} batches of up to {}.".format(
-            len(files), total_batches, batch_size
+        "\nPASS 1/2 — INVENTORY: all {} ELF files; parsing symbols, strings, "
+        "imports and relocations. No disassembly in this pass.".format(len(files)),
+        flush=True,
+    )
+    print("Inventory checkpoints: {}".format(checkpoint_dir), flush=True)
+
+    for index, item in enumerate(files, start=1):
+        cache_file = checkpoint_dir / (item["sha256"] + ".json")
+        inventory_path = checkpoint_dir / (item["sha256"] + ".inventory.json")
+        cached_result = load_cached_file_result(cache_file, archive_sha256, item)
+        if cached_result is not None:
+            inventory = {
+                "symbols": cached_result["symbols"],
+                "strings": cached_result["strings"],
+                "relocations": cached_result["relocations"],
+                "cross_symbols": [
+                    {
+                        "name": safe_preview(symbol.get("name", "")) or "",
+                        "section_index": symbol.get("section_index", 0),
+                        "type": symbol.get("type", 0),
+                    }
+                    for symbol in cached_result["symbols"]
+                    if symbol.get("name") and safe_preview(symbol.get("name", ""))
+                ],
+                "from_completed_checkpoint": True,
+            }
+            completed_caches[item["sha256"]] = cached_result
+            print(
+                "Inventory {}/{}: {} — completed checkpoint reused.".format(
+                    index, len(files), item["name"]
+                ),
+                flush=True,
+            )
+        else:
+            inventory = load_inventory_checkpoint(
+                inventory_path, archive_sha256, item
+            )
+            if inventory is not None:
+                print(
+                    "Inventory {}/{}: {} — saved inventory checkpoint reused.".format(
+                        index, len(files), item["name"]
+                    ),
+                    flush=True,
+                )
+            else:
+                print(
+                    "Inventory {}/{}: {} — parsing metadata...".format(
+                        index, len(files), item["name"]
+                    ),
+                    flush=True,
+                )
+                symbols, symbol_tables = parse_symbol_tables(
+                    item["data"], item["layout"]
+                )
+                strings = extract_marker_strings(item["data"], item["layout"])
+                relocations = parse_relocations(
+                    item["data"], item["layout"], symbol_tables
+                )
+                inventory = {
+                    "symbols": symbols,
+                    "strings": strings,
+                    "relocations": relocations,
+                    "cross_symbols": focused_symbol_records(symbol_tables),
+                    "from_completed_checkpoint": False,
+                }
+                save_inventory_checkpoint(
+                    inventory_path, archive_sha256, item, inventory
+                )
+                print(
+                    "Inventory checkpoint saved for {}.".format(item["name"]),
+                    flush=True,
+                )
+
+        item["cross_symbols"] = inventory.get("cross_symbols", [])
+        score, reasons = candidate_score(item, inventory)
+        item["candidate_score"] = score
+        item["candidate_reasons"] = reasons
+        inventories[item["sha256"]] = inventory
+        elapsed = time.monotonic() - inventory_started
+        average = elapsed / index
+        eta = _format_duration(max(0, len(files) - index) * average)
+        print(
+            "INVENTORY {}/{} | elapsed {} | ETA {}".format(
+                index, len(files), _format_duration(elapsed), eta
+            ),
+            flush=True,
+        )
+
+    inventory_elapsed = time.monotonic() - inventory_started
+    ranked = [item for item in files if item["candidate_score"] > 0]
+    ranked.sort(
+        key=lambda item: (
+            -item["candidate_score"],
+            not item["candidate_reasons"]["main_app"],
+            item["name"].lower(),
+        )
+    )
+    deep_candidates = ranked[:MAX_TARGETED_ANALYSIS_FILES]
+    deep_ids = {item["sha256"] for item in deep_candidates}
+    xref_candidates = [
+        item for item in deep_candidates
+        if any(
+            entry.get("address") is not None
+            and HIGH_SIGNAL_RE.search(entry.get("text", ""))
+            for entry in inventories[item["sha256"]]["strings"]
+        )
+    ][:MAX_TARGETED_XREF_FILES]
+    xref_ids = {item["sha256"] for item in xref_candidates}
+    code_scan_budget = estimate_targeted_scan_budget(xref_candidates)
+
+    links = cross_file_symbol_links(files)
+    print(
+        "\nPASS 2/2 — TARGETED ANALYSIS: {} of {} ELF files selected; {} will "
+        "receive bounded code-reference scans (up to {:,} bytes each).".format(
+            len(deep_candidates), len(files), len(xref_candidates),
+            MAX_TARGETED_CODE_BYTES_PER_FILE
         ),
         flush=True,
     )
-    print("Completed-file and within-file chunk checkpoints: {}".format(checkpoint_dir), flush=True)
+    for index, item in enumerate(deep_candidates, start=1):
+        reasons = item["candidate_reasons"]
+        print(
+            "  Candidate {}/{}: {} | score {} | {} function symbols, {} marker symbols, "
+            "{} strong strings, {} relocations".format(
+                index, len(deep_candidates), item["name"], item["candidate_score"],
+                reasons["defined_functions"], reasons["strong_symbols"],
+                reasons["strong_strings"], reasons["strong_relocations"]
+            ),
+            flush=True,
+        )
+    if len(ranked) > len(deep_candidates):
+        print(
+            "  {} additional lower-ranked files remain inventoried but are not disassembled.".format(
+                len(ranked) - len(deep_candidates)
+            ),
+            flush=True,
+        )
+    if not deep_candidates:
+        print("  No high-signal native browser/bridge candidates were found.", flush=True)
+
+    total_symbols = total_strings = total_relocations = 0
+    total_functions = total_xrefs = total_instructions = 0
+    total_code_scanned = total_skipdata = 0
+    analysis_started = time.monotonic()
+
     lines = [
-        "KPP NATIVE BRIDGE — COMPREHENSIVE OFFLINE STATIC ANALYSIS",
+        "KPP NATIVE BRIDGE — SELECTIVE OFFLINE STATIC ANALYSIS",
         "=" * 78,
-        "Input archive: {}".format(Path(archive_name).name),
-        "ELF files fully inspected: {}".format(len(files)),
+        "Input archive: {}".format(archive_path.name),
+        "ELF files inventoried: {}".format(len(files)),
+        "ELF files selected for focused analysis: {}".format(len(deep_candidates)),
+        "ELF files receiving bounded code-reference scans: {}".format(len(xref_candidates)),
         "Disassembly backend: Capstone {}".format(backend_version),
-        "Coverage: ELF sections, symbols/imports/exports, relocations, selected strings,",
-        "ARM and Thumb code across all supported executable sections, browser/bridge function",
-        "disassembly, static string references, and exact cross-library symbol links.",
+        "Inventory covers symbols, imports/exports, relocations and marker strings in every ELF.",
+        "Expensive disassembly is limited to the highest-scoring browser/bridge candidates.",
+        "Static reference scans are capped at {:,} code bytes per selected ELF.".format(
+            MAX_TARGETED_CODE_BYTES_PER_FILE
+        ),
         "No binary was executed or modified. No LIPC request or browser action was sent.",
         "No network access, upload, paste service or external lookup was used.",
         "No process memory, page text, cookies, browser history, URLs, command lines or account data were collected.",
+        "Inventory time: {}.".format(_format_duration(inventory_elapsed)),
         "",
         "EXPORT MANIFEST",
         "-" * 78,
@@ -1146,9 +1470,11 @@ def build_report(
         for row in manifest_lines[:MAX_FILES]:
             parts = row.split("\t")
             if len(parts) >= 4:
-                lines.append("- {}: {} ({} bytes; SHA256 {})".format(
-                    parts[0], parts[1], parts[2], parts[3]
-                ))
+                lines.append(
+                    "- {}: {} ({} bytes; SHA256 {})".format(
+                        parts[0], parts[1], parts[2], parts[3]
+                    )
+                )
         if len(manifest_lines) > MAX_FILES:
             lines.append("- Further manifest rows omitted from report.")
     else:
@@ -1161,15 +1487,18 @@ def build_report(
             section for section in layout["sections"]
             if section["flags"] & 4 and section["size"] > 0
         ]
+        inventory = inventories[item["sha256"]]
         lines.append(
-            "- {}: ELF{} {}, {}; {:,} bytes; {} executable section(s); SHA256 {}".format(
+            "- {}: ELF{} {}, {}; {:,} bytes; {} executable section(s); "
+            "{} marker symbols; {} marker strings; {} relocations; score {}.".format(
                 item["name"], layout["class"], layout["endian"],
                 machine_name(layout["machine"]), len(item["data"]),
-                len(executable_sections), item["sha256"]
+                len(executable_sections), len(inventory["symbols"]),
+                len(inventory["strings"]), len(inventory["relocations"]),
+                item["candidate_score"]
             )
         )
 
-    links = cross_file_symbol_links(files)
     lines.extend(["", "CROSS-LIBRARY BROWSER/BRIDGE IMPORT LINKS", "-" * 78])
     if links:
         for importer, provider, name in links[:MAX_FINDINGS_TOTAL]:
@@ -1179,36 +1508,33 @@ def build_report(
             "No exact browser/bridge import-to-definition pairs were found across the supplied ELF files."
         )
 
-    total_symbols = total_strings = total_relocations = total_functions = total_xrefs = 0
-    total_instructions = total_code_scanned = total_skipdata = 0
-    code_scan_budget = estimate_code_scan_budget(files)
-    analysis_started = time.monotonic()
-    print(
-        "EXHAUSTIVE SCOPE: all {} ELF files; all supported executable sections; "
-        "ARM and Thumb passes where applicable.".format(len(files)),
-        flush=True,
-    )
-    print(
-        "Estimated executable scan volume: {:,} bytes (subject to documented safety caps).".format(
-            code_scan_budget
-        ),
-        flush=True,
-    )
+    lines.extend(["", "TARGETED ANALYSIS SELECTION", "-" * 78])
+    for item in deep_candidates:
+        reasons = item["candidate_reasons"]
+        lines.append(
+            "- {} (score {}; defined functions {}; symbols {}; strings {}; relocations {}).".format(
+                item["name"], item["candidate_score"], reasons["defined_functions"],
+                reasons["strong_symbols"], reasons["strong_strings"],
+                reasons["strong_relocations"]
+            )
+        )
+    if not deep_candidates:
+        lines.append("No files met the high-signal selection threshold.")
+    if len(ranked) > len(deep_candidates):
+        lines.append(
+            "{} additional candidates were left at inventory level because the focused-analysis cap is {}.".format(
+                len(ranked) - len(deep_candidates), MAX_TARGETED_ANALYSIS_FILES
+            )
+        )
 
     for file_index, item in enumerate(files):
         data, layout = item["data"], item["layout"]
-        batch_number = file_index // batch_size + 1
-        if file_index % batch_size == 0:
-            print(
-                "\nBATCH {}/{} — files {}–{} of {}".format(
-                    batch_number, total_batches, file_index + 1,
-                    min(file_index + batch_size, len(files)), len(files)
-                ),
-                flush=True,
-            )
-
+        inventory = inventories[item["sha256"]]
         cache_file = checkpoint_dir / (item["sha256"] + ".json")
-        cached_result = load_cached_file_result(cache_file, archive_sha256, item)
+        cached_result = completed_caches.get(item["sha256"])
+        if cached_result is None:
+            cached_result = load_cached_file_result(cache_file, archive_sha256, item)
+
         if cached_result is not None:
             symbols = cached_result["symbols"]
             strings = cached_result["strings"]
@@ -1221,73 +1547,106 @@ def build_report(
             code_bytes = cached_result["code_bytes"]
             scan_note = cached_result["scan_note"]
             skipped_data = cached_result["skipped_data"]
+            selection_note = "reused previously completed per-ELF checkpoint"
             print(
-                "File {}/{}: {} — resumed from checkpoint.".format(
+                "File {}/{}: {} — completed checkpoint reused.".format(
+                    file_index + 1, len(files), item["name"]
+                ),
+                flush=True,
+            )
+        elif item["sha256"] not in deep_ids:
+            symbols = inventory["symbols"]
+            strings = inventory["strings"]
+            relocations = inventory["relocations"]
+            functions = []
+            function_count = 0
+            function_instruction_count = 0
+            xrefs = []
+            instruction_count = 0
+            code_bytes = 0
+            skipped_data = 0
+            scan_note = "Inventory only: no high-signal browser/bridge evidence; native disassembly skipped."
+            selection_note = "not selected for expensive code analysis"
+            cached_result = {
+                "symbols": symbols,
+                "strings": strings,
+                "relocations": relocations,
+                "functions": functions,
+                "function_count": function_count,
+                "function_instruction_count": function_instruction_count,
+                "xrefs": xrefs,
+                "instruction_count": instruction_count,
+                "code_bytes": code_bytes,
+                "scan_note": scan_note,
+                "skipped_data": skipped_data,
+            }
+            save_cached_file_result(cache_file, archive_sha256, item, cached_result)
+            print(
+                "File {}/{}: {} — inventory complete; expensive code scan skipped.".format(
                     file_index + 1, len(files), item["name"]
                 ),
                 flush=True,
             )
         else:
+            symbols = inventory["symbols"]
+            strings = inventory["strings"]
+            relocations = inventory["relocations"]
             print(
-                "File {}/{}: {} — parsing symbols, strings and relocations...".format(
+                "File {}/{}: {} — focused named-function disassembly...".format(
                     file_index + 1, len(files), item["name"]
                 ),
                 flush=True,
             )
-            symbols, symbol_tables = parse_symbol_tables(data, layout)
-            strings = extract_marker_strings(data, layout)
-            relocations = parse_relocations(data, layout, symbol_tables)
-
-            print(
-                "File {}/{}: disassembling named functions...".format(
-                    file_index + 1, len(files)
-                ),
-                flush=True,
+            functions, function_count, function_instruction_count = (
+                disassemble_relevant_functions(data, layout, symbols, capstone)
             )
-            functions, function_count, function_instruction_count = disassemble_relevant_functions(
-                data, layout, symbols, capstone
-            )
+            xrefs = []
+            instruction_count = 0
+            code_bytes = 0
+            skipped_data = 0
+            if item["sha256"] in xref_ids:
+                scan_base_bytes = total_code_scanned
 
-            print(
-                "File {}/{}: exhaustive code scan across its executable sections...".format(
-                    file_index + 1, len(files)
-                ),
-                flush=True,
-            )
-            scan_base_bytes = total_code_scanned
-            analysis_elapsed_start = analysis_started
-
-            def report_xref_progress(message, local_scanned_bytes=0):
-                overall_done = min(
-                    code_scan_budget, scan_base_bytes + local_scanned_bytes
-                )
-                elapsed = max(0.1, time.monotonic() - analysis_elapsed_start)
-                eta_threshold = min(code_scan_budget, 1024 * 1024)
-                if code_scan_budget > 0 and overall_done >= eta_threshold and elapsed >= 2.0:
-                    fraction = min(1.0, overall_done / code_scan_budget)
-                    rate = overall_done / elapsed
+                def report_xref_progress(message, local_scanned_bytes=0):
+                    overall_done = min(
+                        code_scan_budget, scan_base_bytes + local_scanned_bytes
+                    )
+                    elapsed = max(0.1, time.monotonic() - analysis_started)
+                    fraction = overall_done / code_scan_budget if code_scan_budget else 1.0
+                    rate = overall_done / elapsed if elapsed > 0 else 0
                     remaining = max(0, code_scan_budget - overall_done)
-                    eta = _format_duration(remaining / rate) if rate > 0 else "unknown"
-                    progress = "{:.1f}% overall; ETA {}".format(fraction * 100, eta)
-                else:
-                    fraction = (
-                        min(1.0, overall_done / code_scan_budget)
-                        if code_scan_budget else 0.0
+                    eta = _format_duration(remaining / rate) if rate > 0 else "calculating"
+                    print(
+                        "    {} | {:.1f}% of targeted scan budget; ETA {}".format(
+                            message, min(100.0, fraction * 100), eta
+                        ),
+                        flush=True,
                     )
-                    progress = "{:.1f}% overall; ETA calculating".format(
-                        fraction * 100
-                    )
-                print("    {} | {}".format(message, progress), flush=True)
 
-            scan_checkpoint_path = checkpoint_dir / (item["sha256"] + ".scan.json")
-            xrefs, instruction_count, code_bytes, scan_note, skipped_data = find_string_xrefs(
-                data, layout, strings, capstone,
-                progress_callback=report_xref_progress,
-                checkpoint_path=scan_checkpoint_path,
-                archive_sha256=archive_sha256,
-                elf_sha256=item["sha256"],
-            )
-
+                print(
+                    "File {}/{}: bounded reference scan (maximum {:,} bytes)...".format(
+                        file_index + 1, len(files), MAX_TARGETED_CODE_BYTES_PER_FILE
+                    ),
+                    flush=True,
+                )
+                scan_checkpoint_path = checkpoint_dir / (item["sha256"] + ".scan.json")
+                (
+                    xrefs, instruction_count, code_bytes,
+                    scan_note, skipped_data
+                ) = find_string_xrefs(
+                    data, layout, strings, capstone,
+                    progress_callback=report_xref_progress,
+                    checkpoint_path=scan_checkpoint_path,
+                    archive_sha256=archive_sha256,
+                    elf_sha256=item["sha256"],
+                    max_code_bytes=MAX_TARGETED_CODE_BYTES_PER_FILE,
+                )
+            else:
+                scan_note = (
+                    "Named functions disassembled; no mapped high-signal marker strings "
+                    "were available or this file was outside the reference-scan limit."
+                )
+            selection_note = "selected by high-signal marker evidence"
             cached_result = {
                 "symbols": symbols,
                 "strings": strings,
@@ -1304,14 +1663,14 @@ def build_report(
             try:
                 save_cached_file_result(cache_file, archive_sha256, item, cached_result)
                 print(
-                    "File {}/{}: checkpoint saved.".format(
-                        file_index + 1, len(files)
+                    "File {}/{}: {} — focused result checkpoint saved.".format(
+                        file_index + 1, len(files), item["name"]
                     ),
                     flush=True,
                 )
             except OSError as error:
                 print(
-                    "WARNING: Could not save checkpoint for {} ({}).".format(
+                    "WARNING: Could not save focused result for {} ({}).".format(
                         item["name"], type(error).__name__
                     ),
                     flush=True,
@@ -1335,12 +1694,14 @@ def build_report(
                 layout["class"], layout["endian"], machine_name(layout["machine"])
             ),
             "Entry point: 0x{:x}".format(layout["entry"]),
+            "Focused-analysis candidate score: {}".format(item["candidate_score"]),
+            "Analysis selection: {}".format(selection_note),
             "Browser/bridge marker symbols found: {}".format(len(symbols)),
             "Browser/bridge marker strings found: {}".format(len(strings)),
             "Relevant relocations found: {}".format(len(relocations)),
             "Priority functions identified: {}".format(function_count),
             "Priority functions disassembled: {}".format(len(functions)),
-            "Executable bytes scanned (including ARM+Thumb passes): {:,}".format(code_bytes),
+            "Executable bytes scanned (bounded references): {:,}".format(code_bytes),
             "Instructions decoded during reference scan: {:,}".format(instruction_count),
             "Skip-data pseudo-instructions safely skipped: {:,}".format(skipped_data),
             "Scan note: {}".format(scan_note),
@@ -1408,8 +1769,8 @@ def build_report(
                     lines.append("    " + instruction)
         else:
             lines.append(
-                "  No priority function symbols could be resolved to executable sections. "
-                "The report still includes symbols, strings, relocations and import/export matches."
+                "  No priority function symbols were disassembled. "
+                "Non-selected files were intentionally limited to their metadata inventory."
             )
 
         lines.extend(["", "STATIC CODE REFERENCES TO MARKER STRINGS", "-" * 78])
@@ -1440,7 +1801,7 @@ def build_report(
                 for instruction in xref["window"]:
                     lines.append("    " + instruction)
         else:
-            lines.append("  No direct code references were resolved for the selected marker strings.")
+            lines.append("  No direct code references were resolved within the selected bounded scan.")
 
     lines.extend([
         "",
@@ -1448,24 +1809,27 @@ def build_report(
         "COVERAGE SUMMARY",
         "=" * 78,
         "ELF files inspected: {}".format(len(files)),
+        "ELF files selected for focused analysis: {}".format(len(deep_candidates)),
+        "ELF files receiving bounded code-reference scans: {}".format(len(xref_candidates)),
         "Focused browser/bridge symbols: {}".format(total_symbols),
         "Browser/bridge strings: {}".format(total_strings),
         "Relevant relocations: {}".format(total_relocations),
         "Priority functions disassembled: {}".format(total_functions),
         "String-reference sites: {}".format(total_xrefs),
-        "Executable bytes scanned: {:,}".format(total_code_scanned),
-        "Decoded instructions (scan plus named functions): {:,}".format(total_instructions),
+        "Executable bytes scanned in bounded references: {:,}".format(total_code_scanned),
+        "Decoded instructions (targeted scans plus named functions): {:,}".format(total_instructions),
         "Skip-data pseudo-instructions safely skipped: {:,}".format(total_skipdata),
         "Cross-library exact symbol links: {}".format(len(links)),
         "",
         "HOW TO READ THE RESULTS",
         "-" * 78,
-        "Every supported executable section in every exported ELF is scanned. ARM32 sections are",
-        "scanned in both ARM and Thumb modes because one ELF can mix them.",
-        "Named functions are disassembled only when a function symbol can be resolved to executable code.",
+        "Every exported ELF is inventoried for symbols, imports/exports, relocations and marker strings.",
+        "Only the highest-ranked files with specific browser/bridge evidence receive native disassembly.",
+        "Reference scans are limited to the selected candidates and a fixed per-file byte budget.",
+        "The previous exhaustive chunked scanner remains available in the analysis code, but this workflow",
+        "uses targeted limits to avoid hours of low-value scanning across unrelated shared libraries.",
         "Cross-library links require an exact imported-symbol name to match a defined function symbol in another ELF.",
-        "Code-reference matches are static address candidates, not proof of calls or runtime data flow.",
-        "The exhaustive scan uses bounded 256 KB chunks, automatically split further if Capstone reports memory pressure.",
+        "Static code references are candidates, not proof of calls or runtime data flow.",
         "Static analysis can miss indirect references, stripped functions, runtime-generated code,",
         "and data flow spanning multiple instructions or libraries. A lead is not proof of a usable API.",
         "No function was called and no live browser test was attempted.",
@@ -1480,12 +1844,15 @@ def build_report(
         "This is offline static analysis only. All inputs and outputs remain local.",
     ])
     report = "\n".join(lines) + "\n"
-    print("Combining saved per-file results into the final report...", flush=True)
+    print(
+        "Targeted analysis completed in {}.".format(
+            _format_duration(time.monotonic() - analysis_started)
+        ),
+        flush=True,
+    )
     if len(report) > MAX_REPORT_CHARS:
         report = report[:MAX_REPORT_CHARS] + "\n[Report truncated at the 3 MB safety limit.]\n"
     return report
-
-
 
 
 def main() -> int:
@@ -1505,6 +1872,7 @@ def main() -> int:
         return 1
 
     print("KPP Native Bridge Inspector {}".format(INSPECTOR_VERSION), flush=True)
+    print("Mode: inventory all ELFs, then selectively disassemble high-signal candidates.", flush=True)
     print("Input archive: {}".format(archive_path), flush=True)
     checkpoint_dir = None
     try:
@@ -1560,7 +1928,7 @@ def main() -> int:
     print("SUCCESS: Comprehensive offline native inspection completed.")
     print("ELF files inspected: {}".format(len(files)))
     print("Findings report saved locally: {}".format(report_path))
-    print("The report includes relevant function disassembly and code-reference candidates.")
+    print("The report inventories every ELF and limits disassembly to the strongest candidates.")
     print("No Kindle connection, network connection, upload or paste service was used.")
     print("Attach KPP-Native-Bridge-Findings.txt in ChatGPT.")
     return 0
