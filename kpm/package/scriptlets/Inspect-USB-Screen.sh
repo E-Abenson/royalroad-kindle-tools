@@ -207,7 +207,7 @@ fi
 
 PASTE_URL="$(sed -n '1p' "$BODY" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
 case "$PASTE_URL" in
-  https://pasters.io/*) PASTE_ID="\${PASTE_URL#https://pasters.io/}" ;;
+  https://pasters.io/*) PASTE_ID="$(printf '%s\n' "$PASTE_URL" | sed 's#^https://pasters.io/##')" ;;
   *)
     cp "$REPORT" "$LOCAL_REPORT" 2>/dev/null || true
     chmod 600 "$LOCAL_REPORT" 2>/dev/null || true
