@@ -6,7 +6,7 @@ This package contains a small set of manual Kindle utilities and a private clean
 
 - **KPP-Native-Bridge-Export** — one manual export of the running KPP executable and selected shared libraries mapped by KPPMainApp. It creates KPP-Native-Bridge-Binaries.tar.gz in Documents for USB transfer. It does not inspect page contents, read cookies, modify the app or upload binaries.
 - **KPM-Update-All** — manually refreshes package repositories and upgrades installed packages. After a successful upgrade, it automatically runs the private cleanup helper and regenerates the version report.
-- **Inspect-USB-Screen** — a one-run, read-only inventory of the stock USB-mode display assets. It copies the files in /usr/share/blanket/usb, records their metadata and PNG dimensions, and writes USB-Screen-Inspection.tar.gz to Documents. It does not modify the system.
+- **Inspect-USB-Screen** — a one-run, read-only inventory of the stock USB-mode display assets. It records their metadata and PNG dimensions, saves the text report in Documents, and uploads that text report to Pasters.io with a one-week expiry. The paste link is shown on the Kindle and saved in Documents. A separate archive containing the actual image files remains local; those images are not uploaded.
 - **Install-Rabbinic-Screensavers** — a separate manual launcher. It copies the two normal-grayscale portraits already installed by KPM in `/mnt/us/koreader-screensavers-inverted/` into `/mnt/us/screensavers/`. It verifies each source and staged copy against the KPM package's `SHA256SUMS`; no internet download is involved. It changes only those two named images.
 - **KindleBatchPrepareFix** — manually repairs/reinstalls the separate Kindle Batch Preparation KOReader plugin.
 
@@ -17,11 +17,11 @@ The previous comprehensive diagnostic, last-open-page test and Hermes bytecode e
 The USB-connected screen is rendered by the Kindle system USB display, separately from the sleep screensaver. The diagnostic copies the stock files under /usr/share/blanket/usb and records the device display information, image dimensions, permissions and checksums. It does not remount the root filesystem read-write, replace images, change permissions or restart Blanket.
 
 1. Open **Inspect-USB-Screen** from the Kindle library.
-2. It creates **USB-Screen-Inspection.tar.gz** in Kindle Documents.
-3. Connect the Kindle to the PC and copy that archive from Documents.
-4. Attach the archive in the ChatGPT conversation so the exact background and overlay assets can be checked before designing any replacement.
+2. It uploads the text report to Pasters.io and displays the share link when the upload is confirmed.
+3. Paste that link into the ChatGPT conversation. The paste is readable by anyone with the link and is requested to expire after one week.
+4. The detailed text report is also saved as `USB-Screen-Inspection.txt`, and the paste link as `USB-Screen-Inspection-Paste.txt`, in Kindle Documents.
 
-The diagnostic is manual; it does not run during KPM installation or updates. The existing Custom Screensaver package and images are left untouched.
+The optional archive `USB-Screen-Inspection.tar.gz` contains the actual USB display image files and stays local; the image files are not included in the Pasters.io upload. It may be needed later to inspect the image artwork itself. The diagnostic is manual; it does not run during KPM installation or updates. The existing Custom Screensaver package and images are left untouched.
 
 ## Native browser bridge inspection
 
