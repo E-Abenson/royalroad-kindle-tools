@@ -634,7 +634,7 @@ def find_string_xrefs(
         pending_resume = []
         _emit_scan_progress(
             progress_callback,
-            "Beginning exhaustive executable-code scan (all supported sections and modes).",
+            "Beginning bounded code-reference scan across prioritized sections and applicable modes.",
             0,
         )
 
@@ -1281,14 +1281,16 @@ def estimate_targeted_scan_budget(items):
         if layout["machine"] not in supported:
             continue
         passes = 2 if layout["machine"] == 40 else 1
-        available = sum(
-            section["size"] * passes
+        available_per_mode = sum(
+            section["size"]
             for section in layout["sections"]
             if (section["flags"] & 4)
             and section["type"] != 8
             and 0 < section["size"] <= MAX_CODE_BYTES_PER_FILE
         )
-        total += min(available, MAX_TARGETED_CODE_BYTES_PER_FILE)
+        total += min(
+            available_per_mode, MAX_TARGETED_CODE_BYTES_PER_FILE
+        ) * passes
     return total
 
 
