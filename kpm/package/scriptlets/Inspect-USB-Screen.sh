@@ -13,9 +13,9 @@ ARCHIVE_TEMP="$ARCHIVE.new.$$"
 REPORT="$WORK/USB-Screen-Inspection.txt"
 LOCAL_REPORT="$DOCS/USB-Screen-Inspection.txt"
 PASTE_NOTE="$DOCS/USB-Screen-Inspection-Paste.txt"
-PASTE_NOTE_TEMP="$PASTE_NOTE.new.$"
+PASTE_NOTE_TEMP="$PASTE_NOTE.new.$$"
 DELETE_FILE="$DOCS/.USB-Screen-Inspection-delete-url.txt"
-DELETE_TEMP="$DELETE_FILE.new.$"
+DELETE_TEMP="$DELETE_FILE.new.$$"
 ENDPOINT="https://pasters.io/?expires=1d"
 
 umask 077
@@ -241,7 +241,7 @@ case "$DELETE_URL" in
         rm -f "$DELETE_TEMP"
         ;;
       *)
-        if printf '%s\\n' "$DELETE_URL" > "$DELETE_TEMP" &&
+        if printf '%s\n' "$DELETE_URL" > "$DELETE_TEMP" &&
            chmod 600 "$DELETE_TEMP" 2>/dev/null &&
            mv -f "$DELETE_TEMP" "$DELETE_FILE"; then
           DELETE_SAVED=1
