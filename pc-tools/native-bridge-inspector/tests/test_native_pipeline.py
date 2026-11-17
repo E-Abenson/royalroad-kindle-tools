@@ -213,11 +213,16 @@ class NativeInspectorTests(unittest.TestCase):
             original_decode = inspector.decode_chunk_resilient
             calls = {"count": 0}
 
-            def interrupt_after_first_chunk(engine, code, address, backend, alignment=4):
+            def interrupt_after_first_chunk(
+                engine, code, address, backend, alignment=4, lite=False
+            ):
                 calls["count"] += 1
                 if calls["count"] == 2:
                     raise KeyboardInterrupt()
-                return original_decode(engine, code, address, backend, alignment)
+                return original_decode(
+                    engine, code, address, backend,
+                    alignment=alignment, lite=lite,
+                )
 
             with patch.object(
                 inspector, "decode_chunk_resilient",
