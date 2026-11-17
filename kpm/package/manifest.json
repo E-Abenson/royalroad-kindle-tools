@@ -3,7 +3,7 @@
   "id": "royalroad-kindle-tools",
   "name": "Royal Road Kindle Tools",
   "author": "E-Abenson",
-  "description": "Manual read-only USB display asset inspection, one native KPP executable/shared-library export, offline Windows ELF browser/bridge inspection with findings saved locally and no network upload, automatic cleanup/version reporting, and KOReader maintenance tools. Includes a separate SHA256-verified, normal-grayscale KOReader custom sleep-screen images.",
+  "description": "Manual read-only USB display asset inspection with one-week Pasters.io text-report sharing, one native KPP executable/shared-library export, offline Windows ELF browser/bridge inspection with findings saved locally and no PC network upload, automatic cleanup/version reporting, and KOReader maintenance tools; also installs SHA256-verified normal-grayscale KOReader sleep-screen images.",
   "version": [
     0,
     1,
