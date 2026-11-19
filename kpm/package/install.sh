@@ -11,9 +11,88 @@ mkdir -p "$DOCS" "$INTERNAL_DIR"
 say() { printf '%s\n' "$*"; }
 
 install_scriptlet() {
-  SOURCE="$1"; DEST="$2"; TEMP="$DEST.new.$$"
+  SOURCE="$1"; DEST="$2"; TEMP="$DEST.new.$"
   say "Installing $(basename "$DEST")..."
   cp "$SOURCE" "$TEMP"; chmod 755 "$TEMP"; mv -f "$TEMP" "$DEST"
+}
+
+
+# Install the KPM-managed ScreenLockPin plugin into the existing KOReader tree.
+# Plugin PIN/settings live in KOReader's settings.reader.lua, not in this code folder.
+install_screenlockpin_plugin() {
+  SOURCE_DIR="files/screenlockpin.koplugin"
+  KO_ROOT="/mnt/us/koreader"
+  PLUGIN_ROOT="$KO_ROOT/plugins"
+  PLUGIN_NAME="screenlockpin.koplugin"
+  DEST_DIR="$PLUGIN_ROOT/$PLUGIN_NAME"
+  TEMP_DIR="$PLUGIN_ROOT/.$PLUGIN_NAME.new.$"
+  BACKUP_DIR="$PLUGIN_ROOT/.$PLUGIN_NAME.backup.$"
+  MARKER="$DEST_DIR/.royalroad-kpm-managed"
+
+  if [ ! -d "$KO_ROOT" ]; then
+    say "ERROR: KOReader root not found: $KO_ROOT"
+    return 1
+  fi
+  if [ ! -d "$SOURCE_DIR" ] || [ ! -s "$SOURCE_DIR/SHA256SUMS" ]; then
+    say "ERROR: Bundled ScreenLockPin files or SHA256SUMS are missing."
+    return 1
+  fi
+  if ! (cd "$SOURCE_DIR" && sha256sum -c SHA256SUMS); then
+    say "ERROR: Bundled ScreenLockPin checksum validation failed."
+    return 1
+  fi
+
+  mkdir -p "$PLUGIN_ROOT"
+  rm -rf "$TEMP_DIR" "$BACKUP_DIR"
+  if ! mkdir "$TEMP_DIR"; then
+    say "ERROR: Could not create temporary ScreenLockPin folder."
+    return 1
+  fi
+  if ! cp -R "$SOURCE_DIR"/. "$TEMP_DIR"/; then
+    rm -rf "$TEMP_DIR"
+    say "ERROR: Could not stage ScreenLockPin files."
+    return 1
+  fi
+  if ! (cd "$TEMP_DIR" && sha256sum -c SHA256SUMS); then
+    rm -rf "$TEMP_DIR"
+    say "ERROR: Staged ScreenLockPin files failed checksum validation."
+    return 1
+  fi
+
+  HAD_OLD=0
+  if [ -e "$DEST_DIR" ] || [ -L "$DEST_DIR" ]; then
+    if ! mv "$DEST_DIR" "$BACKUP_DIR"; then
+      rm -rf "$TEMP_DIR"
+      say "ERROR: Could not preserve the existing ScreenLockPin folder."
+      return 1
+    fi
+    HAD_OLD=1
+  fi
+
+  if ! mv "$TEMP_DIR" "$DEST_DIR"; then
+    rm -rf "$TEMP_DIR"
+    if [ "$HAD_OLD" -eq 1 ]; then
+      mv "$BACKUP_DIR" "$DEST_DIR" || true
+    fi
+    say "ERROR: Could not install ScreenLockPin into $DEST_DIR."
+    return 1
+  fi
+
+  if ! {
+    printf '%s\n' "managed_by=royalroad-kindle-tools"
+    printf '%s\n' "upstream_version=2026.10"
+  } > "$MARKER"; then
+    rm -rf "$DEST_DIR"
+    if [ "$HAD_OLD" -eq 1 ]; then
+      mv "$BACKUP_DIR" "$DEST_DIR" || true
+    fi
+    say "ERROR: Could not write ScreenLockPin ownership marker."
+    return 1
+  fi
+
+  rm -rf "$BACKUP_DIR"
+  say "Installed ScreenLockPin v2026.10 into $DEST_DIR."
+  say "Existing KOReader PIN and preferences were left in settings.reader.lua."
 }
 
 
@@ -137,6 +216,7 @@ merge_cleanup_queue
 requeue_existing_targets
 
 install_koreader_screensavers
+install_screenlockpin_plugin
 
 SOURCE_TEMP="$DOCS/KindleBatchPrepare-main.lua.gz.new.$"
 cp "files/kindle_batch_prepare_main.lua.gz" "$SOURCE_TEMP"

@@ -18,6 +18,7 @@ An experimental KPM toolkit for investigating the jailbroken Kindle's built-in K
 - **KPM-Update-All** — manual KPM repository refresh and package upgrade. After a successful upgrade, it automatically runs the hidden cleanup helper and refreshes the version report.
 - **Inspect-USB-Screen** — one-run, read-only inventory of the stock USB display assets and screen dimensions; uploads its text report to Pasters.io for one day and keeps an archive of the image files locally without changing system files. If returned, the private per-paste deletion URL is saved separately with restricted permissions.
 - **KindleBatchPrepareFix** — manual repair/reinstall tool for the KOReader Kindle Batch Preparation plugin.
+- **ScreenLockPin** — third-party KOReader PIN lock plugin (upstream v2026.10), installed and updated through KPM.
 
 The prior comprehensive diagnostic, getLastOpenPage check, and Hermes bytecode exporter are completed and retired. Their launchers, reports, temporary files, saved paste-link files and package-cache copies are queued for removal by the automatic cleanup.
 

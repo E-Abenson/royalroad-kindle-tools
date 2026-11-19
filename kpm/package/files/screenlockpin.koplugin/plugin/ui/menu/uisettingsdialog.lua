@@ -1,0 +1,430 @@
+local _ = require("gettext")
+local Device = require("device")
+local ConfigDialog = require("ui/widget/configdialog")
+local Notification = require("ui/widget/notification")
+local C_ = _.pgettext
+
+local pluginSettings = require("plugin/settings")
+
+local DEBUG_OPTIONS = Device:isEmulator()
+--DEBUG_OPTIONS = true
+
+local UiSettingsDialog = ConfigDialog:extend {
+    is_fresh = false,
+    config_options = {
+        prefix = "screenlockpin",
+        {
+            icon = "zoom.content",
+            options = {
+                {
+                    name = "ui_pos_y",
+                    name_text = _("Vertical position"),
+                    toggle = { C_("Panel position", "top"), C_("Panel position", "center"), C_("Panel position", "bottom") },
+                    values = { 100, 50, 0 },
+                    args = { 100, 50, 0 },
+                    event = "SetPositionY",
+                    more_options = true,
+                    more_options_param = {
+                        value_min = 0,
+                        value_max = 100,
+                        value_step = 2,
+                        value_hold_step = 10,
+                        unit = "%",
+                        name = "ui_pos_y",
+                        name_text = _("Set vertical panel position (0 = bottom, 100 = top)"),
+                        event = "SetPositionY",
+                    },
+                },
+                {
+                    name = "ui_pos_x",
+                    name_text = _("Horizontal position"),
+                    toggle = { C_("Panel position", "left"), C_("Panel position", "center"), C_("Panel position", "right") },
+                    values = { 0, 50, 100 },
+                    args = { 0, 50, 100 },
+                    event = "SetPositionX",
+                    more_options = true,
+                    more_options_param = {
+                        value_min = 0,
+                        value_max = 100,
+                        value_step = 2,
+                        value_hold_step = 10,
+                        unit = "%",
+                        name = "ui_pos_x",
+                        name_text = _("Set horizontal panel position (0 = left, 100 = right)"),
+                        event = "SetPositionX",
+                    },
+                },
+                {
+                    name = "ui_scale",
+                    name_text = _("Panel size"),
+                    toggle = { C_("Panel size", "small"), C_("Panel size", "medium"), C_("Panel size", "large") },
+                    values = { 0, 40, 100 },
+                    args = { 0, 40, 100 },
+                    event = "SetScale",
+                    more_options = true,
+                    more_options_param = {
+                        value_min = 0,
+                        value_max = 100,
+                        value_step = 2,
+                        value_hold_step = 10,
+                        unit = "%",
+                        name = "ui_scale",
+                        name_text = _("Set panel size (0 = small, 100 = large)"),
+                        event = "SetScale",
+                    },
+                },
+            },
+        },
+        {
+            icon = "appbar.typeset",
+            options = {
+                {
+                    name = "note_preview_align",
+                    name_text = _("Preview text align"),
+                    toggle = { C_("Text alignment", "left"), C_("Text alignment", "center"), C_("Text alignment", "right") },
+                    args = { "left", "center", "right" },
+                    values = { "left", "center", "right" },
+                    event = "SetNotePreviewAlign",
+                    condition = function(opts) return opts.note_mode == "below" or opts.note_mode == "above" end,
+                },
+                {
+                    name = "note_preview_text",
+                    name_text = _("Preview text"),
+                    item_text = { _("Edit…") },
+                    event = "EditNotePreviewText",
+                    condition = function(opts) return opts.note_mode == "below" or opts.note_mode == "above" end,
+                },
+                {
+                    name = "note_text",
+                    name_text = _("Notes text"),
+                    item_text = { _("Edit…") },
+                    event = "EditNoteText",
+                    condition = function(opts) return opts.note_mode ~= "disabled" end,
+                },
+                {
+                    name = "note_mode",
+                    name_text = _("Show notes"),
+                    toggle = { C_("Lock screen notes", "off"), C_("Lock screen notes", "button"), C_("Lock screen notes", "below"), C_("Lock screen notes", "above") },
+                    args = { "disabled", "button", "below", "above" },
+                    values = { "disabled", "button", "below", "above" },
+                    event = "SetNoteMode",
+                },
+            },
+        },
+        {
+            icon = "triangle",
+            options = {
+                {
+                    name = "check_update_interval",
+                    name_text = _("Check for updates"),
+                    toggle = {
+                        C_("Check for updates", "manual"),
+                        C_("Check for updates", "daily"),
+                        C_("Check for updates", "weekly"),
+                        C_("Check for updates", "monthly"),
+                    },
+                    values = {
+                        0,
+                        3600 * 24,
+                        3600 * 24 * 7,
+                        3600 * 24 * 30,
+                    },
+                    args = {
+                        0,
+                        3600 * 24,
+                        3600 * 24 * 7,
+                        3600 * 24 * 30,
+                    },
+                    event = "SetCheckUpdateInterval",
+                },
+                {
+                    name = "update_reminder_interval",
+                    name_text = _("Reminder interval"),
+                    toggle = {
+                        C_("Check for updates", "off"),
+                        C_("Check for updates", "1 day"),
+                        C_("Check for updates", "1 week"),
+                        C_("Check for updates", "1 month"),
+                    },
+                    values = {
+                        0,
+                        3600 * 24,
+                        3600 * 24 * 7,
+                        3600 * 24 * 30,
+                    },
+                    args = {
+                        0,
+                        3600 * 24,
+                        3600 * 24 * 7,
+                        3600 * 24 * 30,
+                    },
+                    event = "SetUpdateReminderInterval",
+                },
+            },
+        },
+        {
+            icon = "appbar.settings",
+            options = {
+                {
+                    name = "screenshots_mode",
+                    name_text = _("Screenshots"),
+                    toggle = { C_("Lock screen screenshots", "prevent"), C_("Lock screen screenshots", "allow") },
+                    args = { "prevent", "allow" },
+                    values = { "prevent", "allow" },
+                    event = "SetScreenshotsMode",
+                    condition = function() return not (Device:isDesktop() or Device:isAndroid()) end,
+                },
+                {
+                    name = "button_feedback_mode",
+                    name_text = _("Flash buttons"),
+                    toggle = { C_("Flash buttons", "off"), C_("Flash buttons", "system") },
+                    args = { "off", "system" },
+                    values = { "off", "system" },
+                    event = "SetButtonFeedbackMode",
+                },
+                {
+                    name = "frontlight_mode",
+                    name_text = _("Frontlight control"),
+                    toggle = { C_("Frontlight control", "off"), C_("Frontlight control", "long press only"), C_("Frontlight control", "on") },
+                    args = { "off", "long-press", "on" },
+                    values = { "off", "long-press", "on" },
+                    event = "SetFrontlightMode",
+                },
+                {
+                    name = "short_suspend_threshold",
+                    name_text = _("Lockless Suspend"),
+                    toggle = { C_("Lockless Suspend", "off"), C_("Lockless Suspend", "30 s"), C_("Lockless Suspend", "5 min"), C_("Lockless Suspend", "20 min") },
+                    values = { 0, 30, 300, 1200 },
+                    args = { 0, 30, 300, 1200 },
+                    current_func = function()
+                        local val = pluginSettings.getShortSuspendThreshold()
+                        if val == 0 then return 0 end
+                        -- ensure that "off" is only "active" for threshold exactly 0
+                        if val <= 30 then return 30 end
+                        return val
+                    end,
+                    event = "SetShortSuspendThreshold",
+                    more_options = true,
+                    more_options_param = {
+                        value_min = 0,
+                        value_max = 3600 * 24,
+                        value_step = 5,
+                        value_hold_step = 15,
+                        unit = "s",
+                        name = "short_suspend_threshold",
+                        name_text = _("Set short suspend threshold in seconds (0 = off)"),
+                        event = "SetShortSuspendThreshold",
+                    },
+                    condition = function() return Device:canSuspend() end,
+                },
+            },
+        },
+    },
+}
+
+local triangleOpts = UiSettingsDialog.config_options[3].options
+
+if DEBUG_OPTIONS then
+    local function insertToggle(config, label, value, pos)
+        if not pos then pos = #config.toggle + 1 end
+        table.insert(config.toggle, pos, label)
+        table.insert(config.values, pos, value)
+        table.insert(config.args, pos, value)
+    end
+
+    local update_interval = triangleOpts[1]
+    local dismiss_reminder = triangleOpts[2]
+    insertToggle(update_interval, "15 s", 15)
+    insertToggle(dismiss_reminder, "15 s", 15)
+end
+
+for _, obj in ipairs(UiSettingsDialog.config_options) do
+    obj.__options_schema = obj.options
+end
+
+function UiSettingsDialog:init()
+    self.ui = self
+    local uiSettings = pluginSettings.getUiSettings()
+    local noteSettings = pluginSettings.getNoteSettings()
+    local prevent_screenshots = pluginSettings.getPreventScreenshots()
+    self.configurable = {
+        ui_scale = uiSettings.scale,
+        ui_pos_x = uiSettings.pos_x,
+        ui_pos_y = 100 - uiSettings.pos_y,
+        note_mode = noteSettings.mode,
+        note_text = noteSettings.text,
+        note_preview_text = noteSettings.preview_text,
+        note_preview_align = noteSettings.preview_align,
+        button_feedback_mode = pluginSettings.getButtonFeedback(),
+        screenshots_mode = prevent_screenshots and "prevent" or "allow",
+        frontlight_mode = pluginSettings.getFrontlightMode(),
+        check_update_interval = pluginSettings.getCheckUpdateInterval(),
+        update_reminder_interval = pluginSettings.getUpdateReminderInterval(),
+        short_suspend_threshold = pluginSettings.getShortSuspendThreshold(),
+    }
+    self:refreshConditionals()
+    ConfigDialog.init(self)
+end
+
+function UiSettingsDialog:refreshConditionals()
+    local ui_refresh = false
+
+    for _, obj in ipairs(UiSettingsDialog.config_options) do
+        local schema = obj.__options_schema
+        local prev = obj.options
+        local next = {}
+        for _, option in ipairs(schema) do
+            local render = true
+            if type(option.condition) == "function" then
+                render = option.condition(self.configurable)
+            end
+            if render then table.insert(next, option) end
+        end
+        obj.options = next
+        if #next < #prev then ui_refresh = true end
+    end
+
+    if self.dialog_frame ~= nil and ui_refresh then
+        local UIManager = require("ui/uimanager")
+        UIManager:setDirty("all", "ui", self.dialog_frame.dimen)
+    end
+end
+
+function UiSettingsDialog:onSetPositionX(value)
+    pluginSettings.setUiSetting("pos_x", value)
+    self.configurable.ui_pos_x = value
+    return true
+end
+
+function UiSettingsDialog:onSetPositionY(value)
+    pluginSettings.setUiSetting("pos_y", 100 - value)
+    self.configurable.ui_pos_y = value
+    return true
+end
+
+function UiSettingsDialog:onSetScale(value)
+    pluginSettings.setUiSetting("scale", value)
+    self.configurable.ui_scale = value
+    return true
+end
+
+function UiSettingsDialog:onSetCheckUpdateInterval(value)
+    pluginSettings.setCheckUpdateInterval(value)
+    self.configurable.check_update_interval = value
+    return true
+end
+
+function UiSettingsDialog:onSetUpdateReminderInterval(value)
+    pluginSettings.setUpdateReminderInterval(value)
+    self.configurable.update_reminder_interval = value
+    return true
+end
+
+function UiSettingsDialog:onSetNoteMode(value)
+    pluginSettings.setNoteMode(value)
+    self.configurable.note_mode = value
+    self:refreshConditionals()
+    return true
+end
+
+function UiSettingsDialog:onEditNoteText()
+    self:openTextInputPopup({
+        config_key = "note_text",
+        title = _("Lock screen notes (emergency info / contact / etc.)"),
+        on_save = pluginSettings.setNoteText,
+    });
+    return true;
+end
+
+function UiSettingsDialog:onEditNotePreviewText()
+    self:openTextInputPopup({
+        config_key = "note_preview_text",
+        title = _("Lock screen preview notes (empty = full notes; max 5 lines visible)"),
+        on_save = pluginSettings.setNotePreviewText,
+    });
+    return true;
+end
+
+function UiSettingsDialog:onSetNotePreviewAlign(value)
+    pluginSettings.setNotePreviewAlign(value)
+    self.configurable.note_preview_align = value
+    return true;
+end
+
+-- opts: { config_key: string; title: string; on_save(text: string):void }
+function UiSettingsDialog:openTextInputPopup(opts)
+    local config_key = opts.config_key;
+    local title = opts.title;
+    local on_save = opts.on_save;
+
+    local InputDialog = require("ui/widget/inputdialog")
+    local UIManager = require("ui/uimanager")
+    local Screen = require("device").screen
+
+    local current = self.configurable[config_key] or ""
+    self._text_input_popup = InputDialog:new{
+        title = title,
+        input = current,
+        scroll = true,
+        allow_newline = true,
+        text_height = Screen:scaleBySize(150),
+        buttons = {
+            {
+                {
+                    text = _("Cancel"),
+                    id = "close",
+                    callback = function()
+                        UIManager:close(self._text_input_popup)
+                        self._text_input_popup = nil
+                    end,
+                },
+                {
+                    text = _("Save"),
+                    is_enter_default = true,
+                    callback = function()
+                        local text = self._text_input_popup:getInputText() or ""
+                        on_save(text)
+                        self.configurable[config_key] = text
+                        UIManager:close(self._text_input_popup)
+                        self._text_input_popup = nil
+                    end,
+                },
+            },
+        },
+    }
+    UIManager:show(self._text_input_popup)
+    self._text_input_popup:onShowKeyboard()
+end
+
+function UiSettingsDialog:onSetScreenshotsMode(mode)
+    pluginSettings.setPreventScreenshots(mode == "prevent")
+    self.configurable.screenshots_mode = mode
+    return true
+end
+
+function UiSettingsDialog:onSetButtonFeedbackMode(mode)
+    pluginSettings.setButtonFeedback(mode)
+    self.configurable.button_feedback_mode = mode
+    local info_text
+    if mode == "off" then
+        info_text = _("No flash on button tap (high input performance)");
+    else
+        info_text = _("Flash on button tap as per system: Screen / E-Ink settings")
+    end
+    Notification:notify(info_text, Notification.SOURCE_DISPATCHER)
+    return true
+end
+
+function UiSettingsDialog:onSetFrontlightMode(mode)
+    pluginSettings.setFrontlightMode(mode)
+    self.configurable.frontlight_mode = mode
+    return true
+end
+
+function UiSettingsDialog:onSetShortSuspendThreshold(value)
+    pluginSettings.setShortSuspendThreshold(value)
+    self.configurable.short_suspend_threshold = value
+    return true
+end
+
+return UiSettingsDialog

@@ -9,6 +9,7 @@ This package contains a small set of manual Kindle utilities and a private clean
 - **Inspect-USB-Screen** — a one-run, read-only inventory of the stock USB-mode display assets. It records their metadata and PNG dimensions, saves the text report in Documents, and uploads that text report to Pasters.io with a one-day expiry. The paste link is shown on the Kindle and saved in Documents. If Pasters provides its per-paste deletion URL, that secret is stored separately in a hidden file with restricted permissions, never in the public report. A separate archive containing the actual image files remains local; those images are not uploaded.
 - **Install-Rabbinic-Screensavers** — a separate manual launcher. It copies the two normal-grayscale portraits already installed by KPM in `/mnt/us/koreader-screensavers-inverted/` into `/mnt/us/screensavers/`. It verifies each source and staged copy against the KPM package's `SHA256SUMS`; no internet download is involved. It changes only those two named images.
 - **KindleBatchPrepareFix** — manually repairs/reinstalls the separate Kindle Batch Preparation KOReader plugin.
+- **ScreenLockPin** — third-party KOReader PIN lock plugin (upstream v2026.10), installed automatically into `/mnt/us/koreader/plugins/screenlockpin.koplugin/` and updated with this KPM package.
 
 The previous comprehensive diagnostic, last-open-page test and Hermes bytecode export are completed and retired. Their launchers, output files and package-cache copies are queued for removal by the automatic cleanup.
 
@@ -91,3 +92,34 @@ The folder keeps its historical `-inverted` name solely so an existing KOReader 
 During a KPM update, the installer verifies all three SHA256 checksums before replacing the three named files. Other files in the folder are preserved. It does not touch `/mnt/us/screensavers/` or the normal Kindle Custom Screensaver collection.
 
 No KOReader setting change is needed when the folder was already selected.
+
+
+## KOReader PIN lock — ScreenLockPin
+
+This package includes [ScreenLockPin](https://github.com/oleasteo/koreader-screenlockpin),
+upstream release **v2026.10**, under its MIT licence. KPM installs the plugin
+code to:
+
+`/mnt/us/koreader/plugins/screenlockpin.koplugin/`
+
+The first time KOReader loads the plugin, follow its setup prompt and create a
+3–12 digit PIN. When asked whether to enable weekly GitHub update checks, choose
+**Disable Auto-Updates** so KPM remains the single update manager for this
+bundled copy. New upstream plugin versions will be included in later KPM
+releases.
+
+Open **Screen → Lock screen** to manage the PIN and its options. Enable
+**Lock on wakeup** to require the PIN after the Kindle wakes from sleep. The
+upstream v2026.10 default also enables **Lock on boot**; leave it on if you want
+a PIN whenever KOReader starts, or turn it off if you only want wake-from-sleep
+locking.
+
+On KPM upgrades, only the plugin program files are replaced. Your PIN and
+preferences remain in KOReader's `settings.reader.lua`; they are not stored
+inside the plugin folder. If you uninstall this KPM package, its marked
+ScreenLockPin program folder is removed but the KOReader settings file is
+left intact.
+
+ScreenLockPin is intended for casual privacy, not cryptographic security. It
+cannot prevent a forced device reboot or protect the Kindle when KOReader is
+not in the foreground. It is separate from the Kindle's own Device Passcode.

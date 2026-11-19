@@ -139,6 +139,16 @@ jobs:
           python -m py_compile kpm/build_koreader_screensavers.py
           python kpm/build_koreader_screensavers.py
 
+      - name: Generate and verify bundled ScreenLockPin checksums
+        run: |
+          set -eu
+          PLUGIN_DIR="kpm/package/files/screenlockpin.koplugin"
+          test -s "$PLUGIN_DIR/_meta.lua"
+          test -s "$PLUGIN_DIR/main.lua"
+          test -s "$PLUGIN_DIR/LICENSE"
+          grep -Fq 'version = "2026.10"' "$PLUGIN_DIR/_meta.lua"
+          (cd "$PLUGIN_DIR" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
+
       - name: Validate shell and Windows helper scripts
         run: |
           set -eu
@@ -160,6 +170,11 @@ jobs:
           test -s kpm/package/files/koreader-screensavers-inverted/02_Rav_Osher_Arieli.png
           test -s kpm/package/files/koreader-screensavers-inverted/03_Chofetz_Chaim.jpg
           test -s kpm/package/files/koreader-screensavers-inverted/SHA256SUMS
+          test -s kpm/package/files/screenlockpin.koplugin/_meta.lua
+          test -s kpm/package/files/screenlockpin.koplugin/main.lua
+          test -s kpm/package/files/screenlockpin.koplugin/LICENSE
+          test -s kpm/package/files/screenlockpin.koplugin/SHA256SUMS
+          (cd kpm/package/files/screenlockpin.koplugin && sha256sum -c SHA256SUMS)
           echo "All source checks passed."
 
       - name: Download official KPM packager
@@ -216,6 +231,9 @@ jobs:
           tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/01_Rav_Zvi_Kushelevsky.png' || { echo "KPM package is missing the Rav Zvi KOReader screensaver"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/02_Rav_Osher_Arieli.png' || { echo "KPM package is missing the Rav Osher KOReader screensaver"; exit 1; }
           tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/03_Chofetz_Chaim.jpg' || { echo "KPM package is missing the Chofetz Chaim KOReader screensaver"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -qx 'files/screenlockpin.koplugin/_meta.lua' || { echo "KPM package is missing ScreenLockPin metadata"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -qx 'files/screenlockpin.koplugin/main.lua' || { echo "KPM package is missing ScreenLockPin main code"; exit 1; }
+          tar -tzf "$PACKAGE" | grep -qx 'files/screenlockpin.koplugin/SHA256SUMS' || { echo "KPM package is missing ScreenLockPin checksums"; exit 1; }
           if tar -tzf "$PACKAGE" | grep -Eq 'scriptlets/(KPP-Comprehensive-Diagnostic|KPP-Last-Open-Page-Check|RR-KPP-Bytecode-Export)[.]sh'; then
             echo "A completed KPP diagnostic/bytecode launcher was reintroduced into the KPM package"
             exit 1
@@ -287,7 +305,7 @@ jobs:
           gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" \
             "dist/KPP-Native-Bridge-Inspector-Windows.zip" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
-            --notes "KPM package with one manual read-only native KPP executable/shared-library export and a comprehensive offline Windows ELF inspector. The inspector uses bundled, SHA256-verified Capstone 5.0.9 to disassemble named browser/bridge functions and locate static references to relevant strings across every ELF in the supplied archive. It makes no network connections on the user's PC and saves one local findings report. Automatic cleanup/version reporting and KOReader maintenance tools are also included."
+            --notes "KPM package with the native KPP inspection tools, automatic cleanup/version reporting, KOReader maintenance utilities and screensavers, plus the MIT-licensed ScreenLockPin v2026.10 plugin installed into KOReader for PIN locking."
 
       - name: Update KPM repository manifest
         if: github.event_name != 'pull_request'
@@ -314,7 +332,7 @@ jobs:
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "One-run read-only native KPP executable/shared-library export, comprehensive offline Windows ELF disassembly and cross-reference analysis with locally saved findings and no PC network upload, automatic cleanup/version reporting, plus KOReader maintenance tools.",
+                      "description": "Royal Road Kindle tools, KOReader maintenance utilities and screensavers, plus bundled ScreenLockPin v2026.10 for KOReader PIN protection.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,

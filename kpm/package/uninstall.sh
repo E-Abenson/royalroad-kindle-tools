@@ -2,6 +2,15 @@
 DOCS="/mnt/us/documents"
 if [ "$1" = "upgrade" ]; then exit 0; fi
 
+# Remove only the ScreenLockPin code folder installed by this package.
+# KOReader's central settings.reader.lua, including the PIN, is never deleted.
+SCREENLOCKPIN_DIR="/mnt/us/koreader/plugins/screenlockpin.koplugin"
+SCREENLOCKPIN_MARKER="$SCREENLOCKPIN_DIR/.royalroad-kpm-managed"
+if [ -f "$SCREENLOCKPIN_MARKER" ] &&
+   grep -Fqx "managed_by=royalroad-kindle-tools" "$SCREENLOCKPIN_MARKER"; then
+  rm -rf "$SCREENLOCKPIN_DIR"
+fi
+
 for ITEM in RR-KPP-Interface-Inspector.sh RR-KPP-Interface-Inspector-Upload.sh RoyalRoadTools-Cleanup.sh \
   RoyalRoadTools-Version-Info.sh KPM-Update-All.sh KindleBatchPrepareFix.sh Inspect-USB-Screen.sh \
   RR-LIPC-READONLY-PROBE.sh RR-LIPC-READONLY-UPLOAD.sh; do
