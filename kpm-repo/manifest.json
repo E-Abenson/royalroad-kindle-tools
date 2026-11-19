@@ -7,14 +7,14 @@
     "royalroad-kindle-tools": {
       "name": "Royal Road Kindle Tools",
       "author": "E-Abenson",
-      "description": "One-run read-only native KPP executable/shared-library export, comprehensive offline Windows ELF disassembly and cross-reference analysis with locally saved findings and no PC network upload, automatic cleanup/version reporting, plus KOReader maintenance tools.",
+      "description": "Royal Road Kindle tools, KOReader maintenance utilities and screensavers, plus bundled ScreenLockPin v2026.10 for KOReader PIN protection.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.120/royalroad-kindle-tools_0.1.120_kindlehf.kpkg",
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.121/royalroad-kindle-tools_0.1.121_kindlehf.kpkg",
           "version": [
             0,
             1,
-            120
+            121
           ],
           "dependencies": [],
           "supported_platforms": [
