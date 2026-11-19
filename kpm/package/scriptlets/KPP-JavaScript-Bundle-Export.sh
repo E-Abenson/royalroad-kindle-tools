@@ -62,7 +62,7 @@ case "$SIZE" in
 esac
 
 if [ "$SIZE" -le 0 ] || [ "$SIZE" -gt "$MAX_BYTES" ]; then
-  write_report "SOURCE SIZE OUTSIDE SAFE LIMIT (50 MB maximum; bytes=$SIZE) — no copy made."
+  write_report "SOURCE SIZE OUTSIDE SAFE LIMIT (50 MB safety limit; bytes=$SIZE) — no copy made."
   echo "KPP bundle export: source size outside the 50 MB safety limit."
   exit 1
 fi
