@@ -2,7 +2,7 @@ name: Publish KPM package
 
 on:
   push:
-    branches: [main]
+    branches: [main, kpp-js-bundle-export-and-cleanup]
     paths:
       - "kpm/package/**"
       - "scripts/**"
@@ -145,7 +145,7 @@ jobs:
             dist/SHA256SUMS
           retention-days: 7
       - name: Publish versioned KPM release
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
@@ -155,7 +155,7 @@ jobs:
             --title "Royal Road Kindle Tools $RELEASE_VERSION" \
             --notes "Manual KPP native-binary and Hermes JavaScript-bundle exports for offline analysis in ChatGPT; automatic cleanup and software-version reporting; USB display inspection; and KOReader Kindle Batch Preparation maintenance. The package no longer includes Windows-only analysis tools or the former project-managed Rabbinic sleep-screen assets."
       - name: Update KPM repository manifest
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
           VERSION: ${{ steps.version.outputs.version }}
           TAG: ${{ steps.version.outputs.tag }}
