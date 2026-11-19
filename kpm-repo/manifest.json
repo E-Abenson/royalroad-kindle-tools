@@ -7,7 +7,7 @@
     "royalroad-kindle-tools": {
       "name": "Royal Road Kindle Tools",
       "author": "E-Abenson",
-      "description": "Royal Road Kindle tools, KOReader maintenance utilities and screensavers, plus bundled ScreenLockPin v2026.10 for KOReader PIN protection.",
+      "description": "Manual KPP native and Hermes JavaScript-bundle export for offline analysis in ChatGPT, automatic cleanup/version reporting, USB display inspection, and KOReader Kindle Batch Preparation maintenance.",
       "artifacts": [
         {
           "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.121/royalroad-kindle-tools_0.1.121_kindlehf.kpkg",

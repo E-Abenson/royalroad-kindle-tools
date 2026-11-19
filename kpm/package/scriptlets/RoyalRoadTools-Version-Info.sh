@@ -1,6 +1,6 @@
 #!/bin/sh
 # Name: Kindle-Version-Report
-# Report build: 1.9
+# Report build: 2.0
 # Manual launcher: refreshes a readable software inventory on the Kindle.
 
 DOCS="/mnt/us/documents"
@@ -82,9 +82,8 @@ else
   say "Installed package version: unavailable from KPM database"
 fi
 say "KPM updater launcher: $( [ -x "$DOCS/KPM-Update-All.sh" ] && echo present || echo missing )"
-say "KPP comprehensive diagnostic launcher: $( [ -x "$DOCS/KPP-Comprehensive-Diagnostic.sh" ] && echo present || echo missing )"
-say "KPP last-open-page check launcher: $( [ -x "$DOCS/KPP-Last-Open-Page-Check.sh" ] && echo present || echo missing ) (read-only; page value stays private)"
-say "One-time KPP bytecode export launcher: $( [ -x "$DOCS/RR-KPP-Bytecode-Export.sh" ] && echo present || echo missing )"
+say "Native bridge export launcher: $( [ -x "$DOCS/KPP-Native-Bridge-Export.sh" ] && echo present || echo missing )"
+say "JavaScript bundle export launcher: $( [ -x "$DOCS/KPP-JavaScript-Bundle-Export.sh" ] && echo present || echo missing )"
 say ""
 
 say "KOREADER"
@@ -187,10 +186,10 @@ else
 fi
 say ""
 
-say "KPP HERMES BYTECODE — ONE-TIME USB INVESTIGATION"
+say "KPP HERMES JAVASCRIPT BUNDLE — USB EXPORT"
 BUNDLE_COPY="$DOCS/KPPMainApp.js.hbc"
-BUNDLE_REPORT="$DOCS/KPP-Bytecode-Export.txt"
-say "USB export launcher: $( [ -x "$DOCS/RR-KPP-Bytecode-Export.sh" ] && echo present || echo missing )"
+BUNDLE_REPORT="$DOCS/KPP-JavaScript-Bundle-Export.txt"
+say "USB export launcher: $( [ -x "$DOCS/KPP-JavaScript-Bundle-Export.sh" ] && echo present || echo missing )"
 if [ -s "$BUNDLE_COPY" ]; then
   say "USB transfer copy: present in Documents"
   say "Bundle size: $(wc -c < "$BUNDLE_COPY" | tr -d ' ') bytes"

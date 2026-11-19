@@ -221,6 +221,70 @@ remove_old_bookmark() {
   return 1
 }
 
+
+remove_koreader_managed_file() {
+  VALUE="$1"
+  case "$VALUE" in
+    01_Rav_Zvi_Kushelevsky.png|02_Rav_Osher_Arieli.png|03_Chofetz_Chaim.jpg|SHA256SUMS) ;;
+    *)
+      say "  INVALID KOReader screensaver filename; left queued: $VALUE"
+      return 1
+      ;;
+  esac
+  TARGET="/mnt/us/koreader-screensavers-inverted/$VALUE"
+  if [ ! -e "$TARGET" ] && [ ! -L "$TARGET" ]; then
+    say "  Already absent: $TARGET"
+    return 0
+  fi
+  if rm -f "$TARGET" 2>/dev/null && [ ! -e "$TARGET" ] && [ ! -L "$TARGET" ]; then
+    say "  Removed project-managed KOReader image: $TARGET"
+    return 0
+  fi
+  say "  FAILED to remove project-managed KOReader image: $TARGET"
+  return 1
+}
+
+remove_sleep_screen_image() {
+  VALUE="$1"
+  case "$VALUE" in
+    01_Rav_Zvi_Kushelevsky.png|02_Rav_Osher_Arieli.png) ;;
+    *)
+      say "  INVALID sleep-screen filename; left queued: $VALUE"
+      return 1
+      ;;
+  esac
+  TARGET="/mnt/us/screensavers/$VALUE"
+  if [ ! -e "$TARGET" ] && [ ! -L "$TARGET" ]; then
+    say "  Already absent: $TARGET"
+    return 0
+  fi
+  if rm -f "$TARGET" 2>/dev/null && [ ! -e "$TARGET" ] && [ ! -L "$TARGET" ]; then
+    say "  Removed exact project-managed sleep image: $TARGET"
+    return 0
+  fi
+  say "  FAILED to remove project-managed sleep image: $TARGET"
+  return 1
+}
+
+remove_koreader_managed_dir() {
+  VALUE="$1"
+  if [ "$VALUE" != "koreader-screensavers-inverted" ]; then
+    say "  INVALID KOReader screensaver directory; left queued: $VALUE"
+    return 1
+  fi
+  TARGET="/mnt/us/koreader-screensavers-inverted"
+  if [ ! -d "$TARGET" ]; then
+    say "  KOReader image directory already absent."
+    return 0
+  fi
+  if rmdir "$TARGET" 2>/dev/null; then
+    say "  Removed empty project-managed KOReader image directory."
+    return 0
+  fi
+  say "  KOReader image directory is not empty; preserved it: $TARGET"
+  return 1
+}
+
 process_item() {
   ITEM_TYPE="$1"
   ITEM_VALUE="$2"
@@ -231,6 +295,9 @@ process_item() {
     PKGDIR) remove_package_dir "$ITEM_VALUE" ;;
     REMOTE_DELETE) delete_remote_paste "$ITEM_VALUE" ;;
     BOOKMARK) remove_old_bookmark "$ITEM_VALUE" ;;
+    KOREADER_FILE) remove_koreader_managed_file "$ITEM_VALUE" ;;
+    SLEEP_SCREEN_IMAGE) remove_sleep_screen_image "$ITEM_VALUE" ;;
+    KOREADER_IMAGE_DIR) remove_koreader_managed_dir "$ITEM_VALUE" ;;
     *)
       say "  Unknown queue type; left queued: $ITEM_TYPE"
       return 1

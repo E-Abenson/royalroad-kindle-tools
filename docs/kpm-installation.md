@@ -2,57 +2,59 @@
 
 ## Update All and automatic cleanup
 
-Open **KPM-Update-All** from the Kindle library when you choose to refresh repositories and upgrade installed KPM packages.
+Open **KPM-Update-All** from the Kindle library when you choose to refresh registered repositories and upgrade installed KPM packages.
 
-After a successful package upgrade, **KPM-Update-All** automatically runs the cleanup queue and regenerates the Kindle version report. This is the intended maintenance flow.
+After a successful package upgrade, the updater runs the private cleanup queue and regenerates the Kindle software version report. It no longer adds a screensaver repository or automatically installs the old Rabbinic screensaver assets.
 
 The cleanup runner is stored privately at:
 
-`/mnt/us/documents/.royalroadtools/cleanup.sh`
+/mnt/us/documents/.royalroadtools/cleanup.sh
 
-There is no separate **RoyalRoadTools-Cleanup** launcher. The package installer installs the private runner and merges the queue; it does not run cleanup itself. The updater invokes cleanup after the package upgrade succeeds.
+There is no separate **RoyalRoadTools-Cleanup** launcher. The installer merges new items into /mnt/us/documents/RoyalRoadTools-Cleanup-Queue.txt; cleanup is run by Update All after the KPM upgrade succeeds.
 
-The Kindle-side interface-inspector stage is retired. The package no longer installs its two launchers, and the cleanup queue removes any older copies of:
+## Current manual launchers
 
-- `RR-KPP-Interface-Inspector.sh`
-- `RR-KPP-Interface-Inspector-Upload.sh`
-- `RR-KPP-Interface-Inspector.log`
-- `.RR-KPP-Interface-Inspector-delete-url.txt`
+- **KPP-Native-Bridge-Export** — one manual read-only export of the running KPP executable and mapped ELF libraries.
+- **KPP-JavaScript-Bundle-Export** — one manual read-only copy of /app/KPPMainApp/js/KPPMainApp.js.hbc into Documents. It checks the Hermes header, file-size limit, and SHA-256.
+- **Inspect-USB-Screen** — read-only inspection of the separate stock USB-connection display; it is not a sleep-screensaver installer.
+- **KPM-Update-All** — KPM repository refresh, package upgrade, cleanup, and version-report refresh.
+- **KindleBatchPrepareFix** — manual repair/reinstall of the KOReader Kindle Batch Preparation plugin.
 
-The one-time **RR-KPP-Bytecode-Export** launcher and `KPPMainApp.js.hbc` are deliberately preserved because they are needed for the Windows disassembly test.
+Each investigation or repair launcher remains manual; installation does not run it.
 
-## Cleanup queue
+## JavaScript bundle test
 
-The pending queue is `/mnt/us/documents/RoyalRoadTools-Cleanup-Queue.txt`. Successful actions are removed from that queue and recorded in `/mnt/us/documents/RoyalRoadTools-Cleanup-Completed.txt`. Failed or unverifiable actions remain queued for the next KPM-Update-All run.
+1. Open the Kindle's built-in browser and leave it running.
+2. Open **KPP-JavaScript-Bundle-Export** from the Kindle library.
+3. Connect the Kindle to Windows over USB.
+4. Copy KPPMainApp.js.hbc from Documents and attach it directly in ChatGPT, together with the existing native archive if requested.
 
-The installer also checks whether each retired target still exists. If it does, it re-queues it even if an earlier completion-ledger entry exists. This prevents previously removed files from being silently left behind after an old installer recreates them.
+There is no Windows analysis tool to install. The uploaded bundle is inspected in ChatGPT; the exporter does not run the bundle or upload it anywhere.
 
-The latest cleanup output is saved in `/mnt/us/documents/RoyalRoadTools-Cleanup.log`, and the combined update/cleanup output is saved in `/mnt/us/documents/KPM-Update-All.log`. The logs list each file as removed, already absent, or pending.
+## Retired screensaver assets
 
-## Current tools
+The package no longer builds or installs the old Rabbinic/KOReader sleep-screen images. On the next successful Update All, cleanup removes only these exact known project-installed files:
+- 01_Rav_Zvi_Kushelevsky.png
+- 02_Rav_Osher_Arieli.png
+- 03_Chofetz_Chaim.jpg
+- SHA256SUMS
 
-- **RR-KPP-Bytecode-Export** — one-time manual export of the unchanged Hermes bundle to `/mnt/us/documents/KPPMainApp.js.hbc`. Run it once, then copy that file to Windows over USB.
-- **KPM-Update-All** — repository refresh, package upgrade, automatic cleanup and version-report refresh.
-- **KindleBatchPrepareFix** — manual repair/reinstall tool for the KOReader Kindle Batch Preparation plugin.
+The image folder under /mnt/us/koreader-screensavers-inverted is removed only if empty. In /mnt/us/screensavers, only the two exact project-installed portrait filenames are removed. All other images and folders are preserved.
 
-The retired interface inspector and optional upload launcher are not installed by current package versions.
-
-## One-time Windows disassembly
-
-After running **RR-KPP-Bytecode-Export**, connect the Kindle to Windows over USB and copy `KPPMainApp.js.hbc` from Documents. Download `KPP-One-Time-Disassembler-Windows.zip` from the project release, extract it, put the HBC file beside `Run-KPP-Disassembly.bat`, and double-click the BAT file.
-
-The helper uses Python 3.8+ already installed, downloads a pinned pure-Python Hermes disassembler on first run, and needs no pip packages, compiler, administrator rights, or system-wide installation. It creates a focused `KPP-Interface-Findings.txt` and a full local disassembly. Nothing is uploaded.
+The cleanup does not uninstall the separate third-party Custom Screensaver KPM extension or remove its settings. It also does not delete the USB display inspection utility, because that utility examines a different screen.
 
 ## Version report
 
-`/mnt/us/documents/Kindle-Version-Report.txt` is regenerated after a successful KPM-Update-All run and after a successful Kindle Batch Preparation repair. The generator is stored privately; there is no separate version-report launcher. The report includes device, KPM, package, KOReader, plugin and KPP bundle version/checksum information.
+/mnt/us/documents/Kindle-Version-Report.txt is regenerated after successful package installation, Update All, and successful plugin repair. There is no manual version-report launcher.
 
 ## Active logs and reports
 
-- `/mnt/us/documents/KPP-Bytecode-Export.txt`
-- `/mnt/us/documents/RoyalRoadTools-Cleanup.log`
-- `/mnt/us/documents/KPM-Update-All.log`
-- `/mnt/us/documents/KindleBatchPrepareFix.log`
-- `/mnt/us/documents/Kindle-Version-Report.txt`
+- KPP-Native-Bridge-Export.txt
+- KPP-JavaScript-Bundle-Export.txt
+- RoyalRoadTools-Cleanup.log
+- KPM-Update-All.log
+- KindleBatchPrepareFix.log
+- Kindle-Version-Report.txt
+- USB-Screen-Inspection.txt when the optional USB display inspection is run
 
-Old diagnostic scripts, logs and report files are removed by the cleanup queue. It does not delete KOReader books, EPUBs, story files, browser data, or the live KOReader plugin.
+Old diagnostic logs and launchers are removed by exact cleanup entries. The cleaner does not delete KOReader books, EPUBs, story files, browser data, or unrelated files.

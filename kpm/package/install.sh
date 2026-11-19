@@ -96,39 +96,6 @@ install_screenlockpin_plugin() {
 }
 
 
-# Install normal-grayscale KOReader custom screensavers.
-# Keep the legacy folder name so the user's existing KOReader folder selection remains valid.
-# This never changes /mnt/us/screensavers or the standard Custom Screensaver set.
-install_koreader_screensavers() {
-  SOURCE_DIR="files/koreader-screensavers-inverted"
-  DEST_DIR="/mnt/us/koreader-screensavers-inverted"
-  if [ ! -d "$SOURCE_DIR" ] || [ ! -s "$SOURCE_DIR/SHA256SUMS" ]; then
-    say "WARNING: KOReader screensaver assets are missing from this package."
-    return 1
-  fi
-  if ! (cd "$SOURCE_DIR" && sha256sum -c SHA256SUMS); then
-    say "ERROR: KOReader screensaver checksum validation failed; existing folder was left unchanged."
-    return 1
-  fi
-  mkdir -p "$DEST_DIR"
-  for IMAGE in 01_Rav_Zvi_Kushelevsky.png 02_Rav_Osher_Arieli.png 03_Chofetz_Chaim.jpg; do
-    TEMP="$DEST_DIR/.$IMAGE.new.$(date +%s)"
-    if ! cp "$SOURCE_DIR/$IMAGE" "$TEMP"; then
-      rm -f "$TEMP"
-      say "ERROR: Could not stage $IMAGE; existing destination was left unchanged."
-      return 1
-    fi
-    chmod 644 "$TEMP"
-    if ! mv -f "$TEMP" "$DEST_DIR/$IMAGE"; then
-      rm -f "$TEMP"
-      say "ERROR: Could not install $IMAGE."
-      return 1
-    fi
-    say "Installed normal-grayscale KOReader screensaver: $DEST_DIR/$IMAGE"
-  done
-  say "KOReader custom screensaver folder ready: $DEST_DIR"
-}
-
 merge_cleanup_queue() {
   [ -f "$QUEUE" ] || printf '%s\n' '# Pending cleanup actions: add TYPE|VALUE entries here.' > "$QUEUE"
   [ -f "$COMPLETED" ] || printf '%s\n' '# Entries successfully removed; do not requeue these.' > "$COMPLETED"
@@ -168,6 +135,20 @@ requeue_existing_targets() {
       PKGDIR)
         TARGET="/mnt/us/kmc/kpm/packages/royalroad-kindle-tools/$ITEM_VALUE"
         if [ -d "$TARGET" ]; then FOUND=1; fi ;;
+      KOREADER_FILE)
+        case "$ITEM_VALUE" in
+          01_Rav_Zvi_Kushelevsky.png|02_Rav_Osher_Arieli.png|03_Chofetz_Chaim.jpg|SHA256SUMS) TARGET="/mnt/us/koreader-screensavers-inverted/$ITEM_VALUE" ;;
+          *) TARGET="" ;;
+        esac
+        if [ -n "$TARGET" ] && { [ -e "$TARGET" ] || [ -L "$TARGET" ]; }; then FOUND=1; fi ;;
+      SLEEP_SCREEN_IMAGE)
+        case "$ITEM_VALUE" in
+          01_Rav_Zvi_Kushelevsky.png|02_Rav_Osher_Arieli.png) TARGET="/mnt/us/screensavers/$ITEM_VALUE" ;;
+          *) TARGET="" ;;
+        esac
+        if [ -n "$TARGET" ] && { [ -e "$TARGET" ] || [ -L "$TARGET" ]; }; then FOUND=1; fi ;;
+      KOREADER_IMAGE_DIR)
+        if [ "$ITEM_VALUE" = "koreader-screensavers-inverted" ] && [ -d "/mnt/us/koreader-screensavers-inverted" ]; then FOUND=1; fi ;;
       REMOTE_DELETE)
         if [ -s "$DOCS/$ITEM_VALUE" ]; then FOUND=1; fi ;;
       BOOKMARK)
@@ -198,8 +179,9 @@ requeue_existing_targets() {
 
 say "Royal Road Kindle Tools — installing current toolset."
 install_scriptlet "scriptlets/KPP-Native-Bridge-Export.sh" "$DOCS/KPP-Native-Bridge-Export.sh"
+install_scriptlet "scriptlets/KPP-JavaScript-Bundle-Export.sh" "$DOCS/KPP-JavaScript-Bundle-Export.sh"
 install_scriptlet "scriptlets/KPM-Update-All.sh" "$DOCS/KPM-Update-All.sh"
-install_scriptlet "scriptlets/Install-Rabbinic-Screensavers.sh" "$DOCS/Install-Rabbinic-Screensavers.sh"
+
 install_scriptlet "scriptlets/Inspect-USB-Screen.sh" "$DOCS/Inspect-USB-Screen.sh"
 install_scriptlet "scriptlets/KindleBatchPrepareFix.sh" "$DOCS/KindleBatchPrepareFix.sh"
 install_scriptlet "scriptlets/RoyalRoadTools-Version-Info.sh" "$INTERNAL_DIR/version-info.sh"
@@ -207,6 +189,7 @@ install_scriptlet "scriptlets/RoyalRoadTools-Version-Info.sh" "$INTERNAL_DIR/ver
 # Private cleaner: invoked by KPM-Update-All after successful package upgrades.
 install_scriptlet "scriptlets/RoyalRoadTools-Cleanup.sh" "$INTERNAL_DIR/cleanup.sh"
 rm -f "$DOCS/RoyalRoadTools-Cleanup.sh"
+rm -f "$DOCS/RR-KPP-Bytecode-Export.sh" "$DOCS/Install-Rabbinic-Screensavers.sh"
 rm -f "$INTERNAL_DIR/inspector-upload.sh" "$INTERNAL_DIR/bytecode-export.sh"
 # The previous URL test is complete; remove its privately saved URL too.
 rm -f "$INTERNAL_DIR/last-open-page-private.txt"
@@ -215,7 +198,17 @@ rm -f "$DOCS/Kindle-Version-Report.sh" "$DOCS/RoyalRoadTools-Version-Info.sh"
 merge_cleanup_queue
 requeue_existing_targets
 
-install_koreader_screensavers
+# The new exporter reuses the USB-visible HBC filename. Remove any stale
+# pending deletion instruction left by the retired one-time exporter.
+remove_pending_cleanup_entry() {
+  ENTRY="$1"
+  [ -f "$QUEUE" ] || return 0
+  TEMP="$QUEUE.new.$"
+  grep -Fvx "$ENTRY" "$QUEUE" > "$TEMP" 2>/dev/null || true
+  mv -f "$TEMP" "$QUEUE"
+}
+remove_pending_cleanup_entry "DOC|KPPMainApp.js.hbc"
+
 install_screenlockpin_plugin
 
 SOURCE_TEMP="$DOCS/KindleBatchPrepare-main.lua.gz.new.$"
@@ -241,7 +234,7 @@ chmod 600 "$DOCS/.RoyalRoadTools-installed-version.txt" 2>/dev/null || true
 
 say "Cleanup runner installed privately at $INTERNAL_DIR/cleanup.sh."
 say "It runs automatically only when KPM-Update-All completes successfully."
-say "Manual launchers installed: native bridge export, USB screen inspection, KPM updater, rabbinic screensaver copier, and plugin repair."
+say "Manual launchers installed: native bridge export, JavaScript bundle export, USB display inspection, KPM updater, and plugin repair."
 say "The version-report helper is private; no version-report launcher is installed."
 if sh "$INTERNAL_DIR/version-info.sh"; then
   say "SUCCESS — Kindle-Version-Report.txt was regenerated."

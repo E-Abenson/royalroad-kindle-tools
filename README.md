@@ -1,60 +1,46 @@
 # Royal Road Kindle Tools
 
-An experimental KPM toolkit for investigating the jailbroken Kindle's built-in KPP browser. The eventual goal is an offline EPUB from pages the user can open normally; this project is not yet a story downloader.
-
-## Confirmed device findings
-
-- Kindle: 10th generation; exact Basic/Paperwhite variant not yet identified.
-- Firmware last reported: 5.18.1.1.1.
-- The built-in browser can open Royal Road chapters.
-- A separate direct Kindle curl request to Royal Road returned HTTP 403 with Cloudflare challenge markers.
-- com.lab126.kppbrowser.getLastOpenPage is readable and returned the current browser URL.
-- com.lab126.kppbrowser.invokeAction is write-only. Its accepted message format is unknown; no payload has been sent.
-- The existing Hermes bytecode was already exported and disassembled. That analysis identified internal navigation/WebView references, but did not prove a supported page-text API or reveal a safe invokeAction message.
+A small KPM toolkit for read-only investigation of the Kindle's built-in KPP browser, plus KOReader maintenance tools. It is not a story downloader.
 
 ## Current Kindle launchers
 
-- **KPP-Native-Bridge-Export** — the current single manual investigation launcher. It copies the running KPP executable and selected shared libraries mapped by KPPMainApp into a private USB-transfer archive. It collects no page URL, page text, cookie, account data, PID or command line, and does not upload any binary.
-- **KPM-Update-All** — manual KPM repository refresh and package upgrade. After a successful upgrade, it automatically runs the hidden cleanup helper and refreshes the version report.
-- **Inspect-USB-Screen** — one-run, read-only inventory of the stock USB display assets and screen dimensions; uploads its text report to Pasters.io for one day and keeps an archive of the image files locally without changing system files. If returned, the private per-paste deletion URL is saved separately with restricted permissions.
-- **KindleBatchPrepareFix** — manual repair/reinstall tool for the KOReader Kindle Batch Preparation plugin.
-- **ScreenLockPin** — third-party KOReader PIN lock plugin (upstream v2026.10), installed and updated through KPM.
+- **KPP-Native-Bridge-Export** — manually copies the running KPP executable and readable file-backed ELF libraries to a USB-transfer archive. It does not collect process memory, page content, cookies, history, URLs, or runtime property values.
+- **KPP-JavaScript-Bundle-Export** — manually copies the installed Hermes JavaScript bundle to Documents, verifies the Hermes header and SHA-256, and records its version and checksum. It does not execute or modify the application.
+- **Inspect-USB-Screen** — a separate read-only inspection of the stock display shown while the Kindle is connected over USB. It can share a text-only report through Pasters.io; the display assets themselves are not uploaded. This is not a sleep-screen or KOReader screensaver tool.
+- **KPM-Update-All** — manually refreshes registered KPM repositories and upgrades installed KPM packages. After a successful upgrade it runs the hidden project cleanup helper and refreshes the version report.
+- **KindleBatchPrepareFix** — manually repairs/reinstalls the KOReader Kindle Batch Preparation plugin.
 
-The prior comprehensive diagnostic, getLastOpenPage check, and Hermes bytecode exporter are completed and retired. Their launchers, reports, temporary files, saved paste-link files and package-cache copies are queued for removal by the automatic cleanup.
+All investigation launchers are manual. The cleanup runner is private and is called only after a successful KPM upgrade.
 
-## USB display inspection
+## Current browser investigation
 
-The screen shown while the Kindle is connected to a computer is a separate system USB display, not the normal sleep screensaver. The Inspect-USB-Screen launcher records the stock assets' dimensions, permissions and checksums, then uploads the text report to Pasters.io with a one-day expiry. Paste the link printed by the Kindle into the ChatGPT conversation. The report is also saved as `USB-Screen-Inspection.txt`; the link is saved as `USB-Screen-Inspection-Paste.txt` in Documents. If the server returns its per-paste deletion URL, the launcher saves it in the hidden file `.USB-Screen-Inspection-delete-url.txt` with permissions set to 600; that URL is a secret and must not be shared. Expired pastes can remain recoverable from Pasters.io for 21 days before permanent purging. The actual image files are kept in a separate local `USB-Screen-Inspection.tar.gz` archive and are not uploaded. The diagnostic does not modify the system or existing custom sleep screensavers.
+The next step is to correlate the native bridge findings with the current Hermes JavaScript bundle.
 
-## Native browser bridge investigation
+1. Open the Kindle's built-in browser and leave it running.
+2. Run **KPP-Native-Bridge-Export** to create KPP-Native-Bridge-Binaries.tar.gz in Documents.
+3. Run **KPP-JavaScript-Bundle-Export** to create KPPMainApp.js.hbc and KPP-JavaScript-Bundle-Export.txt in Documents.
+4. Copy both files from Kindle Documents over USB and attach them directly in the ChatGPT conversation. No Windows helper or local disassembler is needed.
 
-This is the next stage after the already-completed URL check and Hermes disassembly.
+The analysis is static and read-only. The files are inspected here after you upload them. Nothing is executed, no LIPC writes or guessed invokeAction payloads are sent, and no browser page text, cookies, account data, or history is collected by either exporter.
 
-1. Open the Kindle's built-in browser and leave it open.
-2. Run **KPP-Native-Bridge-Export** once.
-3. It creates KPP-Native-Bridge-Binaries.tar.gz in Kindle Documents. The archive contains unchanged copies of /app/bin/KPPMainAppV2 and selected shared libraries mapped by the running KPPMainApp process. KPP-Native-Bridge-Export.txt records file counts and the archive checksum.
-4. Copy the archive to Windows over USB.
-5. Extract KPP-Native-Bridge-Inspector-Windows.zip from the matching GitHub release into the same folder.
-6. Drag KPP-Native-Bridge-Binaries.tar.gz onto Run-KPP-Native-Inspection.bat.
+The older Hermes bundle was previously exported and disassembled. A fresh copy is useful to confirm that the JavaScript layer still matches the native binaries collected on 2026-11-18. The new bundle exporter replaces that completed one-off launcher with a focused, verifiable export for this correlation step.
 
-The Windows helper uses Python 3.8+ already installed. It needs no pip packages, compiler, administrator rights or system-wide installation. It performs offline ELF header, symbol-table and selected embedded-string inspection, then creates KPP-Native-Bridge-Findings.txt in the same folder as the archive.
+## Cleanup and screensavers
 
-**No Pasters.io or other upload is involved.** The helper makes no network connection and keeps the archive, binaries and findings report on your PC. Attach KPP-Native-Bridge-Findings.txt directly in the ChatGPT conversation.
+The former project-managed Rabbinic/KOReader sleep-screen image set, image builder, and manual copy launcher have been retired. During the next successful Update All, cleanup removes only the exact image files that this project installed in /mnt/us/koreader-screensavers-inverted and /mnt/us/screensavers, and removes the KOReader image folder only if it is empty.
 
-The report excludes page URLs, absolute device paths, email addresses, cookies, session/authentication markers, account identifiers and runtime browser data. It includes ELF architecture/hash information and selected native browser/bridge markers. A string or symbol is a lead, not proof that an external interface is callable or that its arguments are known.
+This does **not** remove the separate third-party Custom Screensaver KPM extension, its settings, other sleep-screen images, KOReader books, EPUBs, or other user files. KPM-Update-All no longer adds a screensaver repository or installs that extension on your behalf; the normal KPM upgrade command still handles packages already installed in KPM.
 
-## Cleanup and versions
+The USB display inspector remains because the USB connection screen is separate from the sleep screensaver.
 
-There is no separate cleanup launcher. The cleanup runner is private at /mnt/us/documents/.royalroadtools/cleanup.sh and runs automatically when **KPM-Update-All** completes a successful package upgrade.
+## Version and cleanup reports
 
-The installer merges the package queue into /mnt/us/documents/RoyalRoadTools-Cleanup-Queue.txt; it does not run the cleaner itself. Before each cleanup run, targets that still exist are re-queued even when an old completion ledger says they were removed. Successful actions are removed from the pending queue and recorded in RoyalRoadTools-Cleanup-Completed.txt; failed or unverifiable actions remain queued for the next run.
+Kindle-Version-Report.txt is refreshed after successful package installation, Update All, and successful plugin repair. The cleanup queue is stored at RoyalRoadTools-Cleanup-Queue.txt; successful actions are removed from the pending queue and recorded in RoyalRoadTools-Cleanup-Completed.txt. Failed or unverifiable actions remain queued for a later Update All.
 
-Remote Pasters deletion for old retired diagnostic pastes is attempted only when a saved private deletion URL is available. This is separate from the new native-inspection helper, which does not use Pasters.io.
+Cleanup targets are deliberately narrow. It never recursively deletes user folders or sweeps general Documents, books, EPUBs, browser data, or unrelated screensaver images.
 
-Kindle-Version-Report.txt is regenerated automatically after a successful Update All and successful plugin repair.
+## Confirmed limits
 
-## Safety and limits
+The supplied native binaries expose history/settings/navigation functions, but the analysis did not identify a ready-made, supported read-only LIPC method that returns the currently displayed page's text or HTML. The React Native bridge and JavaScript bundle need to be considered together before deciding whether a documented read-only route exists.
 
-The native export reads only the running KPP executable and selected mapped shared libraries. It does not read browser memory, cookies, history, current page text, page source or JavaScript state. It does not send LIPC writes, events or invokeAction messages, and it does not modify the KPP application. The archive and findings stay on the user's PC.
-
-Stop on access-denial or Cloudflare challenge responses. Do not attempt CAPTCHA/proof-of-work bypasses or other access-control circumvention. Full chapter collection and EPUB creation have not been implemented.
+Stop on access-denial or Cloudflare challenge responses. Do not attempt CAPTCHA/proof-of-work or other access-control circumvention. Full chapter collection and EPUB creation have not been implemented.
