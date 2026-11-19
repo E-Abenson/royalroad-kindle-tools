@@ -5,16 +5,17 @@ on:
     branches: [main]
     paths:
       - "kpm/package/**"
-      - "kpm/assets/**"
-      - "kpm/build_koreader_screensavers.py"
-      - "pc-tools/native-bridge-inspector/**"
+      - "scripts/**"
+      - "README.md"
+      - "docs/**"
       - "install/Install-RoyalRoadTools.sh"
       - ".github/workflows/publish-kpm.yml"
   pull_request:
     paths:
       - "kpm/package/**"
-      - "pc-tools/kpp-disassembler/**"
-      - "pc-tools/native-bridge-inspector/**"
+      - "scripts/**"
+      - "README.md"
+      - "docs/**"
       - "install/Install-RoyalRoadTools.sh"
       - ".github/workflows/publish-kpm.yml"
   workflow_dispatch:
@@ -27,160 +28,61 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  validate-native-inspector:
+  validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
-      - name: Install pinned Capstone for Linux-side validation
-        run: python -m pip install --disable-pip-version-check capstone==5.0.9
-
-      - name: Run comprehensive native export and inspector regression tests
-        run: python -m unittest discover -s pc-tools/native-bridge-inspector/tests -v
-
-      - name: Compile and exercise the ELF disassembly pipeline
-        run: |
-          set -eu
-          python -m py_compile pc-tools/native-bridge-inspector/kpp_native_inspect.py
-          python - <<'PY'
-          import tarfile
-          from pathlib import Path
-          binary = Path("/usr/bin/ls").resolve()
-          with tarfile.open("native-inspector-test.tar.gz", "w:gz") as archive:
-              archive.add(str(binary), arcname="files/001_test.elf")
-          PY
-          python - <<'PY'
-          import importlib.util, tarfile
-          spec = importlib.util.spec_from_file_location("native_inspector", "pc-tools/native-bridge-inspector/kpp_native_inspect.py")
-          module = importlib.util.module_from_spec(spec)
-          spec.loader.exec_module(module)
-          with tarfile.open("native-inspector-test.tar.gz", "r:gz") as archive:
-              for member in archive.getmembers():
-                  print("Archive test member:", repr(member.name), "regular:", member.isfile())
-                  if member.isfile():
-                      data = archive.extractfile(member).read()
-                      print("ELF header recognized:", module.elf_layout(data) is not None, "magic:", data[:4].hex())
-          PY
-          python pc-tools/native-bridge-inspector/kpp_native_inspect.py native-inspector-test.tar.gz
-          python - <<'PY'
-          from pathlib import Path
-          report = Path("KPP-Native-Bridge-Findings.txt")
-          if not report.is_file() or report.stat().st_size == 0:
-              raise SystemExit("The inspector did not create a non-empty findings report.")
-          text = report.read_text(encoding="utf-8")
-          required = (
-              "KPP NATIVE BRIDGE",
-              "COVERAGE SUMMARY",
-              "ELF files inspected: 1",
-              "CROSS-LIBRARY BROWSER/BRIDGE IMPORT LINKS",
-          )
-          missing = [item for item in required if item not in text]
-          if missing:
-              raise SystemExit("Findings report is missing expected sections: " + repr(missing))
-          print("Native ELF parsing and report-section validation passed.")
-          PY
-
-  validate-windows-wheel:
-    runs-on: windows-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Verify the bundled wheel and replace a stale extracted cache
-        shell: pwsh
-        run: |
-          $helper = Join-Path $env:GITHUB_WORKSPACE "pc-tools/native-bridge-inspector"
-          $wheel = Join-Path $helper "capstone-5.0.9-py3-none-win_amd64.whl"
-          $env:KPP_CAPSTONE_WHEEL = $wheel
-          python -c "import hashlib,json,os,urllib.request; e='732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0'; d=json.load(urllib.request.urlopen('https://pypi.org/pypi/capstone/5.0.9/json',timeout=30)); a=next(x for x in d['urls'] if x['filename']=='capstone-5.0.9-py3-none-win_amd64.whl'); assert a['digests']['sha256']==e,'PyPI wheel hash differs from pinned value'; r=urllib.request.urlopen(urllib.request.Request(a['url'],headers={'User-Agent':'KPP-Native-Inspector-CI/1.0'}),timeout=90); p=os.environ['KPP_CAPSTONE_WHEEL']; open(p,'wb').write(r.read()); h=hashlib.sha256(open(p,'rb').read()).hexdigest(); assert h==e,'wheel SHA256 mismatch: '+h; print('Downloaded the exact pinned Capstone wheel.')"
-          $staleRuntime = Join-Path $helper ".capstone-runtime-5.0.9"
-          New-Item -ItemType Directory -Force -Path (Join-Path $staleRuntime "capstone") | Out-Null
-          Set-Content -Path (Join-Path $staleRuntime "capstone/__init__.py") -Value '__version__ = "5.0.7"' -NoNewline
-          python -c "import importlib.util,pathlib,sys; root=pathlib.Path(sys.argv[1]); spec=importlib.util.spec_from_file_location('native_inspector',root/'kpp_native_inspect.py'); module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module); cap=module.load_capstone(root); assert cap.__version__=='5.0.9','loaded wrong Capstone version: '+cap.__version__; loaded=pathlib.Path(cap.__file__).resolve(); runtime=(root/'.capstone-runtime-5.0.9').resolve(); assert loaded.is_relative_to(runtime),'Capstone loaded outside the verified runtime: '+str(loaded); cs=cap.Cs(cap.CS_ARCH_ARM64,cap.CS_MODE_ARM); ins=list(cs.disasm(bytes.fromhex('1f2003d5'),0x1000)); assert ins and ins[0].mnemonic=='nop','AArch64 disassembly failed'; print('Stale 5.0.7 cache replaced; bundled 5.0.9 loaded and decoded ARM64 NOP.') " "$helper"
-          python -m py_compile pc-tools/native-bridge-inspector/kpp_native_inspect.py
-
-  publish:
-    needs: [validate-native-inspector, validate-windows-wheel]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Refresh checkout to latest main before packaging
-        if: github.event_name != 'pull_request'
-        run: |
-          git fetch origin main
-          git reset --hard origin/main
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.x"
-
-      - name: Patch Kindle Batch Preparation controls (validated source)
-        run: python scripts/patch_batch_controls.py
-
-      - name: Build normal-grayscale KOReader screensaver assets
-        run: |
-          python -m pip install --disable-pip-version-check Pillow
-          python -m py_compile kpm/build_koreader_screensavers.py
-          python kpm/build_koreader_screensavers.py
-
-      - name: Generate and verify bundled ScreenLockPin checksums
+      - name: Test the manual JavaScript bundle exporter
+        run: python -m unittest discover -s scripts/tests -v
+      - name: Validate every shell script
         run: |
           set -eu
-          PLUGIN_DIR="kpm/package/files/screenlockpin.koplugin"
-          test -s "$PLUGIN_DIR/_meta.lua"
-          test -s "$PLUGIN_DIR/main.lua"
-          test -s "$PLUGIN_DIR/LICENSE"
-          grep -Fq 'version = "2026.10"' "$PLUGIN_DIR/_meta.lua"
-          (cd "$PLUGIN_DIR" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS && sha256sum -c SHA256SUMS)
-
-      - name: Validate shell and Windows helper scripts
-        run: |
-          set -eu
-          echo "Checking POSIX shell scripts..."
           find install kpm/package -type f -name '*.sh' -print | while IFS= read -r file; do
             echo "Checking $file"
-            sh -n "$file" || exit 1
+            sh -n "$file"
           done
-          echo "Checking native bridge Windows helper..."
-          python -m py_compile pc-tools/native-bridge-inspector/kpp_native_inspect.py
-          test -s pc-tools/native-bridge-inspector/Run-KPP-Native-Inspection.bat
-          test -s pc-tools/native-bridge-inspector/README-FIRST.txt
-          test -s kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
-          test -s kpm/package/scriptlets/Install-Rabbinic-Screensavers.sh
-          test -s kpm/package/scriptlets/Inspect-USB-Screen.sh
-          grep -Fq 'ENDPOINT="https://pasters.io/?expires=1d"' kpm/package/scriptlets/Inspect-USB-Screen.sh
-          grep -Fiq 'x-delete-url:' kpm/package/scriptlets/Inspect-USB-Screen.sh
-          test -s kpm/package/files/koreader-screensavers-inverted/01_Rav_Zvi_Kushelevsky.png
-          test -s kpm/package/files/koreader-screensavers-inverted/02_Rav_Osher_Arieli.png
-          test -s kpm/package/files/koreader-screensavers-inverted/03_Chofetz_Chaim.jpg
-          test -s kpm/package/files/koreader-screensavers-inverted/SHA256SUMS
-          test -s kpm/package/files/screenlockpin.koplugin/_meta.lua
-          test -s kpm/package/files/screenlockpin.koplugin/main.lua
-          test -s kpm/package/files/screenlockpin.koplugin/LICENSE
-          test -s kpm/package/files/screenlockpin.koplugin/SHA256SUMS
-          (cd kpm/package/files/screenlockpin.koplugin && sha256sum -c SHA256SUMS)
-          echo "All source checks passed."
-
-      - name: Download official KPM packager
+      - name: Verify active launchers and retired components
         run: |
-          curl -fsSL https://raw.githubusercontent.com/KindleModding/KPM/main/kpm-helper.py -o kpm-helper.py
+          set -eu
+          test -s kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
+          test -s kpm/package/scriptlets/KPP-JavaScript-Bundle-Export.sh
+          test -s kpm/package/scriptlets/Inspect-USB-Screen.sh
+          test -s kpm/package/scriptlets/KindleBatchPrepareFix.sh
+          test ! -e kpm/package/scriptlets/Install-Rabbinic-Screensavers.sh
+          test ! -e kpm/build_koreader_screensavers.py
+          test ! -d kpm/assets
+          test ! -d pc-tools
+          ! grep -Fq "koreader-screensavers-inverted" kpm/package/install.sh
+          ! grep -Fq "SCREENSAVER_REPO" kpm/package/scriptlets/KPM-Update-All.sh
 
+  build:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Patch Kindle Batch Preparation controls
+        run: python scripts/patch_batch_controls.py
+      - name: Validate package inputs
+        run: |
+          set -eu
+          test -s kpm/package/files/kindle_batch_prepare_main.lua.gz
+          test -s kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
+          test -s kpm/package/scriptlets/KPP-JavaScript-Bundle-Export.sh
+          test -s kpm/package/scriptlets/RoyalRoadTools-Cleanup.sh
+          test -s kpm/package/scriptlets/RoyalRoadTools-Cleanup-Queue.txt
+          test ! -e kpm/package/scriptlets/Install-Rabbinic-Screensavers.sh
+          test ! -d pc-tools
+          test ! -d kpm/assets
+      - name: Download official KPM packager
+        run: curl -fsSL https://raw.githubusercontent.com/KindleModding/KPM/main/kpm-helper.py -o kpm-helper.py
       - name: Calculate next package version
         id: version
         env:
@@ -203,8 +105,7 @@ jobs:
           )"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=v$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Set package version and build
+      - name: Build KPM package
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
@@ -223,90 +124,36 @@ jobs:
           PACKAGE="$(find dist -maxdepth 1 -type f -name '*.kpkg' | head -n 1)"
           test -n "$PACKAGE"
           tar -tzf "$PACKAGE" | grep -qx 'manifest.json'
-          tar -tzf "$PACKAGE" | grep -q 'kindle_batch_prepare_main.lua.gz' || { echo "KPM package is missing the bundled Kindle Batch Preparation source"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'RoyalRoadTools-Cleanup-Queue.txt' || { echo "KPM package is missing the cleanup queue template"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'KPP-Native-Bridge-Export.sh' || { echo "KPM package is missing the current native bridge export launcher"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'Install-Rabbinic-Screensavers.sh' || { echo "KPM package is missing the manual rabbinic screensaver downloader"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'Inspect-USB-Screen.sh' || { echo "KPM package is missing the read-only USB display inspector"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/01_Rav_Zvi_Kushelevsky.png' || { echo "KPM package is missing the Rav Zvi KOReader screensaver"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/02_Rav_Osher_Arieli.png' || { echo "KPM package is missing the Rav Osher KOReader screensaver"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -q 'koreader-screensavers-inverted/03_Chofetz_Chaim.jpg' || { echo "KPM package is missing the Chofetz Chaim KOReader screensaver"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -qx 'files/screenlockpin.koplugin/_meta.lua' || { echo "KPM package is missing ScreenLockPin metadata"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -qx 'files/screenlockpin.koplugin/main.lua' || { echo "KPM package is missing ScreenLockPin main code"; exit 1; }
-          tar -tzf "$PACKAGE" | grep -qx 'files/screenlockpin.koplugin/SHA256SUMS' || { echo "KPM package is missing ScreenLockPin checksums"; exit 1; }
-          if tar -tzf "$PACKAGE" | grep -Eq 'scriptlets/(KPP-Comprehensive-Diagnostic|KPP-Last-Open-Page-Check|RR-KPP-Bytecode-Export)[.]sh'; then
-            echo "A completed KPP diagnostic/bytecode launcher was reintroduced into the KPM package"
+          tar -tzf "$PACKAGE" | grep -q 'kindle_batch_prepare_main.lua.gz'
+          tar -tzf "$PACKAGE" | grep -q 'KPP-Native-Bridge-Export.sh'
+          tar -tzf "$PACKAGE" | grep -q 'KPP-JavaScript-Bundle-Export.sh'
+          tar -tzf "$PACKAGE" | grep -q 'Inspect-USB-Screen.sh'
+          tar -tzf "$PACKAGE" | grep -q 'KindleBatchPrepareFix.sh'
+          tar -tzf "$PACKAGE" | grep -q 'RoyalRoadTools-Cleanup-Queue.txt'
+          if tar -tzf "$PACKAGE" | grep -Eiq 'screensaver|pc-tools|native-bridge-inspector|kpp-disassembler|RR-KPP-Bytecode-Export'; then
+            echo "A retired screensaver or Windows-only helper was included in the KPM package."
             exit 1
           fi
-          if tar -tzf "$PACKAGE" | grep -Eq 'RR-KPP-Interface-Inspector(-Upload)?[.]sh'; then
-            echo "Retired Kindle-side interface-inspector tools must not be included in the KPM package"
-            exit 1
-          fi
-          if tar -tzf "$PACKAGE" | grep -Eq 'RR-LIPC-READONLY-(PROBE|UPLOAD)[.]sh'; then
-            echo "Retired full LIPC probe/uploader must not be included in the package"
-            exit 1
-          fi
-          if tar -tzf "$PACKAGE" | grep -Eq 'scriptlets/(RR-JS-Smoke-Test|RR-KPP-Bundle-Scan|RR-LIPC-Metadata-Check|RR-Upload-Diagnostic|RR-Upload-Bundle-Scan|KindleBatchPrepareDiagnostics|RoyalRoadTools|Kindle-Version-Report)[.]sh'; then
-            echo "A retired launcher was reintroduced into the KPM package"
-            exit 1
-          fi
-          mkdir -p dist/KPP-Native-Bridge-Inspector
-          cp -R pc-tools/native-bridge-inspector/. dist/KPP-Native-Bridge-Inspector/
-          WHEEL="dist/KPP-Native-Bridge-Inspector/capstone-5.0.9-py3-none-win_amd64.whl"
-          python - "$WHEEL" <<'PY'
-          import hashlib, json, sys, urllib.request
-          destination = sys.argv[1]
-          expected = "732cedbbb56d42e723f14d7af6387f1454194a820b4b96b56d1e53f865ef85d0"
-          metadata = json.load(urllib.request.urlopen("https://pypi.org/pypi/capstone/5.0.9/json", timeout=30))
-          artifact = next(item for item in metadata["urls"] if item["filename"] == "capstone-5.0.9-py3-none-win_amd64.whl")
-          if artifact["digests"]["sha256"] != expected:
-              raise SystemExit("PyPI Capstone wheel SHA256 differs from the pinned expected value.")
-          request = urllib.request.Request(artifact["url"], headers={"User-Agent": "KPP-Native-Inspector-Build/1.0"})
-          with urllib.request.urlopen(request, timeout=90) as response, open(destination, "wb") as output:
-              while True:
-                  chunk = response.read(1024 * 1024)
-                  if not chunk:
-                      break
-                  output.write(chunk)
-          actual = hashlib.sha256(open(destination, "rb").read()).hexdigest()
-          if actual != expected:
-              raise SystemExit("Downloaded Capstone wheel SHA256 mismatch: " + actual)
-          print("Downloaded the exact pinned Capstone wheel.")
-          PY
-          python - "$WHEEL" "dist/KPP-Native-Bridge-Inspector/CAPSTONE-LICENSE.txt" <<'PY'
-          import sys, zipfile
-          wheel, destination = sys.argv[1:]
-          with zipfile.ZipFile(wheel) as archive:
-              candidates = [
-                  name for name in archive.namelist()
-                  if "license" in name.lower() and not name.endswith("/")
-              ]
-              if not candidates:
-                  raise SystemExit("Capstone wheel did not contain its license file.")
-              with open(destination, "wb") as output:
-                  output.write(archive.read(candidates[0]))
-          PY
-          (cd dist && zip -qr KPP-Native-Bridge-Inspector-Windows.zip KPP-Native-Bridge-Inspector)
-          sha256sum "$PACKAGE" dist/KPP-Native-Bridge-Inspector-Windows.zip | tee dist/SHA256SUMS
+          sha256sum "$PACKAGE" | tee dist/SHA256SUMS
           echo "PACKAGE=$PACKAGE" >> "$GITHUB_ENV"
-
-      - name: Upload the complete Windows helper for direct retrieval
+      - name: Upload the KPM package candidate
         uses: actions/upload-artifact@v4
         with:
-          name: KPP-Native-Bridge-Inspector-Windows
-          path: dist/KPP-Native-Bridge-Inspector-Windows.zip
+          name: Royal-Road-Kindle-Tools-KPM-Package
+          path: |
+            ${{ env.PACKAGE }}
+            dist/SHA256SUMS
           retention-days: 7
-
-      - name: Publish immutable versioned release
+      - name: Publish versioned KPM release
         if: github.event_name != 'pull_request'
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
         run: |
-          gh release create "${{ steps.version.outputs.tag }}" "$PACKAGE" \
-            "dist/KPP-Native-Bridge-Inspector-Windows.zip" "dist/SHA256SUMS" \
-            --title "Royal Road Kindle Tools ${{ steps.version.outputs.version }}" \
-            --notes "KPM package with the native KPP inspection tools, automatic cleanup/version reporting, KOReader maintenance utilities and screensavers, plus the MIT-licensed ScreenLockPin v2026.10 plugin installed into KOReader for PIN locking."
-
+          gh release create "$RELEASE_TAG" "$PACKAGE" "dist/SHA256SUMS" \
+            --title "Royal Road Kindle Tools $RELEASE_VERSION" \
+            --notes "Manual KPP native-binary and Hermes JavaScript-bundle exports for offline analysis in ChatGPT; automatic cleanup and software-version reporting; USB display inspection; and KOReader Kindle Batch Preparation maintenance. The package no longer includes Windows-only analysis tools or the former project-managed Rabbinic sleep-screen assets."
       - name: Update KPM repository manifest
         if: github.event_name != 'pull_request'
         env:
@@ -327,12 +174,12 @@ jobs:
               "manifest_version": 2,
               "id": "e-abenson",
               "name": "E-Abenson Kindle Tools",
-              "description": "KPM packages maintained for the Royal Road Kindle Tools project.",
+              "description": "KPM packages for read-only KPP native and Hermes bundle export, automatic cleanup/version reporting, USB display inspection, and KOReader maintenance.",
               "packages": {
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "Royal Road Kindle tools, KOReader maintenance utilities and screensavers, plus bundled ScreenLockPin v2026.10 for KOReader PIN protection.",
+                      "description": "Manual KPP native and Hermes JavaScript-bundle export for offline analysis in ChatGPT, automatic cleanup/version reporting, USB display inspection, and KOReader maintenance.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
@@ -350,6 +197,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add kpm-repo/manifest.json
           if ! git diff --cached --quiet; then
-            git commit -m "Publish KPM repository index for ${{ steps.version.outputs.tag }}"
+            git commit -m "Publish KPM repository index for $TAG"
             git push origin HEAD:main
           fi

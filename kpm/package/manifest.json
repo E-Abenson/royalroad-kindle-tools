@@ -3,7 +3,7 @@
   "id": "royalroad-kindle-tools",
   "name": "Royal Road Kindle Tools",
   "author": "E-Abenson",
-  "description": "Manual read-only USB display asset inspection, one native KPP executable/shared-library export, offline Windows ELF inspection, automatic cleanup/version reporting, KOReader maintenance tools and SHA256-verified screensavers; bundles ScreenLockPin v2026.10 for KOReader PIN protection.",
+  "description": "Manual read-only KPP native executable and Hermes JavaScript-bundle export, USB display inspection, automatic cleanup/version reporting, and KOReader Kindle Batch Preparation maintenance.",
   "version": [
     0,
     1,
