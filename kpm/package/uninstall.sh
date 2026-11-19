@@ -14,6 +14,7 @@ fi
 for ITEM in RR-KPP-Interface-Inspector.sh RR-KPP-Interface-Inspector-Upload.sh RoyalRoadTools-Cleanup.sh \
   RoyalRoadTools-Version-Info.sh KPM-Update-All.sh KindleBatchPrepareFix.sh Inspect-USB-Screen.sh \
   KPP-Native-Bridge-Export.sh KPP-JavaScript-Bundle-Export.sh \
+  RR-KPP-Bytecode-Export.sh Install-Rabbinic-Screensavers.sh \
   RR-LIPC-READONLY-PROBE.sh RR-LIPC-READONLY-UPLOAD.sh; do
   rm -f "$DOCS/$ITEM"
 done

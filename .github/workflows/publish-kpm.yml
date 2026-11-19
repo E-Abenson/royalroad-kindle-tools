@@ -55,7 +55,7 @@ jobs:
           test ! -e kpm/build_koreader_screensavers.py
           test ! -d kpm/assets
           test ! -d pc-tools
-          ! grep -Fq "koreader-screensavers-inverted" kpm/package/install.sh
+          ! grep -Fq "install_koreader_screensavers()" kpm/package/install.sh
           ! grep -Fq "SCREENSAVER_REPO" kpm/package/scriptlets/KPM-Update-All.sh
 
   build:
