@@ -123,15 +123,17 @@ jobs:
           python kpm-helper.py package pack kpm/package dist/
           PACKAGE="$(find dist -maxdepth 1 -type f -name '*.kpkg' | head -n 1)"
           test -n "$PACKAGE"
-          tar -tzf "$PACKAGE" | grep -qx 'manifest.json'
-          tar -tzf "$PACKAGE" | grep -q 'kindle_batch_prepare_main.lua.gz'
-          tar -tzf "$PACKAGE" | grep -q 'KPP-Native-Bridge-Export.sh'
-          tar -tzf "$PACKAGE" | grep -q 'KPP-JavaScript-Bundle-Export.sh'
-          tar -tzf "$PACKAGE" | grep -q 'Inspect-USB-Screen.sh'
-          tar -tzf "$PACKAGE" | grep -q 'KindleBatchPrepareFix.sh'
-          tar -tzf "$PACKAGE" | grep -q 'RoyalRoadTools-Cleanup-Queue.txt'
-          if tar -tzf "$PACKAGE" | grep -Eiq 'screensaver|pc-tools|native-bridge-inspector|kpp-disassembler|RR-KPP-Bytecode-Export'; then
-            echo "A retired screensaver or Windows-only helper was included in the KPM package."
+          tar -tzf "$PACKAGE" > dist/PACKAGE-CONTENTS.txt
+          grep -qx 'manifest.json' dist/PACKAGE-CONTENTS.txt
+          grep -q 'kindle_batch_prepare_main.lua.gz' dist/PACKAGE-CONTENTS.txt
+          grep -q 'KPP-Native-Bridge-Export.sh' dist/PACKAGE-CONTENTS.txt
+          grep -q 'KPP-JavaScript-Bundle-Export.sh' dist/PACKAGE-CONTENTS.txt
+          grep -q 'Inspect-USB-Screen.sh' dist/PACKAGE-CONTENTS.txt
+          grep -q 'KindleBatchPrepareFix.sh' dist/PACKAGE-CONTENTS.txt
+          grep -q 'RoyalRoadTools-Cleanup-Queue.txt' dist/PACKAGE-CONTENTS.txt
+          grep -q 'screenlockpin.koplugin/plugin/util/screensaverutil.lua' dist/PACKAGE-CONTENTS.txt
+          if grep -Eiq '(^|/)(koreader-screensavers-inverted|Install-Rabbinic-Screensavers|RR-KPP-Bytecode-Export|native-bridge-inspector|kpp-disassembler)(/|$)|chofetz-inverted|pc-tools' dist/PACKAGE-CONTENTS.txt; then
+            echo "A retired project screensaver asset or Windows-only helper was included in the KPM package."
             exit 1
           fi
           sha256sum "$PACKAGE" | tee dist/SHA256SUMS
