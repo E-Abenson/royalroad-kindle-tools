@@ -92,7 +92,6 @@ DOC|KPP-Last-Open-Page-Check.txt
 DOC|KPP-Comprehensive-Diagnostic.sh
 DOC|KPP-Last-Open-Page-Check.sh
 DOC|RR-KPP-Bytecode-Export.sh
-DOC|KPPMainApp.js.hbc
 DOC|KPP-Bytecode-Export.txt
 PKG|scriptlets/KPP-Comprehensive-Diagnostic.sh
 PKG|scriptlets/KPP-Last-Open-Page-Check.sh
@@ -125,3 +124,28 @@ PKG|scriptlets/RR-Upload-Diagnostic.sh
 PKG|scriptlets/KindleBatchPrepareDiagnostics.sh
 PKG|scriptlets/RoyalRoadTools.sh
 PKG|scriptlets/Kindle-Version-Report.sh
+
+
+# The KPP HBC copy is deliberately preserved and reused by the new exporter.
+# Retire only the previous one-off launcher and its old report.
+DOC|RR-KPP-Bytecode-Export.sh
+DOC|KPP-Bytecode-Export.txt
+PKG|scriptlets/RR-KPP-Bytecode-Export.sh
+
+# Retire project-managed Rabbinic/KOReader sleep-screen assets and installer.
+# The cleaner only accepts the exact filenames in fixed directories.
+DOC|Install-Rabbinic-Screensavers.sh
+DOC|Install-Rabbinic-Screensavers.log
+PKG|scriptlets/Install-Rabbinic-Screensavers.sh
+PKG|files/koreader-screensavers-inverted/01_Rav_Zvi_Kushelevsky.png
+PKG|files/koreader-screensavers-inverted/02_Rav_Osher_Arieli.png
+PKG|files/koreader-screensavers-inverted/03_Chofetz_Chaim.jpg
+PKG|files/koreader-screensavers-inverted/SHA256SUMS
+PKGDIR|files/koreader-screensavers-inverted
+KOREADER_FILE|01_Rav_Zvi_Kushelevsky.png
+KOREADER_FILE|02_Rav_Osher_Arieli.png
+KOREADER_FILE|03_Chofetz_Chaim.jpg
+KOREADER_FILE|SHA256SUMS
+SLEEP_SCREEN_IMAGE|01_Rav_Zvi_Kushelevsky.png
+SLEEP_SCREEN_IMAGE|02_Rav_Osher_Arieli.png
+KOREADER_IMAGE_DIR|koreader-screensavers-inverted
