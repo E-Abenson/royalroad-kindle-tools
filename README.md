@@ -5,7 +5,7 @@ A small KPM toolkit for read-only investigation of the Kindle's built-in KPP bro
 ## Current Kindle launchers
 
 - **KPP-Native-Bridge-Export** — manually copies the running KPP executable and readable file-backed ELF libraries to a USB-transfer archive. It does not collect process memory, page content, cookies, history, URLs, or runtime property values.
-- **KPP-JavaScript-Bundle-Export** — manually copies the installed Hermes JavaScript bundle to Documents, verifies the Hermes header and SHA-256, and records its version and checksum. It does not execute or modify the application.
+- **KPP-JavaScript-Bundle-Export** — manually copies the installed KPP Hermes JavaScript bundle to Documents in a single copy operation. It shows large progress-stage messages through FBInk when available. It does not hash, parse, disassemble, execute, or modify the original application bundle.
 - **Inspect-USB-Screen** — a separate read-only inspection of the stock display shown while the Kindle is connected over USB. It can share a text-only report through Pasters.io; the display assets themselves are not uploaded. This is not a sleep-screen or KOReader screensaver tool.
 - **KPM-Update-All** — manually refreshes registered KPM repositories and upgrades installed KPM packages. After a successful upgrade it runs the hidden project cleanup helper and refreshes the version report.
 - **KindleBatchPrepareFix** — manually repairs/reinstalls the KOReader Kindle Batch Preparation plugin.
@@ -18,12 +18,12 @@ The next step is to correlate the native bridge findings with the current Hermes
 
 1. Open the Kindle's built-in browser and leave it running.
 2. Run **KPP-Native-Bridge-Export** to create KPP-Native-Bridge-Binaries.tar.gz in Documents.
-3. Run **KPP-JavaScript-Bundle-Export** to create KPPMainApp.js.hbc and KPP-JavaScript-Bundle-Export.txt in Documents.
-4. Copy both files from Kindle Documents over USB and attach them directly in the ChatGPT conversation. No Windows helper or local disassembler is needed.
+3. Run **KPP-JavaScript-Bundle-Export** to copy KPPMainApp.js.hbc into Documents. The exporter performs one copy and writes a small text report; the detailed inspection happens after you upload the file.
+4. Copy both files from Kindle Documents over USB and attach them directly in the ChatGPT conversation. No Windows helper or local Python package is needed.
 
 The analysis is static and read-only. The files are inspected here after you upload them. Nothing is executed, no LIPC writes or guessed invokeAction payloads are sent, and no browser page text, cookies, account data, or history is collected by either exporter.
 
-The older Hermes bundle was previously exported and disassembled. A fresh copy is useful to confirm that the JavaScript layer still matches the native binaries collected on 2026-11-18. The new bundle exporter replaces that completed one-off launcher with a focused, verifiable export for this correlation step.
+The older Hermes bundle was previously exported and disassembled. A fresh copy is useful to confirm that the JavaScript layer still matches the native binaries collected on 2026-11-18. The current bundle exporter is intentionally lightweight: it does not hash or parse the file on the Kindle, and it does not call sync after the copy.
 
 ## Cleanup and screensavers
 
