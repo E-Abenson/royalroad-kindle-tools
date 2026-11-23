@@ -88,7 +88,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          LATEST_TAG="$(gh release list --limit 1 --json tagName --jq '.[0].tagName // ""' 2>/dev/null || true)"
+          # Other project releases (for example, USB-screen-v1.0.0) are not
+          # KPM package versions. Select the newest semantic-version tag only.
+          LATEST_TAG="$(gh release list --limit 100 --json tagName --jq '[.[] | select(.tagName | test("^v?[0-9]+\\.[0-9]+\\.[0-9]+$"))][0].tagName // ""' 2>/dev/null || true)"
           VERSION="$(python - "$LATEST_TAG" <<'PY'
           import re
           import sys
@@ -98,7 +100,7 @@ jobs:
           else:
               match = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", tag)
               if not match:
-                  raise SystemExit("Latest release tag is not semantic versioning: " + tag)
+                  raise SystemExit("Latest KPM package tag is not semantic versioning: " + tag)
               major, minor, patch = map(int, match.groups())
               print(f"{major}.{minor}.{patch + 1}")
           PY
