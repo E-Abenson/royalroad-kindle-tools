@@ -4,7 +4,6 @@
 # Copies the installed KPP Hermes JavaScript bundle to USB-visible Documents.
 # Deliberately lightweight: one file copy, no hashing, parsing, sync, or upload.
 # The original /app file is only read and is never modified or executed.
-set -u
 
 TEST_ROOT="$KPP_BUNDLE_EXPORT_TEST_ROOT"
 if [ -n "$TEST_ROOT" ]; then
