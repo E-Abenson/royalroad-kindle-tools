@@ -1,15 +1,15 @@
 #!/bin/sh
 # Name: KPP-JavaScript-Bundle-Export
-# Build: 1.0
+# Build: 2.0
 # Copies the installed KPP Hermes JavaScript bundle to USB-visible Documents.
-# Read-only: the original application file is never changed or executed.
-# No page content, browser state, cookies, history, or network upload is involved.
+# Deliberately lightweight: one file copy, no hashing, parsing, sync, or upload.
+# The original /app file is only read and is never modified or executed.
 set -u
 
-KPP_BUNDLE_EXPORT_TEST_ROOT="$(env | sed -n 's/^KPP_BUNDLE_EXPORT_TEST_ROOT=//p' | sed -n '1p')"
-if [ -n "$KPP_BUNDLE_EXPORT_TEST_ROOT" ]; then
-  DOCS="$KPP_BUNDLE_EXPORT_TEST_ROOT/documents"
-  SOURCE="$KPP_BUNDLE_EXPORT_TEST_ROOT/app/KPPMainApp/js/KPPMainApp.js.hbc"
+TEST_ROOT="$KPP_BUNDLE_EXPORT_TEST_ROOT"
+if [ -n "$TEST_ROOT" ]; then
+  DOCS="$TEST_ROOT/documents"
+  SOURCE="$TEST_ROOT/app/KPPMainApp/js/KPPMainApp.js.hbc"
 else
   DOCS="/mnt/us/documents"
   SOURCE="/app/KPPMainApp/js/KPPMainApp.js.hbc"
@@ -19,134 +19,103 @@ DEST="$DOCS/KPPMainApp.js.hbc"
 REPORT="$DOCS/KPP-JavaScript-Bundle-Export.txt"
 TMP_DEST="$DOCS/.KPPMainApp.js.hbc.tmp.$$"
 TMP_REPORT="$DOCS/.KPP-JavaScript-Bundle-Export.txt.tmp.$$"
-MAX_BYTES=52428800
-EXPECTED_MAGIC="c61fbc03c103191f"
 
-umask 077
-mkdir -p "$DOCS" 2>/dev/null || {
-  echo "FAILURE: Could not prepare Kindle Documents."
-  exit 1
+# Prefer FBInk for large, centered text. Fall back to eips if FBInk is absent.
+FBINK_BIN=""
+if [ -x /usr/bin/fbink ]; then
+  FBINK_BIN="/usr/bin/fbink"
+elif command -v fbink >/dev/null 2>&1; then
+  FBINK_BIN="$(command -v fbink)"
+fi
+EIPS_BIN=""
+if [ -x /usr/sbin/eips ]; then
+  EIPS_BIN="/usr/sbin/eips"
+elif command -v eips >/dev/null 2>&1; then
+  EIPS_BIN="$(command -v eips)"
+fi
+
+umask 022
+
+cleanup() {
+  rm -f "$TMP_DEST" "$TMP_REPORT"
 }
-trap 'rm -f "$TMP_DEST" "$TMP_REPORT"' 0 HUP INT TERM
+trap cleanup 0
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+display() {
+  HEADING="$1"
+  DETAIL="$2"
+  MESSAGE="KPP BUNDLE EXPORT
+
+$HEADING
+
+$DETAIL"
+  printf '\n%s\n%s\n\n' "$HEADING" "$DETAIL"
+
+  if [ -n "$FBINK_BIN" ]; then
+    # Font scale 3; center horizontally and place the message around mid-screen.
+    # Do not clear the whole display or wait for a full-screen refresh.
+    "$FBINK_BIN" -S 3 -m -M "$MESSAGE" >/dev/null 2>&1 || true
+  elif [ -n "$EIPS_BIN" ]; then
+    # Small fallback for Kindles without the FBInk command-line utility.
+    "$EIPS_BIN" 1 1 "KPP EXPORT: $HEADING - $DETAIL" >/dev/null 2>&1 || true
+  fi
+}
 
 write_report() {
   STATUS="$1"
+  DETAILS="$2"
   {
-    echo "KPP JAVASCRIPT BUNDLE EXPORT"
-    echo "Generated: $(date '+%Y-%m-%d %H:%M:%S')"
-    echo "Status: $STATUS"
-    echo "Source: $SOURCE"
-    echo "USB transfer copy: $DEST"
-    echo "The original /app application file was not changed."
-    echo "The bundle was not executed, modified, disassembled, or uploaded."
-    echo "No page URL, page text, cookies, browser history, or runtime data was collected."
-  } > "$TMP_REPORT"
+    printf '%s\n' "KPP JAVASCRIPT BUNDLE EXPORT"
+    printf 'Generated: %s\n' "$(date '+%Y-%m-%d %H:%M:%S')"
+    printf 'Status: %s\n' "$STATUS"
+    printf 'Details: %s\n' "$DETAILS"
+    printf 'Source: %s\n' "$SOURCE"
+    printf 'USB transfer copy: %s\n' "$DEST"
+    printf '%s\n' "Method: one copy to a temporary Documents file, then rename into place."
+    printf '%s\n' "On-Kindle hashing, bytecode parsing, extra file reads, and sync are not performed."
+    printf '%s\n' "The original /app application file was not changed or executed."
+    printf '%s\n' "No browser page data, cookies, history, account data, or network upload is involved."
+  } > "$TMP_REPORT" || return 1
   chmod 644 "$TMP_REPORT" 2>/dev/null || true
-  mv -f "$TMP_REPORT" "$REPORT" || return 1
-  chmod 644 "$REPORT" 2>/dev/null || true
+  mv -f "$TMP_REPORT" "$REPORT"
 }
 
+fail() {
+  FAILURE_DETAILS="$1"
+  display "EXPORT FAILED" "$FAILURE_DETAILS"
+  write_report "FAILED" "$FAILURE_DETAILS" 2>/dev/null || true
+  exit 1
+}
+
+display "STEP 1 OF 3" "Checking that the original bundle is readable."
+if [ ! -d "$DOCS" ]; then
+  fail "Kindle Documents folder is unavailable. No copy was attempted."
+fi
 if [ ! -r "$SOURCE" ]; then
-  write_report "SOURCE NOT READABLE — no copy made."
-  echo "KPP bundle export: source not readable."
+  fail "The original KPP bundle is not readable. No copy was attempted."
+fi
+
+# Copy exactly once. A temporary destination preserves any previous good copy
+# if the new copy fails or is interrupted before the final rename.
+rm -f "$TMP_DEST"
+display "STEP 2 OF 3" "Copying the bundle once to Documents. Please keep the Kindle awake."
+if ! cp "$SOURCE" "$TMP_DEST"; then
+  fail "The file copy failed. Any previous Documents copy has been retained."
+fi
+if [ ! -s "$TMP_DEST" ]; then
+  fail "The copy did not produce a non-empty file. Any previous copy has been retained."
+fi
+if ! mv -f "$TMP_DEST" "$DEST"; then
+  fail "Could not place the copied file in Documents. Any previous copy has been retained."
+fi
+
+if ! write_report "SUCCESS — COPIED" "The bundle was copied once to Documents; no checksum or bytecode processing was run."; then
+  display "COPY FINISHED" "The bundle is in Documents, but the small report could not be saved."
   exit 1
 fi
 
-SIZE="$(wc -c < "$SOURCE" 2>/dev/null | tr -d ' ')"
-case "$SIZE" in
-  ''|*[!0-9]*)
-    write_report "COULD NOT DETERMINE SOURCE SIZE — no copy made."
-    echo "KPP bundle export: could not determine file size."
-    exit 1
-    ;;
-esac
-
-if [ "$SIZE" -le 0 ] || [ "$SIZE" -gt "$MAX_BYTES" ]; then
-  write_report "SOURCE SIZE OUTSIDE SAFE LIMIT (50 MB safety limit; bytes=$SIZE) — no copy made."
-  echo "KPP bundle export: source size outside the 50 MB safety limit."
-  exit 1
-fi
-
-for TOOL in sha256sum od awk tr cp wc mv env sed; do
-  if ! command -v "$TOOL" >/dev/null 2>&1; then
-    write_report "Required utility '$TOOL' is missing — no copy made."
-    echo "KPP bundle export: required utility '$TOOL' is unavailable."
-    exit 1
-  fi
-done
-
-MAGIC="$(od -An -tx1 -N8 "$SOURCE" 2>/dev/null | tr -d '[:space:]')"
-if [ "$MAGIC" != "$EXPECTED_MAGIC" ]; then
-  write_report "SOURCE DOES NOT HAVE THE EXPECTED HERMES MAGIC — no copy made."
-  echo "KPP bundle export: source did not match the expected Hermes HBC header."
-  exit 1
-fi
-
-SOURCE_SHA="$(sha256sum "$SOURCE" 2>/dev/null | awk '{print $1}')"
-if [ -z "$SOURCE_SHA" ]; then
-  write_report "COULD NOT HASH SOURCE — no copy made."
-  echo "KPP bundle export: could not hash source."
-  exit 1
-fi
-
-if [ -s "$DEST" ]; then
-  DEST_SHA="$(sha256sum "$DEST" 2>/dev/null | awk '{print $1}')"
-else
-  DEST_SHA=""
-fi
-
-if [ "$SOURCE_SHA" != "$DEST_SHA" ]; then
-  if ! cp "$SOURCE" "$TMP_DEST"; then
-    write_report "COPY FAILED — previous Documents copy retained."
-    echo "KPP bundle export: copy failed."
-    exit 1
-  fi
-  chmod 644 "$TMP_DEST" 2>/dev/null || true
-  COPIED_SHA="$(sha256sum "$TMP_DEST" 2>/dev/null | awk '{print $1}')"
-  if [ "$COPIED_SHA" != "$SOURCE_SHA" ]; then
-    write_report "COPY VERIFICATION FAILED — previous Documents copy retained."
-    echo "KPP bundle export: copy verification failed."
-    exit 1
-  fi
-  if ! mv -f "$TMP_DEST" "$DEST"; then
-    write_report "COULD NOT REPLACE DOCUMENTS COPY — previous copy retained."
-    echo "KPP bundle export: could not replace destination."
-    exit 1
-  fi
-  RESULT="COPIED TO DOCUMENTS AND SHA256 VERIFIED"
-else
-  RESULT="ALREADY CURRENT — SHA256 MATCH"
-fi
-
-HBC_VERSION="$(od -An -tu4 -j8 -N4 "$DEST" 2>/dev/null | tr -d ' ')"
-[ -n "$HBC_VERSION" ] || HBC_VERSION="unavailable"
-FINAL_SIZE="$(wc -c < "$DEST" 2>/dev/null | tr -d ' ')"
-FINAL_SHA="$(sha256sum "$DEST" 2>/dev/null | awk '{print $1}')"
-
-{
-  echo "KPP JAVASCRIPT BUNDLE EXPORT"
-  echo "Generated: $(date '+%Y-%m-%d %H:%M:%S')"
-  echo "Status: $RESULT"
-  echo "Source: $SOURCE"
-  echo "USB transfer copy: $DEST"
-  echo "File size: $FINAL_SIZE bytes"
-  echo "Hermes bytecode version (header field): $HBC_VERSION"
-  echo "SHA256: $FINAL_SHA"
-  echo "The original /app KPP application file was not changed."
-  echo "The bundle was not executed, modified, disassembled, or uploaded."
-  echo "No page URL, page text, cookies, browser history, or runtime data was collected."
-  echo "Next: connect the Kindle by USB and attach KPPMainApp.js.hbc to the ChatGPT conversation."
-} > "$TMP_REPORT"
-chmod 644 "$TMP_REPORT" 2>/dev/null || true
-if ! mv -f "$TMP_REPORT" "$REPORT"; then
-  echo "KPP bundle copied, but export report could not be replaced."
-  exit 1
-fi
-chmod 644 "$REPORT" "$DEST" 2>/dev/null || true
-
-sync 2>/dev/null
-echo "SUCCESS: KPP bundle export — $RESULT."
-echo "File: $DEST"
-echo "Bytes: $FINAL_SIZE; Hermes version: $HBC_VERSION."
-echo "Attach KPPMainApp.js.hbc directly in ChatGPT after USB transfer."
+display "STEP 3 OF 3 — COMPLETE" "KPPMainApp.js.hbc is in Documents. Connect USB and upload it here."
 exit 0
