@@ -35,7 +35,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Test the manual JavaScript bundle exporter
+      - name: Test the manual KPP exporters
         run: python -m unittest discover -s scripts/tests -v
       - name: Validate every shell script
         run: |
@@ -48,6 +48,8 @@ jobs:
         run: |
           set -eu
           test -s kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
+          grep -Fq '# Build: 4.0' kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
+          grep -Fq 'ALL file-backed process mappings' kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
           test -s kpm/package/scriptlets/KPP-JavaScript-Bundle-Export.sh
           test -s kpm/package/scriptlets/Inspect-USB-Screen.sh
           test -s kpm/package/scriptlets/KindleBatchPrepareFix.sh
@@ -157,7 +159,7 @@ jobs:
         run: |
           gh release create "$RELEASE_TAG" "$PACKAGE" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools $RELEASE_VERSION" \
-            --notes "Manual KPP native-binary and Hermes JavaScript-bundle exports for offline analysis in ChatGPT; automatic cleanup and software-version reporting; USB display inspection; and KOReader Kindle Batch Preparation maintenance. The package no longer includes Windows-only analysis tools or the former project-managed Rabbinic sleep-screen assets."
+            --notes "Comprehensive KPP native-binary (mapped files and shared-library roots) and Hermes JavaScript-bundle exports for offline analysis in ChatGPT; automatic cleanup and software-version reporting; USB display inspection; and KOReader Kindle Batch Preparation maintenance. The package no longer includes Windows-only analysis tools or the former project-managed Rabbinic sleep-screen assets."
       - name: Update KPM repository manifest
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
@@ -178,12 +180,12 @@ jobs:
               "manifest_version": 2,
               "id": "e-abenson",
               "name": "E-Abenson Kindle Tools",
-              "description": "KPM packages for read-only KPP native and Hermes bundle export, automatic cleanup/version reporting, USB display inspection, and KOReader maintenance.",
+              "description": "KPM packages for comprehensive read-only KPP native/browser and Hermes bundle exports, automatic cleanup/version reporting, USB display inspection, and KOReader maintenance.",
               "packages": {
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "Manual KPP native and Hermes JavaScript-bundle export for offline analysis in ChatGPT, automatic cleanup/version reporting, USB display inspection, and KOReader maintenance.",
+                      "description": "Manual comprehensive KPP native-browser and Hermes JavaScript-bundle export for offline analysis in ChatGPT, automatic cleanup/version reporting, USB display inspection, and KOReader maintenance.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
