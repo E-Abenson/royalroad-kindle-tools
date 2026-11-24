@@ -82,7 +82,14 @@ else
   say "Installed package version: unavailable from KPM database"
 fi
 say "KPM updater launcher: $( [ -x "$DOCS/KPM-Update-All.sh" ] && echo present || echo missing )"
-say "Native bridge export launcher: $( [ -x "$DOCS/KPP-Native-Bridge-Export.sh" ] && echo present || echo missing )"
+NATIVE_EXPORT="$DOCS/KPP-Native-Bridge-Export.sh"
+say "Native bridge export launcher: $( [ -x "$NATIVE_EXPORT" ] && echo present || echo missing )"
+if [ -r "$NATIVE_EXPORT" ]; then
+  NATIVE_EXPORT_BUILD="$(sed -n 's/^# Build: //p' "$NATIVE_EXPORT" | head -n 1)"
+  say "Native exporter build: ${NATIVE_EXPORT_BUILD:-unrecognized}"
+else
+  say "Native exporter build: unavailable"
+fi
 say "JavaScript bundle export launcher: $( [ -x "$DOCS/KPP-JavaScript-Bundle-Export.sh" ] && echo present || echo missing )"
 say ""
 
