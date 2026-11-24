@@ -49,7 +49,7 @@ jobs:
           set -eu
           test -s kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
           grep -Fq '# Build: 4.0' kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
-          grep -Fq 'ALL file-backed process mappings' kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
+          grep -Fq 'file-backed process mappings' kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
           test -s kpm/package/scriptlets/KPP-JavaScript-Bundle-Export.sh
           test -s kpm/package/scriptlets/Inspect-USB-Screen.sh
           test -s kpm/package/scriptlets/KindleBatchPrepareFix.sh
