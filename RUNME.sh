@@ -12,7 +12,7 @@ REPO_URL="https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/mai
 PACKAGE_ID="royalroad-kindle-tools"
 EXPECTED_INDEX_LINE="indexing artifact royalroad-kindle-tools (0.1.124)"
 LOG="$DOCS/KPM-Repair-Reinstall.log"
-BACKUP_DIR="$DOCS/.royalroad-kpm-repair-backup"
+BACKUP_DIR=""
 PLUGIN_DIR="/mnt/us/koreader/plugins/screenlockpin.koplugin"
 
 umask 077
@@ -97,9 +97,14 @@ if [ ! -x "$KPM" ]; then
   fail "KPM was not found at $KPM."
 fi
 
+# Use a new backup directory on every run. A previous interrupted run or a
+# stale mount point may occupy the old fixed name, so never reuse it.
+BACKUP_DIR="$DOCS/.royalroad-kpm-repair-backup-$(date '+%Y%m%d-%H%M%S')-$"
 # Keep user-created exports/reports safe if KPM has to roll back a failed
 # first-time install. Successful upgrades leave these files in place.
-mkdir -p "$BACKUP_DIR" || fail "Could not create the temporary safety-backup folder."
+if ! mkdir "$BACKUP_DIR"; then
+  fail "Could not create a fresh safety-backup folder at $BACKUP_DIR."
+fi
 for NAME in \
   KPPMainApp.js.hbc \
   Kindle-Version-Report.txt \
