@@ -4,7 +4,7 @@ A small KPM toolkit for read-only investigation of the Kindle's built-in KPP bro
 
 ## Current Kindle launchers
 
-- **KPP-Native-Bridge-Export** — manually copies the running KPP executable and readable file-backed ELF libraries to a USB-transfer archive. It does not collect process memory, page content, cookies, history, URLs, or runtime property values.
+- **KPP-Native-Bridge-Export** — Build 4.0 comprehensive native export. It copies the running KPP executable, ELF objects from all readable file-backed process mappings (including read-only mappings), and shared-library candidates found under Kindle/app library roots. It also saves mapping and dynamic-linker metadata plus a skipped-file inventory. It does not collect process memory, browser databases, page content, cookies, history records, URLs, or runtime property values.
 - **KPP-JavaScript-Bundle-Export** — manually copies the installed KPP Hermes JavaScript bundle to Documents in a single copy operation. It shows large progress-stage messages through FBInk when available. It does not hash, parse, disassemble, execute, or modify the original application bundle.
 - **Inspect-USB-Screen** — a separate read-only inspection of the stock display shown while the Kindle is connected over USB. It can share a text-only report through Pasters.io; the display assets themselves are not uploaded. This is not a sleep-screen or KOReader screensaver tool.
 - **KPM-Update-All** — manually refreshes registered KPM repositories and upgrades installed KPM packages. After a successful upgrade it runs the hidden project cleanup helper and refreshes the version report.
@@ -14,12 +14,14 @@ All investigation launchers are manual. The cleanup runner is private and is cal
 
 ## Current browser investigation
 
-The next step is to correlate the native bridge findings with the current Hermes JavaScript bundle.
+The native exporter is designed for a single comprehensive collection rather than repeated narrow exports.
 
-1. Open the Kindle's built-in browser and leave it running.
-2. Run **KPP-Native-Bridge-Export** to create KPP-Native-Bridge-Binaries.tar.gz in Documents.
-3. Run **KPP-JavaScript-Bundle-Export** to copy KPPMainApp.js.hbc into Documents. The exporter performs one copy and writes a small text report; the detailed inspection happens after you upload the file.
-4. Copy both files from Kindle Documents over USB and attach them directly in the ChatGPT conversation. No Windows helper or local Python package is needed.
+1. From the Kindle library, run **KPP-Native-Bridge-Export** before opening the built-in browser.
+2. The launcher starts a background watcher and returns. Now open the built-in browser and leave it running; the watcher captures the loaded process mappings.
+3. It creates a **KPP-Native-Bridge-FULL-...** folder in Documents with the executable, mapped ELF files, shared-library candidates, mapping metadata, linker configuration, a manifest, and a list of anything skipped.
+4. Connect USB, right-click that entire folder in Windows, choose **Compress to ZIP**, and upload the ZIP here.
+
+The Kindle performs file discovery, a four-byte ELF signature check, and file copies only. It does not perform ELF parsing, dependency analysis, symbol extraction, disassembly, checksums, compression, or sync. All substantive binary analysis is done off-device. The JavaScript bundle can be attached alongside the ZIP; its export is also a single copy operation. No Windows helper or local Python package is required.
 
 The analysis is static and read-only. The files are inspected here after you upload them. Nothing is executed, no LIPC writes or guessed invokeAction payloads are sent, and no browser page text, cookies, account data, or history is collected by either exporter.
 
