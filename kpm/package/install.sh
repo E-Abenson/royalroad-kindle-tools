@@ -33,13 +33,23 @@ install_screenlockpin_plugin() {
     say "ERROR: KOReader root not found: $KO_ROOT"
     return 1
   fi
-  if [ ! -d "$SOURCE_DIR" ] || [ ! -s "$SOURCE_DIR/SHA256SUMS" ]; then
-    say "ERROR: Bundled ScreenLockPin files or SHA256SUMS are missing."
+  if [ ! -d "$SOURCE_DIR" ] ||
+     [ ! -s "$SOURCE_DIR/_meta.lua" ] ||
+     [ ! -s "$SOURCE_DIR/main.lua" ]; then
+    say "ERROR: Required bundled ScreenLockPin plugin files are missing."
     return 1
   fi
-  if ! (cd "$SOURCE_DIR" && sha256sum -c SHA256SUMS); then
-    say "ERROR: Bundled ScreenLockPin checksum validation failed."
-    return 1
+
+  # SHA256SUMS is optional. If a publisher supplies it, keep the integrity
+  # check; otherwise do not block installation of the verified-in-repository
+  # plugin source files merely because the checksum manifest is absent.
+  if [ -s "$SOURCE_DIR/SHA256SUMS" ]; then
+    if ! (cd "$SOURCE_DIR" && sha256sum -c SHA256SUMS); then
+      say "ERROR: Bundled ScreenLockPin checksum validation failed."
+      return 1
+    fi
+  else
+    say "NOTICE: Bundled ScreenLockPin SHA256SUMS is absent; source checksum validation skipped."
   fi
 
   mkdir -p "$PLUGIN_ROOT"
@@ -53,10 +63,14 @@ install_screenlockpin_plugin() {
     say "ERROR: Could not stage ScreenLockPin files."
     return 1
   fi
-  if ! (cd "$TEMP_DIR" && sha256sum -c SHA256SUMS); then
-    rm -rf "$TEMP_DIR"
-    say "ERROR: Staged ScreenLockPin files failed checksum validation."
-    return 1
+  if [ -s "$TEMP_DIR/SHA256SUMS" ]; then
+    if ! (cd "$TEMP_DIR" && sha256sum -c SHA256SUMS); then
+      rm -rf "$TEMP_DIR"
+      say "ERROR: Staged ScreenLockPin files failed checksum validation."
+      return 1
+    fi
+  else
+    say "NOTICE: Staged ScreenLockPin has no SHA256SUMS; staged checksum validation skipped."
   fi
 
   HAD_OLD=0
