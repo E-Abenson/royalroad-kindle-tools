@@ -20,3 +20,8 @@ Cleanup targets old browser/KPP tests, diagnostics, upload helpers, obsolete fea
 ## Optional Batch Preparation
 
 Batch Preparation is not part of the regular KPM package. Its optional repair script, patch helper, and compressed archive remain in `optional/batch-prepare/` in the repository only. They are not installed to Kindle Documents. An already-installed KOReader plugin is left untouched.
+
+
+## Experimental KPP Royal Road page-text capture
+
+The KPM package includes an experimental **KPP-Page-Text-Capture** launcher. It reads only KPP's latest-page history metadata and opens that Royal Road address in a separate GTK offscreen WebKit view to extract visible text. It does not use bookmarklets, does not inject into the running browser, and does not navigate or modify the existing browser window. The separate WebKit instance does not share KPP's cookies or login state, so authenticated pages or anti-bot challenges may prevent capture. The helper is compiled for the Kindle's ARM hard-float ABI against the matching exported firmware libraries, but it has not yet been runtime-tested on the device. See [the KPM package documentation](kpm/package/README.md) for its limitations.

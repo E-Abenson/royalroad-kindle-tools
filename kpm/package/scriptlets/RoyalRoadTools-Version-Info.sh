@@ -84,6 +84,8 @@ fi
 say "KPM updater launcher: $( [ -x "$DOCS/KPM-Update-All.sh" ] && echo present || echo missing )"
 say "Native bridge export launcher: $( [ -x "$DOCS/KPP-Native-Bridge-Export.sh" ] && echo present || echo missing )"
 say "JavaScript bundle export launcher: $( [ -x "$DOCS/KPP-JavaScript-Bundle-Export.sh" ] && echo present || echo missing )"
+say "Experimental page-text capture launcher: $( [ -x "$DOCS/KPP-Page-Text-Capture.sh" ] && echo present || echo missing )"
+say "Private ARM offscreen WebKit helper: $( [ -x "$DOCS/.royalroadtools/kpp-page-capture" ] && echo present || echo missing )"
 say ""
 
 say "KOREADER"

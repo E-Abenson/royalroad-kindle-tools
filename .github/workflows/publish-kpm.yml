@@ -38,7 +38,7 @@ jobs:
       - name: Validate every shell script
         run: |
           set -eu
-          find install kpm/package -type f -name '*.sh' -print | while IFS= read -r file; do
+          find install kpm/package scripts/native -type f -name '*.sh' -print | while IFS= read -r file; do
             echo "Checking $file"
             sh -n "$file"
           done
@@ -47,7 +47,32 @@ jobs:
           set -eu
           test -s kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
           test -s kpm/package/scriptlets/KPP-JavaScript-Bundle-Export.sh
+          test -s kpm/package/scriptlets/KPP-Page-Text-Capture.sh
+          test -s kpm/package/files/kpp-page-capture.gz
           test -s kpm/package/scriptlets/Inspect-USB-Screen.sh
+          test -s scripts/native/kpp_page_capture.c
+          test -s scripts/native/kpp_start.S
+          test -s scripts/native/build_kpp_page_capture.sh
+          grep -Fq "files/kpp-page-capture.gz" kpm/package/install.sh
+          grep -Fq "webkit_web_view_execute_script_return_str" scripts/native/kpp_page_capture.c
+          python - <<'PY'
+          import gzip
+          import struct
+          from pathlib import Path
+          blob = gzip.decompress(Path("kpm/package/files/kpp-page-capture.gz").read_bytes())
+          assert blob[:4] == b"\x7fELF", "helper is not an ELF executable"
+          assert blob[4] == 1 and blob[5] == 1, "helper must be ELF32 little-endian"
+          assert struct.unpack_from("<H", blob, 18)[0] == 40, "helper must target ARM"
+          flags = struct.unpack_from("<I", blob, 36)[0]
+          assert flags & 0x400, "helper must use ARM hard-float ABI"
+          for marker in (
+              b"gtk_offscreen_window_new",
+              b"webkit_web_view_load_uri",
+              b"webkit_web_view_execute_script_return_str",
+              b"/lib/ld-linux-armhf.so.3",
+          ):
+              assert marker in blob, "missing expected Kindle runtime linkage: " + marker.decode()
+          PY
           test ! -e kpm/package/scriptlets/Install-Rabbinic-Screensavers.sh
           test ! -e kpm/package/scriptlets/KindleBatchPrepareFix.sh
           test ! -e kpm/package/scriptlets/RoyalRoadTools-Cleanup.sh
@@ -132,6 +157,8 @@ jobs:
           grep -q 'KPP-JavaScript-Bundle-Export.sh' dist/PACKAGE-CONTENTS.txt
           grep -q 'Inspect-USB-Screen.sh' dist/PACKAGE-CONTENTS.txt
           grep -q 'KPM-Update-All.sh' dist/PACKAGE-CONTENTS.txt
+          grep -q 'KPP-Page-Text-Capture.sh' dist/PACKAGE-CONTENTS.txt
+          grep -q 'kpp-page-capture.gz' dist/PACKAGE-CONTENTS.txt
           if grep -Eiq 'KindleBatchPrepareFix.sh|kindle_batch_prepare_main.lua.gz|RoyalRoadTools-Cleanup(-Queue|-Completed)?\.txt|RoyalRoadTools-Cleanup\.log|RoyalRoadTools-Cleanup\.sh' dist/PACKAGE-CONTENTS.txt; then
             echo "Optional Batch Preparation or separate cleanup-history files found in the KPM package."
             exit 1
@@ -160,7 +187,7 @@ jobs:
         run: |
           gh release create "$RELEASE_TAG" "$PACKAGE" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools $RELEASE_VERSION" \
-            --notes "Manual KPP native-binary and Hermes JavaScript-bundle exports for offline analysis in ChatGPT; retired-artifact cleanup built into KPM-Update-All without an on-device queue or cleanup history; software-version reporting; and USB display inspection. Batch Preparation is optional and is not included in the regular package."
+            --notes "Manual KPP native-binary and Hermes JavaScript-bundle exports for offline analysis in ChatGPT; experimental separate offscreen WebKit capture of public Royal Road page text (without KPP cookies or modification of the running browser); retired-artifact cleanup built into KPM-Update-All without an on-device queue or cleanup history; software-version reporting; and USB display inspection. Batch Preparation is optional and is not included in the regular package."
       - name: Update KPM repository manifest
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
@@ -181,12 +208,12 @@ jobs:
               "manifest_version": 2,
               "id": "e-abenson",
               "name": "E-Abenson Kindle Tools",
-              "description": "KPM packages for KPP investigation exports, USB display inspection, automatic retired-artifact cleanup, version reporting, and ScreenLockPin KOReader maintenance.",
+              "description": "KPM packages for KPP investigation exports, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup, version reporting, and ScreenLockPin KOReader maintenance.",
               "packages": {
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "Manual KPP native and Hermes JavaScript exports, USB display inspection, automatic retired-artifact cleanup through KPM Update All, version reporting, and ScreenLockPin KOReader maintenance.",
+                      "description": "Manual KPP native and Hermes JavaScript exports, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup through KPM Update All, version reporting, and ScreenLockPin KOReader maintenance.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
