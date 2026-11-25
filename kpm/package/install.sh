@@ -197,6 +197,17 @@ install_scriptlet "scriptlets/KPP-JavaScript-Bundle-Export.sh" "$DOCS/KPP-JavaSc
 install_scriptlet "scriptlets/KPM-Update-All.sh" "$DOCS/KPM-Update-All.sh"
 
 install_scriptlet "scriptlets/Inspect-USB-Screen.sh" "$DOCS/Inspect-USB-Screen.sh"
+install_scriptlet "scriptlets/KPP-Page-Text-Capture.sh" "$DOCS/KPP-Page-Text-Capture.sh"
+
+# Install the firmware-matched experimental offscreen WebKit helper privately.
+CAPTURE_HELPER_TEMP="$INTERNAL_DIR/kpp-page-capture.new.$"
+if [ ! -s "files/kpp-page-capture" ]; then
+  say "ERROR: Experimental KPP page-capture helper is missing."
+  exit 1
+fi
+cp "files/kpp-page-capture" "$CAPTURE_HELPER_TEMP"
+chmod 700 "$CAPTURE_HELPER_TEMP"
+mv -f "$CAPTURE_HELPER_TEMP" "$INTERNAL_DIR/kpp-page-capture"
 install_scriptlet "scriptlets/KindleBatchPrepareFix.sh" "$DOCS/KindleBatchPrepareFix.sh"
 install_scriptlet "scriptlets/RoyalRoadTools-Version-Info.sh" "$INTERNAL_DIR/version-info.sh"
 
@@ -248,7 +259,7 @@ chmod 600 "$DOCS/.RoyalRoadTools-installed-version.txt" 2>/dev/null || true
 
 say "Cleanup runner installed privately at $INTERNAL_DIR/cleanup.sh."
 say "It runs automatically only when KPM-Update-All completes successfully."
-say "Manual launchers installed: native bridge export, JavaScript bundle export, USB display inspection, KPM updater, and plugin repair."
+say "Manual launchers installed: native bridge export, JavaScript bundle export, experimental Royal Road page-text capture, USB display inspection, KPM updater, and plugin repair."
 say "The version-report helper is private; no version-report launcher is installed."
 if sh "$INTERNAL_DIR/version-info.sh"; then
   say "SUCCESS — Kindle-Version-Report.txt was regenerated."
