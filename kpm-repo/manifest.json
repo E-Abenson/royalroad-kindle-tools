@@ -22,6 +22,25 @@
           ]
         }
       ]
+    },
+    "rav-zvi-usb-overlay-fix": {
+      "name": "Rav Zvi USB Overlay Fix",
+      "author": "E-Abenson",
+      "description": "Suppresses Kindle USB charging and not-charging overlay icons and USB screen text while preserving the existing custom USB background image. Includes backups and a restore script.",
+      "artifacts": [
+        {
+          "url": "https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/main/kpm-repo/packages/rav-zvi-usb-overlay-fix_1.0.0_kindlehf.kpkg",
+          "version": [
+            1,
+            0,
+            0
+          ],
+          "dependencies": [],
+          "supported_platforms": [
+            "kindlehf"
+          ]
+        }
+      ]
     }
   }
 }
