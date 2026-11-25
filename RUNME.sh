@@ -10,7 +10,7 @@ KPM="/var/local/kmc/bin/kpm"
 REPO_ID="e-abenson"
 REPO_URL="https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/main/kpm-repo/manifest.json"
 PACKAGE_ID="royalroad-kindle-tools"
-EXPECTED_INDEX_LINE="indexing artifact royalroad-kindle-tools (0.1.124)"
+EXPECTED_INDEX_LINE="indexing artifact royalroad-kindle-tools (0.1.125)"
 LOG="$DOCS/KPM-Repair-Reinstall.log"
 BACKUP_DIR=""
 PLUGIN_DIR="/mnt/us/koreader/plugins/screenlockpin.koplugin"
@@ -88,7 +88,7 @@ say "KPM REPAIR — ROYAL ROAD KINDLE TOOLS"
 say "Started: $(date)"
 say "KPM executable: $KPM"
 say "Target package: $PACKAGE_ID"
-say "Expected published version: 0.1.124"
+say "Expected published version: 0.1.125"
 say "No other KPM package or registered repository will be changed."
 say "============================================================"
 show "KPM REPAIR STARTING" "Refreshing and reinstalling Royal Road Tools."
@@ -154,22 +154,35 @@ if ! grep -Fq "$EXPECTED_INDEX_LINE" "$LOG"; then
 fi
 
 if ! grep -Fq "$EXPECTED_INDEX_LINE" "$LOG"; then
-  fail "KPM still does not index artifact version 0.1.124. No package installation was attempted."
+  fail "KPM still does not index artifact version 0.1.125. No package installation was attempted."
 fi
-say "Confirmed: the KPM index contains Royal Road Kindle Tools 0.1.124."
+say "Confirmed: the KPM index contains Royal Road Kindle Tools 0.1.125."
 
 say ""
 say "STEP 3 — Reinstalling Royal Road Kindle Tools through KPM."
 say "KPM install is its built-in reinstall/upgrade operation. It replaces this package's old cached directory."
 say "No KPM uninstall is being run; that avoids deleting user files and the existing KOReader settings."
-show "INSTALLING KPM PACKAGE" "Royal Road Kindle Tools v0.1.124"
+show "INSTALLING KPM PACKAGE" "Royal Road Kindle Tools v0.1.125"
 
 if ! "$KPM" -d -y install "$PACKAGE_ID"; then
   fail "KPM could not complete the package reinstall. See the detailed output above."
 fi
 
 say ""
-say "STEP 4 — Verifying the installation."
+say "STEP 4 — Refreshing the software version report after KPM has exited."
+REPORT_HELPER="$DOCS/.royalroadtools/version-info.sh"
+if [ -x "$REPORT_HELPER" ]; then
+  if sh "$REPORT_HELPER"; then
+    say "SUCCESS: Kindle-Version-Report.txt was regenerated."
+  else
+    say "WARNING: Package installed, but the software version report could not be regenerated."
+  fi
+else
+  say "WARNING: The private version-report helper was not installed."
+fi
+
+say ""
+say "STEP 5 — Verifying the installation."
 MISSING=0
 for NAME in \
   KPP-Native-Bridge-Export.sh \
@@ -209,10 +222,10 @@ fi
 restore_backups
 rm -rf "$BACKUP_DIR"
 say ""
-say "SUCCESS — Royal Road Kindle Tools 0.1.124 is installed and verified."
+say "SUCCESS — Royal Road Kindle Tools 0.1.125 is installed and verified."
 say "The registered KPM repositories and all other KPM packages were left alone."
 say "The full log is: $LOG"
 say "Finished: $(date)"
 sync 2>/dev/null || true
-show "KPM REPAIR COMPLETE" "Installed v0.1.124. Log in Documents."
+show "KPM REPAIR COMPLETE" "Installed v0.1.125. Log in Documents."
 exit 0
