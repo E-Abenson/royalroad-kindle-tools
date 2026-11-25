@@ -201,11 +201,15 @@ install_scriptlet "scriptlets/KPP-Page-Text-Capture.sh" "$DOCS/KPP-Page-Text-Cap
 
 # Install the firmware-matched experimental offscreen WebKit helper privately.
 CAPTURE_HELPER_TEMP="$INTERNAL_DIR/kpp-page-capture.new.$"
-if [ ! -s "files/kpp-page-capture" ]; then
-  say "ERROR: Experimental KPP page-capture helper is missing."
+if [ ! -s "files/kpp-page-capture.gz" ] || ! gzip -t "files/kpp-page-capture.gz"; then
+  say "ERROR: Experimental KPP page-capture helper archive is missing or corrupt."
   exit 1
 fi
-cp "files/kpp-page-capture" "$CAPTURE_HELPER_TEMP"
+if ! gzip -dc "files/kpp-page-capture.gz" > "$CAPTURE_HELPER_TEMP" || [ ! -s "$CAPTURE_HELPER_TEMP" ]; then
+  rm -f "$CAPTURE_HELPER_TEMP"
+  say "ERROR: Could not unpack the experimental KPP page-capture helper."
+  exit 1
+fi
 chmod 700 "$CAPTURE_HELPER_TEMP"
 mv -f "$CAPTURE_HELPER_TEMP" "$INTERNAL_DIR/kpp-page-capture"
 install_scriptlet "scriptlets/KindleBatchPrepareFix.sh" "$DOCS/KindleBatchPrepareFix.sh"
