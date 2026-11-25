@@ -50,8 +50,6 @@ jobs:
           test -s kpm/package/scriptlets/KPP-Page-Text-Capture.sh
           test -s kpm/package/files/kpp-page-capture.gz
           test -s kpm/package/scriptlets/Inspect-USB-Screen.sh
-          test -s kpm/package/scriptlets/KPP-Page-Text-Capture.sh
-          test -s kpm/package/files/kpp-page-capture.gz
           test -s scripts/native/kpp_page_capture.c
           test -s scripts/native/kpp_start.S
           test -s scripts/native/build_kpp_page_capture.sh
@@ -62,7 +60,7 @@ jobs:
           import struct
           from pathlib import Path
           blob = gzip.decompress(Path("kpm/package/files/kpp-page-capture.gz").read_bytes())
-          assert blob[:4] == b"\\x7fELF", "helper is not an ELF executable"
+          assert blob[:4] == b"\x7fELF", "helper is not an ELF executable"
           assert blob[4] == 1 and blob[5] == 1, "helper must be ELF32 little-endian"
           assert struct.unpack_from("<H", blob, 18)[0] == 40, "helper must target ARM"
           flags = struct.unpack_from("<I", blob, 36)[0]
