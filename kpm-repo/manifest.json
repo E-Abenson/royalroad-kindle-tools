@@ -16,7 +16,16 @@
             1,
             125
           ],
-          "dependencies": [],
+          "dependencies": [
+            {
+              "id": "rav-zvi-usb-overlay-fix",
+              "min": [
+                1,
+                0,
+                0
+              ]
+            }
+          ],
           "supported_platforms": [
             "kindlehf"
           ]
