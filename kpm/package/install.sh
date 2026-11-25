@@ -127,7 +127,7 @@ command -v gzip >/dev/null 2>&1 || {
   say "ERROR: gzip is required to install the experimental page-capture helper."
   exit 1
 }
-CAPTURE_HELPER_TEMP="$INTERNAL_DIR/kpp-page-capture.new.$"
+CAPTURE_HELPER_TEMP="$INTERNAL_DIR/kpp-page-capture.new.$$"
 if [ ! -s "files/kpp-page-capture.gz" ] || ! gzip -t "files/kpp-page-capture.gz"; then
   say "ERROR: Experimental KPP page-capture helper archive is missing or corrupt."
   exit 1
