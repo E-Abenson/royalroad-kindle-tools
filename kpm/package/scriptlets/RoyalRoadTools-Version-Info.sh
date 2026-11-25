@@ -91,6 +91,8 @@ else
   say "Native exporter build: unavailable"
 fi
 say "JavaScript bundle export launcher: $( [ -x "$DOCS/KPP-JavaScript-Bundle-Export.sh" ] && echo present || echo missing )"
+say "Experimental page-text capture launcher: $( [ -x "$DOCS/KPP-Page-Text-Capture.sh" ] && echo present || echo missing )"
+say "Private ARM offscreen WebKit helper: $( [ -x "$DOCS/.royalroadtools/kpp-page-capture" ] && echo present || echo missing )"
 say ""
 
 say "KOREADER"
