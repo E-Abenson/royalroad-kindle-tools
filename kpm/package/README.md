@@ -38,3 +38,14 @@ The queue removes the old bytecode-export launcher/report and the exact legacy R
 ## Version report
 
 Kindle-Version-Report.txt is generated after package installation, successful Update All, and successful Kindle Batch Preparation repair. It records device, KPM, package, KOReader, plugin, and KPP application/bundle fingerprints.
+
+
+## Experimental Royal Road page-text capture
+
+The package also installs **KPP-Page-Text-Capture** in Documents. It reads KPP's getter-only `getLastOpenPage` history metadata, accepts only an HTTPS `www.royalroad.com` address, strips query parameters, and opens that address in a separate `GtkOffscreenWindow` using the Kindle firmware's WebKitGTK library. A read-only JavaScript query tries Royal Road's chapter-content selectors and writes the resulting text to `RoyalRoad-Page-Capture-YYYYMMDD-HHMMSS.txt`.
+
+This is deliberately **not** a bookmarklet and does not inject into, attach to, or navigate the existing KPP browser process. The separate offscreen WebKit instance does not automatically share KPP's cookies, login session, or in-memory page state. Royal Road may therefore show a login or anti-bot challenge instead of the chapter. The helper waits for page text, labels whether it captured the chapter element or the full document, and fails rather than silently saving an empty result.
+
+This is an experimental first proof of concept. It was cross-compiled for the Kindle's ARM EABI5 hard-float ABI and linked against libraries in the supplied firmware export, but it has **not yet been runtime-tested on the actual Kindle**. It requires the Kindle GTK display and the matching WebKitGTK runtime. A failed attempt leaves the original browser window untouched. It does not read or export cookies, passwords, browser database rows, process memory, or other browser history entries.
+
+The reproducible native source and build recipe are in `scripts/native/`. The package stores the executable compressed as `files/kpp-page-capture.gz`; the installer validates and expands it into the private `Documents/.royalroadtools/` directory. Uninstall removes that helper and launcher but leaves any previously captured text files in Documents.
