@@ -35,8 +35,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Test the manual JavaScript bundle exporter
-        run: python -m unittest discover -s scripts/tests -v
       - name: Validate every shell script
         run: |
           set -eu
@@ -50,8 +48,16 @@ jobs:
           test -s kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
           test -s kpm/package/scriptlets/KPP-JavaScript-Bundle-Export.sh
           test -s kpm/package/scriptlets/Inspect-USB-Screen.sh
-          test -s kpm/package/scriptlets/KindleBatchPrepareFix.sh
           test ! -e kpm/package/scriptlets/Install-Rabbinic-Screensavers.sh
+          test ! -e kpm/package/scriptlets/KindleBatchPrepareFix.sh
+          test ! -e kpm/package/scriptlets/RoyalRoadTools-Cleanup.sh
+          test ! -e kpm/package/scriptlets/RoyalRoadTools-Cleanup-Queue.txt
+          test ! -e kpm/package/files/kindle_batch_prepare_main.lua.gz
+          test ! -d scripts/tests
+          test -s optional/batch-prepare/KindleBatchPrepareFix.sh
+          test -s optional/batch-prepare/kindle_batch_prepare_main.lua.gz
+          ! grep -Fq "KindleBatchPrepareFix.sh" kpm/package/install.sh
+          grep -Fq "cleanup_retired_files()" kpm/package/scriptlets/KPM-Update-All.sh
           test ! -e kpm/build_koreader_screensavers.py
           test ! -d kpm/assets
           test ! -d pc-tools
@@ -68,16 +74,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
-      - name: Patch Kindle Batch Preparation controls
-        run: python scripts/patch_batch_controls.py
       - name: Validate package inputs
         run: |
           set -eu
-          test -s kpm/package/files/kindle_batch_prepare_main.lua.gz
           test -s kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
           test -s kpm/package/scriptlets/KPP-JavaScript-Bundle-Export.sh
-          test -s kpm/package/scriptlets/RoyalRoadTools-Cleanup.sh
-          test -s kpm/package/scriptlets/RoyalRoadTools-Cleanup-Queue.txt
           test ! -e kpm/package/scriptlets/Install-Rabbinic-Screensavers.sh
           test ! -d pc-tools
           test ! -d kpm/assets
@@ -127,12 +128,14 @@ jobs:
           test -n "$PACKAGE"
           tar -tzf "$PACKAGE" > dist/PACKAGE-CONTENTS.txt
           grep -qx 'manifest.json' dist/PACKAGE-CONTENTS.txt
-          grep -q 'kindle_batch_prepare_main.lua.gz' dist/PACKAGE-CONTENTS.txt
           grep -q 'KPP-Native-Bridge-Export.sh' dist/PACKAGE-CONTENTS.txt
           grep -q 'KPP-JavaScript-Bundle-Export.sh' dist/PACKAGE-CONTENTS.txt
           grep -q 'Inspect-USB-Screen.sh' dist/PACKAGE-CONTENTS.txt
-          grep -q 'KindleBatchPrepareFix.sh' dist/PACKAGE-CONTENTS.txt
-          grep -q 'RoyalRoadTools-Cleanup-Queue.txt' dist/PACKAGE-CONTENTS.txt
+          grep -q 'KPM-Update-All.sh' dist/PACKAGE-CONTENTS.txt
+          if grep -Eiq 'KindleBatchPrepareFix.sh|kindle_batch_prepare_main.lua.gz|RoyalRoadTools-Cleanup(-Queue|-Completed)?\.txt|RoyalRoadTools-Cleanup\.log|RoyalRoadTools-Cleanup\.sh' dist/PACKAGE-CONTENTS.txt; then
+            echo "Optional Batch Preparation or separate cleanup-history files found in the KPM package."
+            exit 1
+          fi
           grep -q 'screenlockpin.koplugin/plugin/util/screensaverutil.lua' dist/PACKAGE-CONTENTS.txt
           if grep -Eiq '(^|/)(koreader-screensavers-inverted|Install-Rabbinic-Screensavers|RR-KPP-Bytecode-Export|native-bridge-inspector|kpp-disassembler)(/|$)|chofetz-inverted|pc-tools' dist/PACKAGE-CONTENTS.txt; then
             echo "A retired project screensaver asset or Windows-only helper was included in the KPM package."
@@ -157,7 +160,7 @@ jobs:
         run: |
           gh release create "$RELEASE_TAG" "$PACKAGE" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools $RELEASE_VERSION" \
-            --notes "Manual KPP native-binary and Hermes JavaScript-bundle exports for offline analysis in ChatGPT; automatic cleanup and software-version reporting; USB display inspection; and KOReader Kindle Batch Preparation maintenance. The package no longer includes Windows-only analysis tools or the former project-managed Rabbinic sleep-screen assets."
+            --notes "Manual KPP native-binary and Hermes JavaScript-bundle exports for offline analysis in ChatGPT; retired-artifact cleanup built into KPM-Update-All without an on-device queue or cleanup history; software-version reporting; and USB display inspection. Batch Preparation is optional and is not included in the regular package."
       - name: Update KPM repository manifest
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
@@ -178,21 +181,25 @@ jobs:
               "manifest_version": 2,
               "id": "e-abenson",
               "name": "E-Abenson Kindle Tools",
-              "description": "KPM packages for read-only KPP native and Hermes bundle export, automatic cleanup/version reporting, USB display inspection, and KOReader maintenance.",
+              "description": "KPM packages for KPP investigation exports, USB display inspection, automatic retired-artifact cleanup, version reporting, and ScreenLockPin KOReader maintenance.",
               "packages": {
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "Manual KPP native and Hermes JavaScript-bundle export for offline analysis in ChatGPT, automatic cleanup/version reporting, USB display inspection, and KOReader maintenance.",
+                      "description": "Manual KPP native and Hermes JavaScript exports, USB display inspection, automatic retired-artifact cleanup through KPM Update All, version reporting, and ScreenLockPin KOReader maintenance.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
-                          "dependencies": [],
+                          "dependencies": [{"id": "rav-zvi-usb-overlay-fix", "min": [1, 0, 0]}],
                           "supported_platforms": ["kindlehf"]
                       }]
                   }
               }
           }
+          previous_index = json.load(open("kpm-repo/manifest.json", encoding="utf-8"))
+          overlay_package = previous_index.get("packages", {}).get("rav-zvi-usb-overlay-fix")
+          if overlay_package:
+              manifest["packages"]["rav-zvi-usb-overlay-fix"] = overlay_package
           with open("kpm-repo/manifest.json", "w", encoding="utf-8") as f:
               json.dump(manifest, f, indent=2)
               f.write("\n")
