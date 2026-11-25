@@ -20,7 +20,7 @@ class KPPPageCapturePackageTests(unittest.TestCase):
     def test_helper_is_arm32_hard_float_and_uses_kindles_webkit_extension(self):
         data = gzip.decompress(BINARY_GZ.read_bytes())
         self.assertGreater(len(data), 1024)
-        self.assertEqual(data[:4], b"\\x7fELF")
+        self.assertEqual(data[:4], b"\x7fELF")
         self.assertEqual(data[4], 1, "must be ELF32")
         self.assertEqual(data[5], 1, "must be little-endian")
         machine = struct.unpack_from("<H", data, 18)[0]
@@ -74,7 +74,7 @@ class KPPPageCapturePackageTests(unittest.TestCase):
         self.assertIn("kpp-page-capture", version)
         self.assertIn("does not automatically share KPP's cookies", readme)
         self.assertIn("not yet been runtime-tested", readme)
-        self.assertIn("does not use bookmarklets", readme.lower())
+        self.assertIn("not a bookmarklet", readme.lower())
 
     def test_reproducible_build_script_syntax(self):
         result = subprocess.run(["sh", "-n", str(BUILD)], capture_output=True, text=True)
