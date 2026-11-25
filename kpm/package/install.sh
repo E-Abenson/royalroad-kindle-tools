@@ -5,6 +5,14 @@ set -e
 DOCS="/mnt/us/documents"
 INTERNAL_DIR="$DOCS/.royalroadtools"
 mkdir -p "$DOCS" "$INTERNAL_DIR"
+# One-time migration from the former queue-based cleaner. This package install
+# hook runs during KPM Update All, so legacy cleanup state is removed without
+# installing a separate cleaner or creating replacement state files.
+rm -f "$DOCS/RoyalRoadTools-Cleanup.sh" \
+  "$DOCS/RoyalRoadTools-Cleanup-Queue.txt" \
+  "$DOCS/RoyalRoadTools-Cleanup-Completed.txt" \
+  "$DOCS/RoyalRoadTools-Cleanup.log" \
+  "$INTERNAL_DIR/cleanup.sh"
 say() { printf '%s\n' "$*"; }
 
 install_scriptlet() {
