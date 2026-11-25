@@ -200,7 +200,7 @@ install_scriptlet "scriptlets/Inspect-USB-Screen.sh" "$DOCS/Inspect-USB-Screen.s
 install_scriptlet "scriptlets/KPP-Page-Text-Capture.sh" "$DOCS/KPP-Page-Text-Capture.sh"
 
 # Install the firmware-matched experimental offscreen WebKit helper privately.
-CAPTURE_HELPER_TEMP="$INTERNAL_DIR/kpp-page-capture.new.$"
+CAPTURE_HELPER_TEMP="$INTERNAL_DIR/kpp-page-capture.new.$$"
 if [ ! -s "files/kpp-page-capture.gz" ] || ! gzip -t "files/kpp-page-capture.gz"; then
   say "ERROR: Experimental KPP page-capture helper archive is missing or corrupt."
   exit 1
