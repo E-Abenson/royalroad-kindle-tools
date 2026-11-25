@@ -120,6 +120,25 @@ install_scriptlet "scriptlets/KPP-Native-Bridge-Export.sh" "$DOCS/KPP-Native-Bri
 install_scriptlet "scriptlets/KPP-JavaScript-Bundle-Export.sh" "$DOCS/KPP-JavaScript-Bundle-Export.sh"
 install_scriptlet "scriptlets/KPM-Update-All.sh" "$DOCS/KPM-Update-All.sh"
 install_scriptlet "scriptlets/Inspect-USB-Screen.sh" "$DOCS/Inspect-USB-Screen.sh"
+install_scriptlet "scriptlets/KPP-Page-Text-Capture.sh" "$DOCS/KPP-Page-Text-Capture.sh"
+
+# Install the firmware-matched experimental offscreen WebKit helper privately.
+command -v gzip >/dev/null 2>&1 || {
+  say "ERROR: gzip is required to install the experimental page-capture helper."
+  exit 1
+}
+CAPTURE_HELPER_TEMP="$INTERNAL_DIR/kpp-page-capture.new.$"
+if [ ! -s "files/kpp-page-capture.gz" ] || ! gzip -t "files/kpp-page-capture.gz"; then
+  say "ERROR: Experimental KPP page-capture helper archive is missing or corrupt."
+  exit 1
+fi
+if ! gzip -dc "files/kpp-page-capture.gz" > "$CAPTURE_HELPER_TEMP" || [ ! -s "$CAPTURE_HELPER_TEMP" ]; then
+  rm -f "$CAPTURE_HELPER_TEMP"
+  say "ERROR: Could not unpack the experimental KPP page-capture helper."
+  exit 1
+fi
+chmod 700 "$CAPTURE_HELPER_TEMP"
+mv -f "$CAPTURE_HELPER_TEMP" "$INTERNAL_DIR/kpp-page-capture"
 install_scriptlet "scriptlets/RoyalRoadTools-Version-Info.sh" "$INTERNAL_DIR/version-info.sh"
 
 install_screenlockpin_plugin
@@ -164,7 +183,7 @@ CLEANUP_HANDOFF
 chmod 700 "$INTERNAL_DIR/cleanup.sh"
 
 say "Retired-artifact cleanup is built into KPM-Update-All; no cleanup files are installed."
-say "Manual launchers installed: native bridge export, JavaScript bundle export, USB display inspection, and KPM updater."
+say "Manual launchers installed: native bridge export, JavaScript bundle export, experimental Royal Road page-text capture, USB display inspection, and KPM updater."
 say "The version-report helper is private; no version-report launcher is installed."
 say "The version report is refreshed after KPM exits, not from inside the KPM install hook."
 say "No diagnostic, native export, or report upload was executed by installation."
