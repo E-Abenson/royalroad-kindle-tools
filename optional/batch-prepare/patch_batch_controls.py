@@ -5,7 +5,7 @@ import gzip
 import re
 from pathlib import Path
 
-path = Path("kpm/package/files/kindle_batch_prepare_main.lua.gz")
+path = Path(__file__).resolve().parent / "kindle_batch_prepare_main.lua.gz"
 source = gzip.decompress(path.read_bytes()).decode("utf-8")
 
 

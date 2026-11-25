@@ -19,7 +19,8 @@ for ITEM in RR-KPP-Interface-Inspector.sh RR-KPP-Interface-Inspector-Upload.sh R
   rm -f "$DOCS/$ITEM"
 done
 for ITEM in Kindle-Version-Report.txt .RoyalRoadTools-installed-version.txt \
-  RoyalRoadTools-Cleanup.log RR-KPP-Interface-Inspector.log \
+  RoyalRoadTools-Cleanup.log RoyalRoadTools-Cleanup-Queue.txt RoyalRoadTools-Cleanup-Completed.txt \
+  RR-KPP-Interface-Inspector.log \
   RR-LIPC-READONLY-PROBE.log RR-LIPC-READONLY-UPLOAD-URL.txt \
   KPP-Bytecode-Export.txt KPP-JavaScript-Bundle-Export.txt KPPMainApp.js.hbc \
   .RR-KPP-Interface-Inspector-delete-url.txt \
@@ -28,7 +29,7 @@ for ITEM in Kindle-Version-Report.txt .RoyalRoadTools-installed-version.txt \
   .USB-Screen-Inspection-delete-url.txt; do
   rm -f "$DOCS/$ITEM"
 done
-rm -f "$DOCS/.royalroadtools/version-info.sh" \
+rm -f "$DOCS/.royalroadtools/version-info.sh" "$DOCS/.royalroadtools/cleanup.sh" \
   "$DOCS/.royalroadtools/bytecode-export.sh" \
   "$DOCS/.royalroadtools/inspector-upload.sh" \
   "$DOCS/.rr-kpp-research/KPPMainApp.js.hbc"

@@ -3,7 +3,7 @@
   "id": "royalroad-kindle-tools",
   "name": "Royal Road Kindle Tools",
   "author": "E-Abenson",
-  "description": "Manual read-only KPP native executable and Hermes JavaScript-bundle export, USB display inspection, automatic cleanup/version reporting, and KOReader Kindle Batch Preparation maintenance.",
+  "description": "KPP native and Hermes JavaScript export, USB display inspection, automatic retired-artifact cleanup through KPM Update All, version reporting, and ScreenLockPin KOReader maintenance.",
   "version": [
     0,
     1,

@@ -2,12 +2,12 @@
   "manifest_version": 2,
   "id": "e-abenson",
   "name": "E-Abenson Kindle Tools",
-  "description": "KPM packages for read-only KPP native and Hermes bundle export, automatic cleanup/version reporting, USB display inspection, and KOReader maintenance.",
+  "description": "KPM packages for KPP investigation exports, USB display inspection, automatic retired-artifact cleanup, version reporting, and ScreenLockPin KOReader maintenance.",
   "packages": {
     "royalroad-kindle-tools": {
       "name": "Royal Road Kindle Tools",
       "author": "E-Abenson",
-      "description": "Manual KPP native and Hermes JavaScript-bundle export for offline analysis in ChatGPT, automatic cleanup/version reporting, USB display inspection, and KOReader maintenance.",
+      "description": "Manual KPP native and Hermes JavaScript exports, USB display inspection, automatic retired-artifact cleanup through KPM Update All, version reporting, and ScreenLockPin KOReader maintenance.",
       "artifacts": [
         {
           "url": "https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/main/kpm-repo/packages/royalroad-kindle-tools_0.1.126_kindlehf.kpkg",

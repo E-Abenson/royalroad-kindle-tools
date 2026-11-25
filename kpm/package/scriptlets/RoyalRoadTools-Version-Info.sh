@@ -1,6 +1,6 @@
 #!/bin/sh
 # Name: Kindle-Version-Report
-# Report build: 2.0
+# Report build: 2.1
 # Manual launcher: refreshes a readable software inventory on the Kindle.
 
 DOCS="/mnt/us/documents"
@@ -94,86 +94,20 @@ else
 fi
 say ""
 
-say "KINDLE BATCH PREPARATION — KOReader PLUGIN"
+say "OPTIONAL KOReader PLUGIN — KINDLE BATCH PREPARATION"
+say "Management: not installed, repaired, or updated by this KPM package."
 PLUGIN_DIR=""
-if [ -d "$PLUGIN_ACTIVE" ]; then
-  PLUGIN_DIR="$PLUGIN_ACTIVE"
-  say "Plugin status: Active"
-elif [ -d "$PLUGIN_DISABLED" ]; then
-  PLUGIN_DIR="$PLUGIN_DISABLED"
-  say "Plugin status: Present but disabled"
-else
-  say "Plugin status: Not found at the expected path"
-fi
+if [ -d "$PLUGIN_ACTIVE" ]; then PLUGIN_DIR="$PLUGIN_ACTIVE"; say "Plugin status: Active"
+elif [ -d "$PLUGIN_DISABLED" ]; then PLUGIN_DIR="$PLUGIN_DISABLED"; say "Plugin status: Present but disabled"
+else say "Plugin status: Not installed at the expected path"; fi
 if [ -n "$PLUGIN_DIR" ]; then
-  META="$PLUGIN_DIR/_meta.lua"
-  MAIN="$PLUGIN_DIR/main.lua"
+  META="$PLUGIN_DIR/_meta.lua"; MAIN="$PLUGIN_DIR/main.lua"
   if [ -r "$META" ]; then
     PLUGIN_VERSION="$(sed -n 's/^[[:space:]]*version[[:space:]]*=[[:space:]]*"\([^"]*\)".*/\1/p' "$META" | head -n 1)"
     say "Plugin metadata version: ${PLUGIN_VERSION:-not declared}"
-  else
-    say "Plugin metadata: _meta.lua missing"
-  fi
+  else say "Plugin metadata: _meta.lua missing"; fi
   say "Installed main.lua fingerprint: $(fingerprint "$MAIN")"
-  if grep -Fq 'text = _("Prepare Kindle books for KOReader")' "$MAIN"; then
-    say "Batch button label: updated (Prepare Kindle books for KOReader)"
-  elif grep -Fq 'text = _("Prepare all Kindle books for KOReader")' "$MAIN"; then
-    say "Batch button label: OLD — repair did not install the updated label"
-  else
-    say "Batch button label: unknown — expected text not found"
-  fi
-  if [ -r "$MAIN" ] && grep -Fq 'KOREADER_BATCH_PREPARE_MENU_FIX_V6' "$MAIN"; then
-    say "Plugin source revision: V6 (selectable batch limit, responsive controls, staged EPUB output)"
-  elif [ -r "$MAIN" ]; then
-    say "Plugin source revision: older than V6 or unverified"
-  else
-    say "main.lua: missing"
-  fi
-
-  HELPER="$KO_ROOT/plugins/kindle.koplugin/dist/kindle_helper.py"
-  YJ_BOOK="$KO_ROOT/plugins/kindle.koplugin/dist/kfxlib/yj_book.py"
-  if [ -r "$HELPER" ] && grep -Fq '# KOREADER_BATCH_PREPARE_V2' "$HELPER"; then
-    say "Converter helper: V2 (pause checkpoints)"
-    if grep -Fq 'self.pause_file' "$HELPER" && grep -Fq -- '--pause-file' "$HELPER"; then
-      say "Pause/resume helper support: present"
-    else
-      say "Pause/resume helper support: marker present but implementation check failed"
-    fi
-  elif [ -r "$HELPER" ] && grep -Fq '# KOREADER_BATCH_PREPARE_V1' "$HELPER"; then
-    say "Converter helper: V1 (old progress/cancel build; pause migration needed)"
-  elif [ -r "$HELPER" ]; then
-    say "Converter helper: installed, but patch version unrecognized"
-  else
-    say "Converter helper: not found"
-  fi
-  if [ -r "$YJ_BOOK" ] && grep -Fq 'KOREADER_BATCH_PREPARE_PROGRESS_V1' "$YJ_BOOK"; then
-    say "KFX decoder progress support: present"
-  elif [ -r "$YJ_BOOK" ]; then
-    say "KFX decoder progress support: not found"
-  else
-    say "KFX decoder source: not found"
-  fi
-  if [ -r "$MAIN" ] && grep -Fq 'function PLUGIN:createBatchLimitMenuItem()' "$MAIN"; then
-    say "Batch size selector: present (default maximum: one new conversion per run)"
-  elif [ -r "$MAIN" ]; then
-    say "Batch size selector: not present"
-  fi
-  if [ -r "$MAIN" ] && grep -Fq '.batch-partial.epub' "$MAIN"; then
-    say "Interrupted-output protection: staged EPUB before final cache commit"
-  elif [ -r "$MAIN" ]; then
-    say "Interrupted-output protection: not present"
-  fi
-else
-  say "Plugin code fingerprint: unavailable"
-fi
-say "Repair launcher: $( [ -x "$DOCS/KindleBatchPrepareFix.sh" ] && echo present || echo missing )"
-say "Bundled repair source fingerprint: $(fingerprint "$DOCS/KindleBatchPrepare-main.lua.gz")"
-if [ -r "$DOCS/KindleBatchPrepareFix.log" ]; then
-  LAST_FIX="$(grep -F 'SUCCESS: Kindle Batch Preparation has been installed at:' "$DOCS/KindleBatchPrepareFix.log" | tail -n 1)"
-  say "Last repair success: ${LAST_FIX:-no successful repair recorded in current log}"
-else
-  say "Last repair log: not found"
-fi
+else say "Plugin code fingerprint: unavailable"; fi
 say ""
 
 say "KPP BROWSER APPLICATION"
@@ -213,22 +147,12 @@ say "MOST RECENT MAINTENANCE RUNS"
 if [ -r "$DOCS/KPM-Update-All.log" ]; then
   LAST_UPDATE="$(grep -E 'SUCCESS — KPM upgrade completed|ERROR — KPM' "$DOCS/KPM-Update-All.log" | tail -n 1)"
   say "KPM update result: ${LAST_UPDATE:-no completion marker found}"
-else
-  say "KPM update log: not found"
-fi
-if [ -r "$DOCS/RoyalRoadTools-Cleanup.log" ]; then
-  LAST_CLEANUP="$(grep -E 'CLEANUP COMPLETE|CLEANUP PARTIAL' "$DOCS/RoyalRoadTools-Cleanup.log" | tail -n 1)"
-  say "Automatic cleanup result: ${LAST_CLEANUP:-no completion marker found}"
-else
-  say "Automatic cleanup result: log not found"
-fi
-if [ -r "$DOCS/RoyalRoadTools-Cleanup-Queue.txt" ]; then
-  PENDING_COUNT="$(awk 'NF && substr($0, 1, 1) != "#" {n++} END {print n+0}' "$DOCS/RoyalRoadTools-Cleanup-Queue.txt")"
-  say "Pending cleanup actions: ${PENDING_COUNT:-unknown}"
-fi
+  LAST_CLEANUP="$(grep -F 'Retired-artifact cleanup:' "$DOCS/KPM-Update-All.log" | tail -n 1)"
+  say "Retired-artifact cleanup: ${LAST_CLEANUP:-no cleanup summary found}"
+else say "KPM update log: not found"; fi
 say ""
 say "============================================================"
-say "This report is automatically regenerated after package installation, KPM-Update-All, and successful Kindle Batch Preparation repairs."
+say "This report is automatically regenerated after package installation and KPM-Update-All."
 say "Saved to: $OUT_FINAL"
 if ! mv -f "$OUT_TMP" "$OUT_FINAL"; then
   printf 'Could not replace version report: %s\n' "$OUT_FINAL" >&2

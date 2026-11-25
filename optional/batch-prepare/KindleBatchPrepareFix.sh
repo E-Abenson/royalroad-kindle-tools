@@ -135,9 +135,9 @@ trap 'exit 129' HUP
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-say "Using the locally bundled plugin source installed by KPM..."
+say "Using the manually staged optional plugin source archive..."
 if [ ! -s "$LOCAL_SOURCE" ]; then
-  fail 2 "Local plugin source is missing: $LOCAL_SOURCE. Run KPM-Update-All to install the bundled source, then rerun this fixer."
+  fail 2 "Local plugin source is missing: $LOCAL_SOURCE. Copy the optional archive to Kindle Documents as KindleBatchPrepare-main.lua.gz, then rerun this optional fixer."
 fi
 if ! cp "$LOCAL_SOURCE" "$ARCHIVE"; then
   fail 2 "Could not copy the local bundled plugin source."
