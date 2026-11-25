@@ -99,7 +99,7 @@ fi
 
 # Use a new backup directory on every run. A previous interrupted run or a
 # stale mount point may occupy the old fixed name, so never reuse it.
-BACKUP_DIR="$DOCS/.royalroad-kpm-repair-backup-$(date '+%Y%m%d-%H%M%S')-$"
+BACKUP_DIR="$DOCS/.royalroad-kpm-repair-backup-$(date '+%Y%m%d-%H%M%S')-$$"
 # Keep user-created exports/reports safe if KPM has to roll back a failed
 # first-time install. Successful upgrades leave these files in place.
 if ! mkdir "$BACKUP_DIR"; then
