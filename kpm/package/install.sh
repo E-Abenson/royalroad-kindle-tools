@@ -225,36 +225,57 @@ remove_pending_cleanup_entry "DOC|KPPMainApp.js.hbc"
 
 install_screenlockpin_plugin
 
-SOURCE_TEMP="$DOCS/KindleBatchPrepare-main.lua.gz.new.$"
-cp "files/kindle_batch_prepare_main.lua.gz" "$SOURCE_TEMP"
-chmod 644 "$SOURCE_TEMP"
-mv -f "$SOURCE_TEMP" "$DOCS/KindleBatchPrepare-main.lua.gz"
+say "ScreenLockPin installation step complete."
+say "Installing the bundled Kindle Batch Preparation source archive..."
+SOURCE_TEMP="$DOCS/KindleBatchPrepare-main.lua.gz.new.$$"
+if ! cp "files/kindle_batch_prepare_main.lua.gz" "$SOURCE_TEMP"; then
+  rm -f "$SOURCE_TEMP"
+  say "ERROR: Could not copy the bundled Kindle Batch Preparation source archive."
+  exit 1
+fi
+if ! chmod 644 "$SOURCE_TEMP"; then
+  rm -f "$SOURCE_TEMP"
+  say "ERROR: Could not set permissions on the bundled source archive."
+  exit 1
+fi
+if ! mv -f "$SOURCE_TEMP" "$DOCS/KindleBatchPrepare-main.lua.gz"; then
+  rm -f "$SOURCE_TEMP"
+  say "ERROR: Could not place the bundled source archive in Documents."
+  exit 1
+fi
+say "Bundled Kindle Batch Preparation source archive installed."
 
-PACKAGE_VERSION="$(awk '
-  index($0, "\"version\"") {
-    if (getline > 0) { gsub(/[^0-9]/, ""); a=$0 }
-    if (getline > 0) { gsub(/[^0-9]/, ""); b=$0 }
-    if (getline > 0) { gsub(/[^0-9]/, ""); c=$0 }
-    if (a != "" && b != "" && c != "") print a "." b "." c
-    exit
-  }
-' manifest.json)"
-[ -n "$PACKAGE_VERSION" ] || PACKAGE_VERSION="unknown"
+say "Reading the package version from manifest.json..."
+VERSION_COMPONENTS="$(sed -n '/"version"[[:space:]]*:/,/]/p' manifest.json | grep -E '^[[:space:]]*[0-9]+[[:space:],]*$' | tr -cd '0-9\n' | tr '\n' ' ')"
+set -- $VERSION_COMPONENTS
+if [ "$#" -ge 3 ]; then
+  PACKAGE_VERSION="$1.$2.$3"
+else
+  PACKAGE_VERSION="unknown"
+fi
+say "Package version resolved as: $PACKAGE_VERSION"
+
+STAMP_TEMP="$DOCS/.RoyalRoadTools-installed-version.txt.tmp.$$"
 {
   printf 'version=%s\n' "$PACKAGE_VERSION"
   printf 'installed_at=%s\n' "$(date '+%Y-%m-%d %H:%M:%S')"
-} > "$DOCS/.RoyalRoadTools-installed-version.txt"
-chmod 600 "$DOCS/.RoyalRoadTools-installed-version.txt" 2>/dev/null || true
+} > "$STAMP_TEMP"
+if ! chmod 600 "$STAMP_TEMP"; then
+  rm -f "$STAMP_TEMP"
+  say "ERROR: Could not protect the installed-version stamp."
+  exit 1
+fi
+if ! mv -f "$STAMP_TEMP" "$DOCS/.RoyalRoadTools-installed-version.txt"; then
+  rm -f "$STAMP_TEMP"
+  say "ERROR: Could not write the installed-version stamp."
+  exit 1
+fi
 
 say "Cleanup runner installed privately at $INTERNAL_DIR/cleanup.sh."
 say "It runs automatically only when KPM-Update-All completes successfully."
 say "Manual launchers installed: native bridge export, JavaScript bundle export, USB display inspection, KPM updater, and plugin repair."
 say "The version-report helper is private; no version-report launcher is installed."
-if sh "$INTERNAL_DIR/version-info.sh"; then
-  say "SUCCESS — Kindle-Version-Report.txt was regenerated."
-else
-  say "WARNING — package installed, but version report regeneration failed."
-fi
+say "The version report is refreshed after KPM exits, not from inside the KPM install hook."
 say "No diagnostic, native export, or report upload was executed by installation."
 say "Package version: $PACKAGE_VERSION"
 say "Installation complete."
