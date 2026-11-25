@@ -40,7 +40,7 @@ jobs:
       - name: Validate every shell script
         run: |
           set -eu
-          find install kpm/package -type f -name '*.sh' -print | while IFS= read -r file; do
+          find install kpm/package scripts/native -type f -name '*.sh' -print | while IFS= read -r file; do
             echo "Checking $file"
             sh -n "$file"
           done
@@ -53,6 +53,12 @@ jobs:
           test -s kpm/package/scriptlets/KPP-JavaScript-Bundle-Export.sh
           test -s kpm/package/scriptlets/Inspect-USB-Screen.sh
           test -s kpm/package/scriptlets/KindleBatchPrepareFix.sh
+          test -s kpm/package/scriptlets/KPP-Page-Text-Capture.sh
+          test -s kpm/package/files/kpp-page-capture.gz
+          test -s scripts/native/kpp_page_capture.c
+          test -s scripts/native/kpp_start.S
+          grep -Fq "files/kpp-page-capture.gz" kpm/package/install.sh
+          grep -Fq "webkit_web_view_execute_script_return_str" scripts/native/kpp_page_capture.c
           test ! -e kpm/package/scriptlets/Install-Rabbinic-Screensavers.sh
           test ! -e kpm/build_koreader_screensavers.py
           test ! -d kpm/assets
@@ -80,6 +86,8 @@ jobs:
           test -s kpm/package/scriptlets/KPP-JavaScript-Bundle-Export.sh
           test -s kpm/package/scriptlets/RoyalRoadTools-Cleanup.sh
           test -s kpm/package/scriptlets/RoyalRoadTools-Cleanup-Queue.txt
+          test -s kpm/package/scriptlets/KPP-Page-Text-Capture.sh
+          test -s kpm/package/files/kpp-page-capture.gz
           test ! -e kpm/package/scriptlets/Install-Rabbinic-Screensavers.sh
           test ! -d pc-tools
           test ! -d kpm/assets
@@ -134,6 +142,8 @@ jobs:
           grep -q 'KPP-JavaScript-Bundle-Export.sh' dist/PACKAGE-CONTENTS.txt
           grep -q 'Inspect-USB-Screen.sh' dist/PACKAGE-CONTENTS.txt
           grep -q 'KindleBatchPrepareFix.sh' dist/PACKAGE-CONTENTS.txt
+          grep -q 'KPP-Page-Text-Capture.sh' dist/PACKAGE-CONTENTS.txt
+          grep -q 'kpp-page-capture.gz' dist/PACKAGE-CONTENTS.txt
           grep -q 'RoyalRoadTools-Cleanup-Queue.txt' dist/PACKAGE-CONTENTS.txt
           grep -q 'screenlockpin.koplugin/plugin/util/screensaverutil.lua' dist/PACKAGE-CONTENTS.txt
           if grep -Eiq '(^|/)(koreader-screensavers-inverted|Install-Rabbinic-Screensavers|RR-KPP-Bytecode-Export|native-bridge-inspector|kpp-disassembler)(/|$)|chofetz-inverted|pc-tools' dist/PACKAGE-CONTENTS.txt; then
@@ -159,7 +169,7 @@ jobs:
         run: |
           gh release create "$RELEASE_TAG" "$PACKAGE" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools $RELEASE_VERSION" \
-            --notes "Comprehensive KPP native-binary (mapped files and shared-library roots) and Hermes JavaScript-bundle exports for offline analysis in ChatGPT; automatic cleanup and software-version reporting; USB display inspection; and KOReader Kindle Batch Preparation maintenance. The package no longer includes Windows-only analysis tools or the former project-managed Rabbinic sleep-screen assets."
+            --notes "Comprehensive KPP native-binary (mapped files and shared-library roots) and Hermes JavaScript-bundle exports for offline analysis in ChatGPT; automatic cleanup and software-version reporting; USB display inspection; and KOReader Kindle Batch Preparation maintenance. It also includes an experimental, separate offscreen WebKit proof of concept for extracting public Royal Road page text; this does not share KPP cookies or modify the running browser. The package no longer includes Windows-only analysis tools or the former project-managed Rabbinic sleep-screen assets."
       - name: Update KPM repository manifest
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
@@ -185,7 +195,7 @@ jobs:
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "Manual comprehensive KPP native-browser and Hermes JavaScript-bundle export for offline analysis in ChatGPT, automatic cleanup/version reporting, USB display inspection, and KOReader maintenance.",
+                      "description": "Manual comprehensive KPP native-browser and Hermes JavaScript-bundle export for offline analysis in ChatGPT, experimental offscreen Royal Road page-text capture, automatic cleanup/version reporting, USB display inspection, and KOReader maintenance.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
