@@ -8,7 +8,7 @@ LOG="$DOCS/KPM-Update-All.log"
 VERSION_REPORT="$INTERNAL/version-info.sh"
 PACKAGE_DIR="/mnt/us/kmc/kpm/packages/royalroad-kindle-tools"
 mkdir -p "$DOCS" "$INTERNAL"
-: > "$LOG"
+if [ "${1:-}" != "--cleanup-only" ]; then : > "$LOG"; fi
 say() { LINE="[$(date '+%Y-%m-%d %H:%M:%S')] $*"; printf '%s\n' "$LINE" | tee -a "$LOG"; }
 run_and_show() {
   STATUS_FILE="$INTERNAL/.KPM-Update-All-status.$$"; rm -f "$STATUS_FILE"
@@ -125,6 +125,18 @@ cleanup_retired_files() {
   say "Retired-artifact cleanup: $CLEANED old items removed; $FAILED could not be removed or verified."
   [ "$FAILED" -eq 0 ]
 }
+
+# Install-hook handoff: the regular updater calls this exact same cleanup code
+# after package files have been installed, without restarting the KPM upgrade.
+if [ "${1:-}" = "--cleanup-only" ]; then
+  say "Running the post-install retired-artifact cleanup pass..."
+  if cleanup_retired_files; then
+    say "SUCCESS — retired artifacts are absent or removed."
+    exit 0
+  fi
+  say "WARNING — some retired artifacts could not be removed or verified."
+  exit 1
+fi
 
 say "============================================================"
 say "KPM UPDATE ALL — starting"

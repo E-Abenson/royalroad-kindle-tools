@@ -151,6 +151,18 @@ if ! mv -f "$STAMP_TEMP" "$DOCS/.RoyalRoadTools-installed-version.txt"; then
   exit 1
 fi
 
+# Temporary hidden handoff for the already-running pre-upgrade Update All script.
+# The new updater performs the cleanup itself, then removes this one-use shim.
+cat > "$INTERNAL_DIR/cleanup.sh" <<'CLEANUP_HANDOFF'
+#!/bin/sh
+SELF="$0"
+sh "/mnt/us/documents/KPM-Update-All.sh" --cleanup-only
+RESULT=$?
+rm -f "$SELF"
+exit "$RESULT"
+CLEANUP_HANDOFF
+chmod 700 "$INTERNAL_DIR/cleanup.sh"
+
 say "Retired-artifact cleanup is built into KPM-Update-All; no cleanup files are installed."
 say "Manual launchers installed: native bridge export, JavaScript bundle export, USB display inspection, and KPM updater."
 say "The version-report helper is private; no version-report launcher is installed."
