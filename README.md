@@ -46,3 +46,8 @@ Cleanup targets are deliberately narrow. It never recursively deletes user folde
 The supplied native binaries expose history/settings/navigation functions, but the analysis did not identify a ready-made, supported read-only LIPC method that returns the currently displayed page's text or HTML. The React Native bridge and JavaScript bundle need to be considered together before deciding whether a documented read-only route exists.
 
 Stop on access-denial or Cloudflare challenge responses. Do not attempt CAPTCHA/proof-of-work or other access-control circumvention. Full chapter collection and EPUB creation have not been implemented.
+
+
+## Experimental KPP Royal Road page-text capture
+
+The KPM package includes an experimental **KPP-Page-Text-Capture** launcher. It reads only KPP's latest-page history metadata and opens that Royal Road address in a separate GTK offscreen WebKit view to extract visible text. It does not use bookmarklets, does not inject into the running browser, and does not navigate or modify the existing browser window. The separate WebKit instance does not share KPP's cookies or login state, so authenticated pages or anti-bot challenges may prevent capture. The helper is compiled for the Kindle's ARM hard-float ABI against the matching exported firmware libraries, but it has not yet been runtime-tested on the device. See [the KPM package documentation](kpm/package/README.md) for its limitations.
