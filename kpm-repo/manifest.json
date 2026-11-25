@@ -10,11 +10,11 @@
       "description": "Manual KPP native and Hermes JavaScript-bundle export for offline analysis in ChatGPT, automatic cleanup/version reporting, USB display inspection, and KOReader maintenance.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.125/royalroad-kindle-tools_0.1.125_kindlehf.kpkg",
+          "url": "https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/main/kpm-repo/packages/royalroad-kindle-tools_0.1.126_kindlehf.kpkg",
           "version": [
             0,
             1,
-            125
+            126
           ],
           "dependencies": [
             {
@@ -26,6 +26,18 @@
               ]
             }
           ],
+          "supported_platforms": [
+            "kindlehf"
+          ]
+        },
+        {
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.125/royalroad-kindle-tools_0.1.125_kindlehf.kpkg",
+          "version": [
+            0,
+            1,
+            125
+          ],
+          "dependencies": [],
           "supported_platforms": [
             "kindlehf"
           ]
