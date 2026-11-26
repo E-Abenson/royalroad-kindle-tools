@@ -42,6 +42,26 @@ jobs:
             echo "Checking $file"
             sh -n "$file"
           done
+      - name: Validate bundled USB overlay repository artifact
+        run: |
+          set -eu
+          curl -fsSL "https://raw.githubusercontent.com/E-Abenson/royalroad-kindle-tools/main/kpm-repo/packages/rav-zvi-usb-overlay-fix_1.0.0_kindlehf.kpkg" -o "$RUNNER_TEMP/rav-zvi-usb-overlay-fix.kpkg"
+          tar -tzf "$RUNNER_TEMP/rav-zvi-usb-overlay-fix.kpkg" > "$RUNNER_TEMP/overlay-files.txt"
+          echo "USB overlay package contents:"
+          cat "$RUNNER_TEMP/overlay-files.txt"
+          echo "Embedded USB overlay manifest:"
+          tar -xOzf "$RUNNER_TEMP/rav-zvi-usb-overlay-fix.kpkg" manifest.json
+          tar -tzf "$RUNNER_TEMP/rav-zvi-usb-overlay-fix.kpkg" | grep -qx 'manifest.json'
+          tar -tzf "$RUNNER_TEMP/rav-zvi-usb-overlay-fix.kpkg" | grep -qx 'install.sh'
+          python - "$RUNNER_TEMP/rav-zvi-usb-overlay-fix.kpkg" <<'PY'
+          import json, subprocess, sys
+          raw = subprocess.check_output(["tar", "-xOzf", sys.argv[1], "manifest.json"])
+          m = json.loads(raw)
+          assert m.get("id") == "rav-zvi-usb-overlay-fix", m
+          assert m.get("version") == [1, 0, 0], m
+          assert m.get("manifest_version") == 2, m
+          print("Verified package id/version: rav-zvi-usb-overlay-fix 1.0.0")
+          PY
       - name: Verify active launchers and retired components
         run: |
           set -eu
