@@ -10,11 +10,11 @@
       "description": "Manual KPP native and Hermes JavaScript exports, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup through KPM Update All, version reporting, and ScreenLockPin KOReader maintenance.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v0.1.129/royalroad-kindle-tools_0.1.129_kindlehf.kpkg",
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v1.1.126/royalroad-kindle-tools_1.1.126_kindlehf.kpkg",
           "version": [
-            0,
             1,
-            129
+            1,
+            126
           ],
           "dependencies": [
             {
