@@ -27,7 +27,7 @@ install_scriptlet() {
 # It deliberately does NOT run the system installer or modify bg_usbconnect.png.
 install_usb_overlay_payload() {
   OVERLAY_PACKAGE="files/rav-zvi-usb-overlay-fix.kpkg"
-  EXTRACT_DIR="$INTERNAL_DIR/usb-overlay-extract.$"
+  EXTRACT_DIR="$INTERNAL_DIR/usb-overlay-extract"
   PAYLOAD_DIR="$EXTRACT_DIR/payload"
   ASSET_DEST="$DOCS/RavZviUSBOverlayFix/assets"
 
