@@ -2,30 +2,21 @@
   "manifest_version": 2,
   "id": "e-abenson",
   "name": "E-Abenson Kindle Tools",
-  "description": "KPM packages for KPP investigation exports, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup, version reporting, and ScreenLockPin KOReader maintenance.",
+  "description": "KPM packages for KPP investigation exports, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup, version reporting, bundled Rav Zvi USB Overlay Fix staging, and ScreenLockPin KOReader maintenance.",
   "packages": {
     "royalroad-kindle-tools": {
       "name": "Royal Road Kindle Tools",
       "author": "E-Abenson",
-      "description": "Manual KPP native and Hermes JavaScript exports, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup through KPM Update All, version reporting, and ScreenLockPin KOReader maintenance.",
+      "description": "Manual KPP native and Hermes JavaScript exports, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup through KPM Update All, version reporting, bundled Rav Zvi USB Overlay Fix staging (without applying the system change), and ScreenLockPin KOReader maintenance.",
       "artifacts": [
         {
-          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v1.1.128/royalroad-kindle-tools_1.1.128_kindlehf.kpkg",
+          "url": "https://github.com/E-Abenson/royalroad-kindle-tools/releases/download/v1.1.129/royalroad-kindle-tools_1.1.129_kindlehf.kpkg",
           "version": [
             1,
             1,
-            128
+            129
           ],
-          "dependencies": [
-            {
-              "id": "rav-zvi-usb-overlay-fix",
-              "min": [
-                1,
-                0,
-                0
-              ]
-            }
-          ],
+          "dependencies": [],
           "supported_platforms": [
             "kindlehf"
           ]
