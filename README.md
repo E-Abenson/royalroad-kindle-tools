@@ -11,6 +11,10 @@ A focused KPM toolkit for read-only investigation of the Kindle's built-in KPP b
 
 The working exporters remain. Their automated export-test harness has been removed.
 
+## KPM package version compatibility
+
+Existing installations may report Royal Road Kindle Tools as **1.1.125**. KPM compares semantic version numbers, so the later-published `0.1.x` builds were numerically lower and could not replace that installation. The package version line has been restored to **1.1.126** and the publishing workflow enforces a minimum version floor of **1.1.125**, so subsequent releases continue upward and remain upgradeable through **KPM Update All**.
+
 ## KPM cleanup
 
 Cleanup is built into **KPM-Update-All** and runs only after a successful package upgrade. There is no separate cleanup launcher, hidden helper, queue, completed-items history, or cleanup log. Each run checks the fixed retirement list; absent items are skipped and retired items that reappear are removed. Only a brief count appears in the ordinary `KPM-Update-All.log`.

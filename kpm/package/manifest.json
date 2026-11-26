@@ -5,9 +5,9 @@
   "author": "E-Abenson",
   "description": "KPP native and Hermes JavaScript export, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup through KPM Update All, version reporting, and ScreenLockPin KOReader maintenance.",
   "version": [
-    0,
     1,
-    0
+    1,
+    126
   ],
   "dependencies": [],
   "supported_platforms": [
