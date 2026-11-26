@@ -68,9 +68,24 @@ jobs:
         run: |
           set -eu
           test -s kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
+          test -s kpm/package/files/rav-zvi-usb-overlay-fix.kpkg
           test -s kpm/package/scriptlets/KPP-JavaScript-Bundle-Export.sh
           test -s kpm/package/scriptlets/KPP-Page-Text-Capture.sh
           test -s kpm/package/files/kpp-page-capture.gz
+          test -s kpm/package/files/rav-zvi-usb-overlay-fix.kpkg
+          tar -tzf kpm/package/files/rav-zvi-usb-overlay-fix.kpkg | grep -qx './manifest.json'
+          tar -tzf kpm/package/files/rav-zvi-usb-overlay-fix.kpkg | grep -qx './install.sh'
+          tar -tzf kpm/package/files/rav-zvi-usb-overlay-fix.kpkg | grep -qx './payload/Install-Rav-Zvi-USB-Overlay-Fix.sh'
+          tar -tzf kpm/package/files/rav-zvi-usb-overlay-fix.kpkg | grep -qx './payload/Restore-Rav-Zvi-USB-Overlay-Fix.sh'
+          python - <<'PY'
+          import json, subprocess
+          path = "kpm/package/files/rav-zvi-usb-overlay-fix.kpkg"
+          raw = subprocess.check_output(["tar", "-xOzf", path, "./manifest.json"])
+          manifest = json.loads(raw)
+          assert manifest.get("id") == "rav-zvi-usb-overlay-fix"
+          assert manifest.get("version") == [1, 0, 0]
+          print("Bundled USB overlay component: 1.0.0")
+          PY
           test -s kpm/package/scriptlets/Inspect-USB-Screen.sh
           test -s scripts/native/kpp_page_capture.c
           test -s scripts/native/kpp_start.S
@@ -186,6 +201,7 @@ jobs:
           grep -q 'Inspect-USB-Screen.sh' dist/PACKAGE-CONTENTS.txt
           grep -q 'KPM-Update-All.sh' dist/PACKAGE-CONTENTS.txt
           grep -q 'KPP-Page-Text-Capture.sh' dist/PACKAGE-CONTENTS.txt
+          grep -q 'rav-zvi-usb-overlay-fix.kpkg' dist/PACKAGE-CONTENTS.txt
           grep -q 'kpp-page-capture.gz' dist/PACKAGE-CONTENTS.txt
           if grep -Eiq 'KindleBatchPrepareFix.sh|kindle_batch_prepare_main.lua.gz|RoyalRoadTools-Cleanup(-Queue|-Completed)?\.txt|RoyalRoadTools-Cleanup\.log|RoyalRoadTools-Cleanup\.sh' dist/PACKAGE-CONTENTS.txt; then
             echo "Optional Batch Preparation or separate cleanup-history files found in the KPM package."
@@ -245,7 +261,7 @@ jobs:
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
-                          "dependencies": [{"id": "rav-zvi-usb-overlay-fix", "min": [1, 0, 0]}],
+                          "dependencies": [],
                           "supported_platforms": ["kindlehf"]
                       }]
                   }
