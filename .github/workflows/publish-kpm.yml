@@ -141,6 +141,7 @@ jobs:
           set -eu
           test -s kpm/package/scriptlets/KPP-Native-Bridge-Export.sh
           test -s kpm/package/scriptlets/KPP-JavaScript-Bundle-Export.sh
+          test -s kpm/package/files/rav-zvi-usb-overlay-fix.kpkg
           test ! -e kpm/package/scriptlets/Install-Rabbinic-Screensavers.sh
           test ! -d pc-tools
           test ! -d kpm/assets
@@ -231,7 +232,7 @@ jobs:
         run: |
           gh release create "$RELEASE_TAG" "$PACKAGE" "dist/SHA256SUMS" \
             --title "Royal Road Kindle Tools $RELEASE_VERSION" \
-            --notes "Manual KPP native-binary and Hermes JavaScript-bundle exports for offline analysis in ChatGPT; experimental separate offscreen WebKit capture of public Royal Road page text (without KPP cookies or modification of the running browser); retired-artifact cleanup built into KPM-Update-All without an on-device queue or cleanup history; software-version reporting; and USB display inspection. Batch Preparation is optional and is not included in the regular package."
+            --notes "Manual KPP native-binary and Hermes JavaScript-bundle exports for offline analysis in ChatGPT; experimental separate offscreen WebKit capture of public Royal Road page text (without KPP cookies or modification of the running browser); retired-artifact cleanup built into KPM-Update-All without an on-device queue or cleanup history; software-version reporting; and USB display inspection; the Rav Zvi USB overlay installer and restore tools are bundled and staged without changing the existing USB background image. Batch Preparation is optional and is not included in the regular package."
       - name: Update KPM repository manifest
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         env:
@@ -252,12 +253,12 @@ jobs:
               "manifest_version": 2,
               "id": "e-abenson",
               "name": "E-Abenson Kindle Tools",
-              "description": "KPM packages for KPP investigation exports, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup, version reporting, and ScreenLockPin KOReader maintenance.",
+              "description": "KPM packages for KPP investigation exports, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup, version reporting, bundled Rav Zvi USB Overlay Fix staging, and ScreenLockPin KOReader maintenance.",
               "packages": {
                   "royalroad-kindle-tools": {
                       "name": "Royal Road Kindle Tools",
                       "author": "E-Abenson",
-                      "description": "Manual KPP native and Hermes JavaScript exports, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup through KPM Update All, version reporting, and ScreenLockPin KOReader maintenance.",
+                      "description": "Manual KPP native and Hermes JavaScript exports, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup through KPM Update All, version reporting, bundled Rav Zvi USB Overlay Fix staging (without applying the system change), and ScreenLockPin KOReader maintenance.",
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
