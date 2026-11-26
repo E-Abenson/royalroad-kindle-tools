@@ -22,6 +22,62 @@ install_scriptlet() {
 }
 
 
+# Stage the Rav Zvi USB Overlay Fix from the bundled KPKG.
+# This only stages the installer, restore script, and transparent replacement icons.
+# It deliberately does NOT run the system installer or modify bg_usbconnect.png.
+install_usb_overlay_payload() {
+  OVERLAY_PACKAGE="files/rav-zvi-usb-overlay-fix.kpkg"
+  EXTRACT_DIR="$INTERNAL_DIR/usb-overlay-extract"
+  PAYLOAD_DIR="$EXTRACT_DIR/payload"
+  ASSET_DEST="$DOCS/RavZviUSBOverlayFix/assets"
+
+  if ! command -v tar >/dev/null 2>&1; then
+    say "ERROR: tar is required to stage the bundled USB overlay files."
+    return 1
+  fi
+  if [ ! -s "$OVERLAY_PACKAGE" ] || ! tar -tzf "$OVERLAY_PACKAGE" >/dev/null 2>&1; then
+    say "ERROR: Bundled Rav Zvi USB Overlay Fix package is missing or corrupt."
+    return 1
+  fi
+
+  rm -rf "$EXTRACT_DIR"
+  if ! mkdir -p "$EXTRACT_DIR" || ! tar -xzf "$OVERLAY_PACKAGE" -C "$EXTRACT_DIR"; then
+    rm -rf "$EXTRACT_DIR"
+    say "ERROR: Could not extract the bundled Rav Zvi USB Overlay Fix package."
+    return 1
+  fi
+
+  if [ ! -s "$PAYLOAD_DIR/Install-Rav-Zvi-USB-Overlay-Fix.sh" ] ||
+     [ ! -s "$PAYLOAD_DIR/Restore-Rav-Zvi-USB-Overlay-Fix.sh" ] ||
+     [ ! -s "$PAYLOAD_DIR/RavZviUSBOverlayFix/assets/ov_default_charging.png" ] ||
+     [ ! -s "$PAYLOAD_DIR/RavZviUSBOverlayFix/assets/ov_default_notcharging.png" ]; then
+    rm -rf "$EXTRACT_DIR"
+    say "ERROR: Bundled USB overlay payload is incomplete."
+    return 1
+  fi
+
+  mkdir -p "$ASSET_DEST"
+  cp "$PAYLOAD_DIR/Install-Rav-Zvi-USB-Overlay-Fix.sh" "$DOCS/Install-Rav-Zvi-USB-Overlay-Fix.sh"
+  cp "$PAYLOAD_DIR/Restore-Rav-Zvi-USB-Overlay-Fix.sh" "$DOCS/Restore-Rav-Zvi-USB-Overlay-Fix.sh"
+  cp "$PAYLOAD_DIR/RavZviUSBOverlayFix/assets/ov_default_charging.png" "$ASSET_DEST/ov_default_charging.png"
+  cp "$PAYLOAD_DIR/RavZviUSBOverlayFix/assets/ov_default_notcharging.png" "$ASSET_DEST/ov_default_notcharging.png"
+  chmod 755 "$DOCS/Install-Rav-Zvi-USB-Overlay-Fix.sh" "$DOCS/Restore-Rav-Zvi-USB-Overlay-Fix.sh"
+  chmod 644 "$ASSET_DEST/ov_default_charging.png" "$ASSET_DEST/ov_default_notcharging.png"
+
+  {
+    printf '%s\n' "version=1.0.0"
+    printf '%s\n' "staged_at=$(date '+%Y-%m-%d %H:%M:%S')"
+    printf '%s\n' "system_overlay_applied=no"
+  } > "$INTERNAL_DIR/usb-overlay-version.txt"
+  chmod 600 "$INTERNAL_DIR/usb-overlay-version.txt"
+  rm -rf "$EXTRACT_DIR"
+
+  say "Staged Rav Zvi USB Overlay Fix v1.0.0 in Documents."
+  say "The existing bg_usbconnect.png was not included or changed."
+  say "The system overlay has not been applied; use Install-Rav-Zvi-USB-Overlay-Fix.sh when ready."
+}
+
+
 # Install the KPM-managed ScreenLockPin plugin into the existing KOReader tree.
 # Plugin PIN/settings live in KOReader's settings.reader.lua, not in this code folder.
 install_screenlockpin_plugin() {
@@ -140,6 +196,7 @@ fi
 chmod 700 "$CAPTURE_HELPER_TEMP"
 mv -f "$CAPTURE_HELPER_TEMP" "$INTERNAL_DIR/kpp-page-capture"
 install_scriptlet "scriptlets/RoyalRoadTools-Version-Info.sh" "$INTERNAL_DIR/version-info.sh"
+install_usb_overlay_payload
 
 install_screenlockpin_plugin
 

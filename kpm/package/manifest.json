@@ -3,7 +3,7 @@
   "id": "royalroad-kindle-tools",
   "name": "Royal Road Kindle Tools",
   "author": "E-Abenson",
-  "description": "KPP native and Hermes JavaScript export, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup through KPM Update All, version reporting, and ScreenLockPin KOReader maintenance.",
+  "description": "KPP native and Hermes JavaScript export, experimental offscreen Royal Road page-text capture, USB display inspection, automatic retired-artifact cleanup through KPM Update All, version reporting, bundled Rav Zvi USB Overlay Fix staging (without applying the system change), and ScreenLockPin KOReader maintenance.",
   "version": [
     1,
     1,

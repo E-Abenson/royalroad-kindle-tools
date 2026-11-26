@@ -81,6 +81,19 @@ if [ -r "$KPM_DB" ] && command -v sqlite3 >/dev/null 2>&1; then
 else
   say "Installed package version: unavailable from KPM database"
 fi
+say "RAV ZVI USB OVERLAY FIX"
+OVERLAY_STAMP="$DOCS/.royalroadtools/usb-overlay-version.txt"
+if [ -r "$OVERLAY_STAMP" ]; then
+  say "Bundled component version: $(sed -n 's/^version=//p' "$OVERLAY_STAMP" | head -n 1)"
+  say "Staging status: installer and restore files present"
+  say "System overlay applied by this package: no (user-controlled)"
+  say "Install launcher: $( [ -x "$DOCS/Install-Rav-Zvi-USB-Overlay-Fix.sh" ] && echo present || echo missing )"
+  say "Restore launcher: $( [ -x "$DOCS/Restore-Rav-Zvi-USB-Overlay-Fix.sh" ] && echo present || echo missing )"
+  say "Existing bg_usbconnect.png: left unchanged by package staging"
+else
+  say "Bundled component: not staged"
+fi
+say ""
 say "KPM updater launcher: $( [ -x "$DOCS/KPM-Update-All.sh" ] && echo present || echo missing )"
 say "Native bridge export launcher: $( [ -x "$DOCS/KPP-Native-Bridge-Export.sh" ] && echo present || echo missing )"
 say "JavaScript bundle export launcher: $( [ -x "$DOCS/KPP-JavaScript-Bundle-Export.sh" ] && echo present || echo missing )"
