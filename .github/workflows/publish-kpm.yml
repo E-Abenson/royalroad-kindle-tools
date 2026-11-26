@@ -223,7 +223,7 @@ jobs:
                       "artifacts": [{
                           "url": f"https://github.com/{repo}/releases/download/{tag}/{filename}",
                           "version": version,
-                          "dependencies": [],
+                          "dependencies": [{"id": "rav-zvi-usb-overlay-fix", "min": [1, 0, 0]}],
                           "supported_platforms": ["kindlehf"]
                       }]
                   }
