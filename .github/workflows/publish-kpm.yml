@@ -117,18 +117,24 @@ jobs:
           # Other project releases (for example, USB-screen-v1.0.0) are not
           # KPM package versions. Select the newest semantic-version tag only.
           LATEST_TAG="$(gh release list --limit 100 --json tagName --jq '[.[] | select(.tagName | test("^v?[0-9]+\\.[0-9]+\\.[0-9]+$"))][0].tagName // ""' 2>/dev/null || true)"
-          VERSION="$(python - "$LATEST_TAG" <<'PY'
+          # Compatibility floor: existing Kindles have Royal Road Kindle Tools
+          # installed as 1.1.125. KPM compares version tuples, so publishing 0.1.x
+          # is treated as older and the package is silently left untouched.
+          VERSION_FLOOR="1.1.125"
+          VERSION="$(python - "$LATEST_TAG" "$VERSION_FLOOR" <<'PY'
           import re
           import sys
-          tag = sys.argv[1].strip()
-          if not tag:
-              print("0.1.0")
-          else:
-              match = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", tag)
+          tag, floor = (arg.strip() for arg in sys.argv[1:3])
+          def parse(value):
+              match = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)", value)
               if not match:
-                  raise SystemExit("Latest KPM package tag is not semantic versioning: " + tag)
-              major, minor, patch = map(int, match.groups())
-              print(f"{major}.{minor}.{patch + 1}")
+                  raise SystemExit("Invalid semantic version: " + value)
+              return tuple(map(int, match.groups()))
+          candidates = [parse(floor)]
+          if tag:
+              candidates.append(parse(tag))
+          major, minor, patch = max(candidates)
+          print(f"{major}.{minor}.{patch + 1}")
           PY
           )"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
