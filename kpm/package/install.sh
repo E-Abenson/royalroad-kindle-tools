@@ -65,9 +65,9 @@ install_usb_overlay_payload() {
   chmod 644 "$ASSET_DEST/ov_default_charging.png" "$ASSET_DEST/ov_default_notcharging.png"
 
   {
-    printf '%s\\n' "version=1.0.0"
-    printf '%s\\n' "staged_at=$(date '+%Y-%m-%d %H:%M:%S')"
-    printf '%s\\n' "system_overlay_applied=no"
+    printf '%s\n' "version=1.0.0"
+    printf '%s\n' "staged_at=$(date '+%Y-%m-%d %H:%M:%S')"
+    printf '%s\n' "system_overlay_applied=no"
   } > "$INTERNAL_DIR/usb-overlay-version.txt"
   chmod 600 "$INTERNAL_DIR/usb-overlay-version.txt"
   rm -rf "$EXTRACT_DIR"
