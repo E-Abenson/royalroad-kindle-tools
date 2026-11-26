@@ -50,12 +50,14 @@ jobs:
           echo "USB overlay package contents:"
           cat "$RUNNER_TEMP/overlay-files.txt"
           echo "Embedded USB overlay manifest:"
-          tar -xOzf "$RUNNER_TEMP/rav-zvi-usb-overlay-fix.kpkg" manifest.json
-          tar -tzf "$RUNNER_TEMP/rav-zvi-usb-overlay-fix.kpkg" | grep -qx 'manifest.json'
-          tar -tzf "$RUNNER_TEMP/rav-zvi-usb-overlay-fix.kpkg" | grep -qx 'install.sh'
+          tar -xOzf "$RUNNER_TEMP/rav-zvi-usb-overlay-fix.kpkg" ./manifest.json
+          echo "Embedded USB overlay install hook:"
+          tar -xOzf "$RUNNER_TEMP/rav-zvi-usb-overlay-fix.kpkg" ./install.sh
+          grep -qx './manifest.json' "$RUNNER_TEMP/overlay-files.txt"
+          grep -qx './install.sh' "$RUNNER_TEMP/overlay-files.txt"
           python - "$RUNNER_TEMP/rav-zvi-usb-overlay-fix.kpkg" <<'PY'
           import json, subprocess, sys
-          raw = subprocess.check_output(["tar", "-xOzf", sys.argv[1], "manifest.json"])
+          raw = subprocess.check_output(["tar", "-xOzf", sys.argv[1], "./manifest.json"])
           m = json.loads(raw)
           assert m.get("id") == "rav-zvi-usb-overlay-fix", m
           assert m.get("version") == [1, 0, 0], m
